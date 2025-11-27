@@ -483,3 +483,30 @@ tag-bar:hover {
   background-color: var(--color-ui-dark2);
   border: white 1px solid;
 }
+
+
+/* Bigger, brighter caret */
+#Sign_Text_Div {
+    caret-color: #00ffff !important;
+}
+
+#Sign_Text_Div:focus {
+    border: 1px solid #00ffff !important;
+    box-shadow: 0 0 8px #00ffff88;
+}
+
+/* Force bold/underline styles live preview */
+.fmt-bold:checked ~ input,
+input.fmt-bold-apply {
+    font-weight: bold;
+}
+
+.fmt-underline:checked ~ input,
+input.fmt-underline-apply {
+    text-decoration: underline;
+}
+
+.fmt-italic:checked ~ input,
+input.fmt-italic-apply {
+    font-style: italic;
+}

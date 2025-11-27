@@ -50,7 +50,7 @@ let serverList = JSON.parse(localStorage.getItem("servers")) || [
 serverList[0] = { ip: "muddygame.net", name: "Holes Offical", status: "Online"};
 
 let selectedServer = null;
-let serverBrowserContainer, inputName, inputIP, inputStatus, addServerButton, serverListDiv;
+let serverBrowserContainer, inputIP, inputStatus, addServerButton, serverListDiv;
 let renderedserverBrowserContainer = false;
 
 function saveServers() {
@@ -311,13 +311,6 @@ function renderServerBrowser() {
         addServerContent.style("display", "none");  // Hide by default
         addServerContent.parent(addServerSection);
 
-        // Server Name Input
-        inputName = createInput("").attribute("placeholder", " Server Name");
-        inputName.parent(addServerContent);
-        inputName.style("width", "90%");
-        inputName.style("margin-bottom", "8px");
-        inputName.style("padding", "10px");
-        inputName.style("border-radius", "5px");
 
         // Server IP Input
         inputIP = createInput("").attribute("placeholder", " Server IP");
@@ -340,20 +333,16 @@ function renderServerBrowser() {
         // Functionality for the Add button
         addServerButton.mousePressed(() => {
             let newServer = {
-                name: inputName.value(),
                 ip: inputIP.value(),
             };
-            if (newServer.name && newServer.ip) {
+            if (newServer.ip) {
                 serverList.push(newServer);
                 saveServers();
                 renderServerList();
 
-                inputName.value("");
                 inputIP.value("");
-                alert("✅ Server Added Successfully!");
-            } else {
-                alert("⚠️ Please enter both a server name and IP.");
-            }
+                alert("✅ Server Added Successfully! Game On");
+            } 
         });
 
         // Toggle display of addServerContent on header click
@@ -4118,7 +4107,7 @@ function defineSignUI(){
     });
 
     signTextDiv = createDiv();
-    signTextDiv.id("Sign Text Div");
+    signTextDiv.id("Sign_Text_Div");
     signTextDiv.style("display", "flex");
     signTextDiv.style("flex-direction", "column");
     signTextDiv.style("margin", "10px");

@@ -25,8 +25,8 @@ function keyReleased() {
         buildMode = false;
        
         renderGhost = false;
-        if(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed"){
-            ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
+        if(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]]?.type == "Seed"){
+            ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer?.invBlock.selectedHotBar]]?.plantName, 0, 0, 0, curPlayer.color, " ", " ");
             renderGhost = true;
         }
         
