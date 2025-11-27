@@ -501,7 +501,7 @@ function renderServerList() {
             serverStatus.html(`Status: ${data.status}`);
             serverStatus.style("color", data.status === "Online" ? "#4CAF50" : "#F44336");
             serverName.html(data.name || "Unnamed Server")
-            playerCount.html(`Players: ${data.playerCount}`);
+            playerCount.html(`Players: ${data.playerCount}` +( !data.max ? ``: `/ ${data.max}`)) ;
             serverLogo.attribute("src", data.image);
 
 
@@ -646,6 +646,7 @@ function setupUI() {
     timerDiv.style("color", "white");
     timerDiv.style("text-align", "center");
     timerDiv.style("width", "100px");
+    timerDiv.style("background-color", "black");
     timerDiv.style("z-index", "10");
     timerDiv.hide();
     raceTitle = createDiv();

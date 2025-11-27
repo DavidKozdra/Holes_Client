@@ -23,7 +23,7 @@ defineShovel("Pickaxe", [[1,4]], [1,["Log",2],["Rock",3]], 1, 100, 0.2, 3, 1, "A
 defineMelee("Mush Knife", [[4,3]], [1,["Mushroom",1],["Rock",1],["Mushroom Fiber",1]], 1, 100, 25, 5, 50, 60, 90, 30, false, "A basic knife",true);
 defineMelee("Basic Sword", [[1,5]], [1,["Log",1],["Rock",3],["Mushroom Fiber",2]], 1, 100, 25, 5, 50, 60, 90, 30, false, "A basic sword for slashing",true);
 defineMelee("Better Sword", [[2,5]], [1,["Log",2],["Rock",2],["Gem",5],["Mushroom Fiber", 3]], 1, 100, 10, 5, 50, 60, 90, 10, false, "A better sword for slashing",true);
-defineMelee("Gem Sword", [[2,2]], [1,["Gem",3],["Philosopher's Stone",1],["Black Gem",2],["Tech",4]], 1, 100, 10, 5, 50, 60, 90, 10, false, "A godly sword for slashing",true);
+defineMelee("Gem Sword", [[2,2]], [1,["Gem",3],["Philosopher's Stone",1],["Black Gem",2],["Tech",4]], 1, 100, 10, 5, 50, 60, 90, 10, false, "A Green sword for slashing, really really green",true);
 defineMelee("Evil Apple on Stick", [[5,1]], [1,["Bad Apple",1],["Log",1]], 1, 100, 10, 5, 100, 60, 20, 10, false, "Now it'll bite your opponets",true);
 defineMelee("Scythe", [[3,4]], [1,["Log",2],["Rock",4],["Mushroom Fiber",1]], 1, 100, 25, 5, 50, 150, 150, 120, false, "Just gotta make sure they are on the blade",true);
 defineMelee("God's Scythe", [[3,4]], [], 1, 100, 200, 0, 100, 60, 150, 10, false, "Just gotta make sure they are on the blade",false);
@@ -65,7 +65,7 @@ function compassUse(x,y,mouseButton){}
 defineCustomItem("Compass", [[1,1]], [1,["Metal", 1],["Tech", 1]], 1, 1, "A compass that points to the nearest player", compassUse, true);
 
 function mapUse(x,y,mouseButton){}
-defineCustomItem("Map", [[0,3]], [1,["Mushroom Fiber", 3],["Gem", 1]], 1, 1, "A map that shows the world around you", mapUse, true);
+defineCustomItem("Map", [[0,3]], [1,["Mushroom Fiber", 3],["Gem", 1]], 1, 1, "A map that shows where you are in x y cords", mapUse, true);
 
 function teleportReceiverUse(x,y,mouseButton){
     if(gameState == "playing"){
@@ -78,7 +78,7 @@ function teleportReceiverUse(x,y,mouseButton){
         }
     }
 }
-defineCustomItem("Teleport Receiver", [[3,5]], [1,["Metal", 1],["Tech", 2],["Philosopher's Stone",1]], 1, 1, "A teleport receiver that teleports you to any portals with X chunks", teleportReceiverUse, true);
+defineCustomItem("Teleport Receiver", [[3,5]], [1,["Metal", 1],["Tech", 2],["Philosopher's Stone",1]], 1, 1, "A teleport receiver that teleports you to any portals with a range", teleportReceiverUse, true);
 
 function dirtBagUpgradeUse(x,y,mouseButton){
     if(curPlayer.invBlock.useTimer <= 0){
@@ -87,7 +87,7 @@ function dirtBagUpgradeUse(x,y,mouseButton){
         curPlayer.invBlock.useTimer = 30;
     }
 }
-defineCustomItem("Dirt Bag Upgrade", [[3,1]], [1,["Mushroom Fiber", 7],["Philosopher's Stone", 1]], 1, 1, "+150 to dirt bag size", dirtBagUpgradeUse, true);
+defineCustomItem("Dirt Bag Upgrade", [[3,1]], [1,["Mushroom Fiber", 7],["Philosopher's Stone", 1]], 1, 1, "+150 to dirt bag capacity", dirtBagUpgradeUse, true);
 
 
 class SimpleItem{

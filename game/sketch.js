@@ -491,7 +491,7 @@ function draw() {
         textAlign(LEFT, TOP);
         textSize(30);
         textFont(gameUIFont);
-        text("Found Portals: " + knownPortals.length, 10, 10);
+        text("Portals In Range: " + knownPortals.length, 10, 10);
         
         textAlign(CENTER, CENTER);
         text("X", width-25, 25);
