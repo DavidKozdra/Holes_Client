@@ -501,7 +501,7 @@ function renderServerList() {
             serverStatus.html(`Status: ${data.status}`);
             serverStatus.style("color", data.status === "Online" ? "#4CAF50" : "#F44336");
 
-            serverStatus.style("background-color", data.status === "Online" ? "black" : "#F44336");
+            serverStatus.style("background-color", data.status === "Online" ? "black" : "white");
             serverName.html(data.name || "Unnamed Server")
             playerCount.html(`Players: ${data.playerCount}` +( !data.max ? ``: `/ ${data.max}`)) ;
             serverLogo.attribute("src", data.image);

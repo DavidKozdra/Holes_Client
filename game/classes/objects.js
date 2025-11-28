@@ -30,8 +30,8 @@ definePlaceable("Door", [[352,64,16,32],[0,64,16,32],[32,64,16,32],[64,64,16,32]
 definePlaceable("Floor", [[352,0,32,32],[0,0,32,32],[32,0,32,32],[64,0,32,32],[96,0,32,32],[128,0,32,32],[160,0,32,32],[192,0,32,32],[224,0,32,32],[256,0,32,32],[288,0,32,32],[320,0,32,32]], [["dirt", 30]], 128, 128, 0, 100, true, true);
 definePlaceable("Rug", [[352,128,32,32],[0,128,32,32],[32,128,32,32],[64,128,32,32],[96,128,32,32],[128,128,32,32],[160,128,32,32],[192,128,32,32],[224,128,32,32],[256,128,32,32],[288,128,32,32],[320,128,32,32]], [["Mushroom Fiber", 6]], 128, 128, 1, 100, true, true);
 definePlaceable("Mug", [[385,112,8,8]], [["Rock", 1]], 32, 32, 3, 100, false, true);
-defineTrap("BearTrap", [[384,64,17,12]], [["Rock", 5]], 68, 48, 100, 50, 50, false, 15, true);
-defineTrap("LandMine", [[431,68,13,9]], [["Rock", 2], ["Bomb", 1]], 52, 36, 100, 40, 40, false, 10, true);
+defineTrap("BearTrap", [[384,64,17,12]], [["Rock", 5]], 68, 48, 100, 50, 50, false, 15, true, false);
+defineTrap("LandMine", [[431,68,13,9]], [["Rock", 2], ["Bomb", 1]], 52, 36, 100, 40, 40, false, 10, true,true);
 
 function turretUpdate(){
     if(this.hp <= 0){
@@ -163,6 +163,8 @@ function bombUpdate(){
             radius: 5,
             amt: 1
         });
+
+        //why not hurting trees ? 
 
         // Bomb hurts all objects nearby
         let chunkPos = testMap.globalToChunk(this.pos.x,this.pos.y);
@@ -806,13 +808,14 @@ class Plant extends Placeable{
 }
 
 class Trap extends Placeable{
-    constructor(objName,x,y,w,h,color,health,imgNum,id,ownerName,triggerRadius,damageRadius,digBool,damage){
+    constructor(objName,x,y,w,h,color,health,imgNum,id,ownerName,triggerRadius,damageRadius,digBool,damage,explodes){
         super(objName,x,y,w,h,0,1,color,health,imgNum,id,ownerName,false);
         this.triggerRadius = triggerRadius; //in pixels
         this.damage = damage; //how much it hurts players and objs
         this.damageRadius = damageRadius; //in pixels
         this.digBool = digBool; //does it affect dirt?
         this.type = "Trap";
+        this.explodes = explodes
     }
 
     update(){
@@ -830,6 +833,24 @@ class Trap extends Placeable{
                     curPlayer.statBlock.stats.hp -= this.damage;
                     camera.shake = {intensity: this.damage, length: 5};
                     camera.edgeBlood = 5;
+
+                    if(this.explodes){
+                            for(let i=0; i<100; i++){
+                            push();
+                            translate(
+                                -camera.pos.x + (width / 2) + this.pos.x + random((33+(6*(this.damageRadius+this.size.h)/4))/-2, (33+(6*(this.size.w+this.size.h)/4))/2), 
+                                -camera.pos.y + (height / 2) + this.pos.y + random((33+(6*(this.damageRadius+this.size.h)/4))/-2, (33+(6*(this.size.w+this.size.h)/4))/2)
+                            );
+                            rotate(random(0,360));
+                            fill(random(150,255),random(0,255),0);
+                            noStroke();
+                            square(0, 0, random(20,50));
+                            pop();
+                        }
+                    }else {
+                        console.log("NO TO EXPLODE",this.explodes)
+                    }
+                    
                     socket.emit("update_player", {
                         id: curPlayer.id,
                         pos: curPlayer.pos,
@@ -1035,7 +1056,7 @@ function createObject(name, x, y, rot, color, id, ownerName, brainID){
             return new Plant(name, x, y, objDic[name].w, objDic[name].h, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].gr, objDic[name].itemDrop);
         }
         else if(objDic[name].type == "Trap"){
-            return new Trap(name, x, y, objDic[name].w, objDic[name].h, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].tr, objDic[name].dr, objDic[name].db, objDic[name].damage);
+            return new Trap(name, x, y, objDic[name].w, objDic[name].h, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].tr, objDic[name].dr, objDic[name].db, objDic[name].damage,objDic[name].explodes );
         }
         else if(objDic[name].type == "InvObj"){
             return new InvObj(name, x, y, objDic[name].w, objDic[name].h, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].mw, objDic[name].canRotate);
@@ -1130,7 +1151,7 @@ function definePlaceable(name,imgNames,cost,width,height,zLevel,health,canRotate
  * @param {int} damage how much damage does this do to a player within the damageRadius
  * @param {boolean} inBuildList adds this obj to the build list
 */
-function defineTrap(name,imgNames,cost,width,height,health,triggerRadius,damageRadius,digBool,damage,inBuildList){
+function defineTrap(name,imgNames,cost,width,height,health,triggerRadius,damageRadius,digBool,damage,inBuildList,explodes){
     defineObjSuper("Trap",name,imgNames,cost,width,height,1,health,false,inBuildList);
     
     let paramNames = getParamNames(defineTrap);
@@ -1144,6 +1165,8 @@ function defineTrap(name,imgNames,cost,width,height,health,triggerRadius,damageR
     objDic[name].dr = damageRadius;
     objDic[name].db = digBool;
     objDic[name].damage = damage;
+
+    objDic[name].explodes = explodes;
 }
 
 /**
