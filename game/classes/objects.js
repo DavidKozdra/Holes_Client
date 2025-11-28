@@ -162,7 +162,8 @@ function bombUpdate(){
         if(chunk != undefined){
             for(let i=0; i<chunk.objects.length; i++){
                 if(chunk.objects[i].pos.dist(this.pos) < 33+(6*(this.size.w+this.size.h)/4)){
-                    if(chunk.objects[i].type == "Placeable" || chunk.objects[i].type == "Trap" || chunk.objects[i].objName == "Turret" || chunk.objects[i].type == "Entity"){
+                    console.log(chunk.objects[i].type, "???" )
+                    if(chunk.objects[i].type == "Placeable" || chunk.objects[i].type == "Trap" || chunk.objects[i].objName == "Turret" || chunk.objects[i].type == "Entity" || chunk.objects[i].type == "Plant"){
                         chunk.objects[i].hp -= ((33+(6*(this.size.w+this.size.h)/4))-chunk.objects[i].pos.dist(this.pos))/2;
                         chunk.objects[i].shake = {intensity: 10, length: 5};
                         
