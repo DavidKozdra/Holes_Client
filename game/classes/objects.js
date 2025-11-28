@@ -118,18 +118,8 @@ function bombUpdate(){
         socket.emit("new_sound", {sound: "snd_bizarreexplode.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
     }
     if(this.hp <= 3){
-        for(let i=0; i<100; i++){
-            push();
-            translate(
-                -camera.pos.x + (width / 2) + this.pos.x + random((33+(6*(this.size.w+this.size.h)/4))/-2, (33+(6*(this.size.w+this.size.h)/4))/2), 
-                -camera.pos.y + (height / 2) + this.pos.y + random((33+(6*(this.size.w+this.size.h)/4))/-2, (33+(6*(this.size.w+this.size.h)/4))/2)
-            );
-            rotate(random(0,360));
-            fill(random(150,255),random(0,255),0);
-            noStroke();
-            square(0, 0, random(20,50));
-            pop();
-        }
+   
+        createExplosion(this)
     }
     if (this.hp <= 0) {
         
@@ -835,18 +825,8 @@ class Trap extends Placeable{
                     camera.edgeBlood = 5;
 
                     if(this.explodes){
-                            for(let i=0; i<100; i++){
-                            push();
-                            translate(
-                                -camera.pos.x + (width / 2) + this.pos.x + random((33+(6*(this.damageRadius+this.size.h)/4))/-2, (33+(6*(this.size.w+this.size.h)/4))/2), 
-                                -camera.pos.y + (height / 2) + this.pos.y + random((33+(6*(this.damageRadius+this.size.h)/4))/-2, (33+(6*(this.size.w+this.size.h)/4))/2)
-                            );
-                            rotate(random(0,360));
-                            fill(random(150,255),random(0,255),0);
-                            noStroke();
-                            square(0, 0, random(20,50));
-                            pop();
-                        }
+                            createExplosion(this)
+    
                     }else {
                         console.log("NO TO EXPLODE",this.explodes)
                     }
@@ -864,6 +844,21 @@ class Trap extends Placeable{
             }
         }
     }
+}
+
+function createExplosion(origin){
+      for(let i=0; i<100; i++){
+                            push();
+                            translate(
+                                -camera.pos.x + (width / 2) + origin.pos.x + random((33+(6*(origin.size.w+origin.size.h)/4))/-2, (33+(6*(origin.size.w+origin.size.h)/4))/2), 
+                                -camera.pos.y + (height / 2) + origin.pos.y + random((33+(6*(origin.size.w+origin.size.h)/4))/-2, (33+(6*(origin.size.w+origin.size.h)/4))/2)
+                            );
+                            rotate(random(0,360));
+                            fill(random(150,255),random(0,255),0);
+                            noStroke();
+                            square(0, 0, random(20,50));
+                            pop();
+                        }
 }
 
 class InvObj extends Placeable{
