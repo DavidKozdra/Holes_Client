@@ -33,7 +33,12 @@ function keyReleased() {
     }
     if(gameState == "playing"){
         if (keyCode === Controls_Build_code){ //r
-            ghostBuild = createObject("Wall", 0, 0, 0, 0, curPlayer.id, curPlayer.name);
+           
+            let slot = curPlayer.invBlock.selectedHotBar;
+             const option = buildOptions[slot];
+             
+             console.log(option)
+            ghostBuild = createObject(option.objName , 0, 0, 0, 0, curPlayer.id, curPlayer.name);
             buildMode = !buildMode;
             renderGhost = buildMode;
 
@@ -77,10 +82,10 @@ function keyReleased() {
             togglePlayerStatusTable();
         }
 
-        if (buildMode) { // Assuming buildMode is a boolean flag, yes it is
+        if (buildMode) {
             buildDiv.show();
 
-            renderBuildOptions();
+            renderBuildOptions(); // cost and info div only
             
             const option = buildOptions.find(opt => opt.key === keyCode);
             if (option) {
