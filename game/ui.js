@@ -2287,12 +2287,34 @@ function renderPlayerCardUI() {
     fill(teamColors[curPlayer.color].r, teamColors[curPlayer.color].g, teamColors[curPlayer.color].b);
     stroke(teamColors[curPlayer.color].r, teamColors[curPlayer.color].g, teamColors[curPlayer.color].b);
     textAlign(CENTER, CENTER);
-    text(curPlayer.name, width - 530 + 6 + 45 + (350 / 2), 19);
+    nameBtn = createButton(curPlayer.name);
+
+    // Style it to look like plain text
+    nameBtn.style('background', 'none');
+    nameBtn.style('border', 'none');
+    nameBtn.style('padding', '0');
+    nameBtn.style('color', `rgb(${teamColors[curPlayer.color].r},
+                                ${teamColors[curPlayer.color].g},
+                                ${teamColors[curPlayer.color].b})`);
+    nameBtn.style('font-size', '20px');   // adjust if needed
+    nameBtn.style('cursor', 'pointer');   // so it behaves like clickable text
+
+    // Position it EXACTLY where your text was
+    let x = width - 530 + 6 + 45 + (350 / 2);
+    let y = 19;
+    nameBtn.position(x, y);
+
+    // Add onclick action
+    nameBtn.mousePressed(() => {
+        gameState = "team_select";
+        teamPickDiv.show();
+    });
 
     let box = gameUIFont.textBounds(curPlayer.name, width - 530 + 6 + 45 + (350 / 2), 19);
     line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
     pop();
 }
+
 
 var teamPickDiv;
 

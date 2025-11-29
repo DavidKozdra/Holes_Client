@@ -127,8 +127,10 @@ function giveAllItems(){
     curPlayer.invBlock.addItem("Basic SlingShot", 1, false);
     curPlayer.invBlock.addItem("Better SlingShot", 1, false);
     curPlayer.invBlock.addItem("Dirt Ball", 20, false);
-    curPlayer.invBlock.addItem("Dark Gem", 5, false);
-    curPlayer.invBlock.addItem("Philosopher Stone", 2, false);
+    //curPlayer.invBlock.addItem("Dark Gem", 5, false);
+    curPlayer.invBlock.addItem("Philosopher's Stone", 2, false);
+
+    curPlayer.invBlock.addItem("Metal", 2, false);
     curPlayer.invBlock.addItem("Mushroom Seed", 5, false);
     curPlayer.invBlock.addItem("Evil Apple on Stick", 1, false);
     curPlayer.invBlock.addItem("Rock", 20, false);

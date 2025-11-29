@@ -501,10 +501,7 @@ function mouseReleased(){
 
     if(mouseButton === LEFT){
         //if you click on the player card, open the team select ui
-        if(mouseX > width-530 && mouseX < width && mouseY > 0 && mouseY < 50){
-            gameState = "team_select";
-            teamPickDiv.show();
-        }
+        // this sucks and is lazy and causes portal and other issues 
     }
 }
 
