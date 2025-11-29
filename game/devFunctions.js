@@ -105,48 +105,15 @@ function teleportToPlayer(name){ //teleports you to another player
     return false;
 }
 
-function giveDefaultItems(){
-    curPlayer.invBlock.addItem("Basic Shovel", 1, false);
-    curPlayer.invBlock.hotbarItem("Basic Shovel", 0);
-    curPlayer.invBlock.addItem("Basic Sword", 1, false);
-    curPlayer.invBlock.hotbarItem("Basic Sword", 1);
-    curPlayer.invBlock.addItem("Basic SlingShot", 1, false);
-    curPlayer.invBlock.hotbarItem("Basic SlingShot", 2);
-    curPlayer.invBlock.addItem("Apple", 3, false);
-    curPlayer.invBlock.hotbarItem("Apple", 3);
-    curPlayer.invBlock.addItem("Mushroom Seed", 3, false);
-    curPlayer.invBlock.hotbarItem("Mushroom Seed", 4);
+function giveAllItems() {
+    // Add 100 of every item in the item dictionary
+    for (let name in itemDic) {
+        if (itemDic.hasOwnProperty(name)) {
+            curPlayer.invBlock.addItem(name, 100, false);
+        }
+    }
 }
 
-function giveAllItems(){
-    curPlayer.invBlock.addItem("Basic Shovel", 1, false);
-    curPlayer.invBlock.addItem("Better Shovel", 1, false);
-    curPlayer.invBlock.addItem("God Shovel", 1, false);
-    curPlayer.invBlock.addItem("Basic Sword", 1, false);
-    curPlayer.invBlock.addItem("Better Sword", 1, false);
-    curPlayer.invBlock.addItem("Basic SlingShot", 1, false);
-    curPlayer.invBlock.addItem("Better SlingShot", 1, false);
-    curPlayer.invBlock.addItem("Dirt Ball", 20, false);
-    //curPlayer.invBlock.addItem("Dark Gem", 5, false);
-    curPlayer.invBlock.addItem("Philosopher's Stone", 2, false);
-
-    curPlayer.invBlock.addItem("Metal", 2, false);
-    curPlayer.invBlock.addItem("Mushroom Seed", 5, false);
-    curPlayer.invBlock.addItem("Evil Apple on Stick", 1, false);
-    curPlayer.invBlock.addItem("Rock", 20, false);
-    curPlayer.invBlock.addItem("Gem", 5, false);
-    curPlayer.invBlock.addItem("Log", 5, false);
-    curPlayer.invBlock.addItem("Tech", 5, false);
-    curPlayer.invBlock.addItem("Apple", 5, false);
-    curPlayer.invBlock.addItem("Mushroom", 5, false);
-    curPlayer.invBlock.addItem("Bad Apple", 5, false);
-    
-    curPlayer.invBlock.hotbarItem("Basic Shovel", 0);
-    curPlayer.invBlock.hotbarItem("Basic Sword", 1);
-    curPlayer.invBlock.hotbarItem("Basic SlingShot", 2);
-    curPlayer.invBlock.hotbarItem("Apple", 3);
-    curPlayer.invBlock.hotbarItem("Mushroom Seed", 4);
-}
 
 function giveDefaultItems(){
     curPlayer.invBlock.addItem("Basic Shovel", 1, false);
