@@ -3129,12 +3129,17 @@ function updateCraftList() {
         if (tag === "Consumables") return item.type === "Food" || item.type === "Potion";
         return false;
     });
-
-    // ✅ Search filter
     let searchQuery = select("#craftSearch")?.value()?.toLowerCase() ?? "";
+
     if (searchQuery !== "") {
-        arr = arr.filter(item => item.itemName.toLowerCase().includes(searchQuery));
+        // Escape regex-special chars so user input can't break it
+        const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const regex = new RegExp(escaped, "i"); // i = case-insensitive
+
+        arr = arr.filter(item => regex.test(item.itemName));
     }
+
 
     for (let i = 0; i < arr.length; i++) {
         let itemName = arr[i].itemName;
