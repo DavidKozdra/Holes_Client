@@ -499,10 +499,7 @@ function mouseReleased(){
     }
     if(gameState != "playing") return;
 
-    if(mouseButton === LEFT){
-        //if you click on the player card, open the team select ui
-        // this sucks and is lazy and causes portal and other issues 
-    }
+
 }
 
 function continousMouseInput(){ //ran once every frame, good for anything like digging, or items
