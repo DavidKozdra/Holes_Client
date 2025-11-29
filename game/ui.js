@@ -3086,23 +3086,39 @@ function updateCraftList() {
 
     let arr = JSON.parse(JSON.stringify(craftOptions));
 
-    for (let i = 0; i < testMap.chunks[getPlayerChunk()].objects.length; i++) {
-        let obj = testMap.chunks[getPlayerChunk()].objects[i];
-        if (obj.objName == "Campfire" && curPlayer.pos.dist(obj.pos) < 100) {
-            arr.push({
+  for (let i = 0; i < testMap.chunks[getPlayerChunk()].objects.length; i++) {
+    let obj = testMap.chunks[getPlayerChunk()].objects[i];
+
+    // Check for nearby campfire
+    if (obj.objName === "Campfire" && curPlayer.pos.dist(obj.pos) < 100) {
+
+        // 🔥 CAMPFIRE ITEMS — only add if missing
+        const itemsToAdd = [
+            {
                 type: "SimpleItem",
                 itemName: "Metal",
                 imgNum: 23,
                 cost: [1, ["Raw Metal", 1]]
-            });
-            arr.push({
+            },
+            {
                 type: "Food",
                 itemName: "Roasted Tail",
                 imgNum: 35,
                 cost: [1, ["Skizzard Tail", 1]]
-            });
+            }
+        ];
+
+        for (const item of itemsToAdd) {
+            // === LIST GATE: block duplicates ===
+            const exists = arr.some(x => x.itemName === item.itemName);
+
+            if (!exists) {
+                arr.push(item);
+            }
         }
     }
+}
+
 
     arr = arr.filter((item) => {
         let tag = curPlayer.invBlock.curTag;
