@@ -773,42 +773,132 @@ class Trap extends Placeable {
         this.explodes = explodes
     }
 
-    update() {
-        super.update();
-        //!make this handle multiple players
-        if (curPlayer.color != this.color || this.color == 0) { //not on the same team as the trap, or the trap belongs to no team
-            if (this.ownerName != curPlayer.name) { //aka if you didnt make this trap
-                if (this.pos.dist(curPlayer.pos) < this.triggerRadius) {
-                    let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-                    //play hit noise and tell server
-                    let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                    testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
-                    socket.emit("new_sound", { sound: "hit.ogg", cPos: chunkPos, pos: { x: curPlayer.pos.x, y: curPlayer.pos.y }, id: temp.id });
-                    this.deleteTag = true;
-                    curPlayer.statBlock.stats.hp -= this.damage;
-                    camera.shake = { intensity: this.damage, length: 5 };
-                    camera.edgeBlood = 5;
+// REPLACE the entire Trap.update() with this upgraded version:
 
-                    if (this.explodes) {
-                        createExplosion(this)
+update() {
+    super.update();
 
-                    } else {
-                        console.log("NO TO EXPLODE", this.explodes)
-                    }
+    // Collect every valid target: ALL players + ALL entities
+    let targets = [];
 
-                    socket.emit("update_player", {
-                        id: curPlayer.id,
-                        pos: curPlayer.pos,
-                        holding: curPlayer.holding,
-                        update_names: ["stats.hp"],
-                        update_values: [curPlayer.statBlock.stats.hp]
-                    });
+    // Add all players
+    let pKeys = Object.keys(players);
+    for (let i = 0; i < pKeys.length; i++) {
+        targets.push(players[pKeys[i]]);
+    }
+    if (curPlayer) targets.push(curPlayer);
 
-                    socket.emit("delete_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z });
+    // Add all entities within a 5x5 tile window around the trap
+    let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+    let TILE = TILESIZE;
+    let TILE_RANGE = 5;
+
+    // tile coords of trap
+    let tx = floor(this.pos.x / TILE);
+    let ty = floor(this.pos.y / TILE);
+
+    for (let ox = -TILE_RANGE; ox <= TILE_RANGE; ox++) {
+        for (let oy = -TILE_RANGE; oy <= TILE_RANGE; oy++) {
+
+            let worldX = (tx + ox) * TILE;
+            let worldY = (ty + oy) * TILE;
+
+            let cPos = testMap.globalToChunk(worldX, worldY);
+            let ch = testMap.chunks[cPos.x + "," + cPos.y];
+            if (!ch) continue;
+
+            for (let i = 0; i < ch.objects.length; i++) {
+                let ob = ch.objects[i];
+                if(!ob || ob.type !=="Placeable") {
+
+                    continue;
+                }else{
+                    console.log(ob.type)
+                }
+                // ensure entity is actually standing on that tile
+                let ex = floor(ob.pos.x / TILE);
+                let ey = floor(ob.pos.y / TILE);
+
+                if (ex === tx + ox && ey === ty + oy) {
+                    targets.push(ob);
                 }
             }
         }
     }
+
+
+    // Process triggering for every target
+    for (let t of targets) {
+        if (!t || !t.pos) continue;
+
+        // Ignore your own team unless neutral trap
+        if (!(this.color == 0 || t.color != this.color)) continue;
+
+        // Ignore owner stepping on their own trap
+        if (this.ownerName === t.name) continue;
+
+        if (t.pos.dist(this.pos) < this.triggerRadius) {
+
+            // play sound
+            let temp = new SoundObj("hit.ogg", t.pos.x, t.pos.y);
+            testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
+            socket.emit("new_sound", {
+                sound: "hit.ogg",
+                cPos: chunkPos,
+                pos: { x: t.pos.x, y: t.pos.y },
+                id: temp.id
+            });
+
+            // apply damage
+            t.statBlock ? t.statBlock.stats.hp -= this.damage : t.hp -= this.damage;
+
+            // screen shake only for local player
+            if (t === curPlayer) {
+                camera.shake = { intensity: this.damage, length: 5 };
+                camera.edgeBlood = 5;
+            }
+
+            // explode if needed
+            if (this.explodes) {
+                createExplosion(this);
+            }
+
+            // send update to server
+            if (t === curPlayer) {
+                socket.emit("update_player", {
+                    id: curPlayer.id,
+                    pos: curPlayer.pos,
+                    holding: curPlayer.holding,
+                    update_names: ["stats.hp"],
+                    update_values: [curPlayer.statBlock.stats.hp]
+                });
+            } else {
+                socket.emit("update_obj", {
+                    cx: chunkPos.x,
+                    cy: chunkPos.y,
+                    objName: t.objName,
+                    pos: { x: t.pos.x, y: t.pos.y },
+                    z: t.z,
+                    update_name: "hp",
+                    update_value: t.hp ?? t.statBlock.stats.hp
+                });
+            }
+
+            // delete trap
+            this.deleteTag = true;
+            socket.emit("delete_obj", {
+                cx: chunkPos.x,
+                cy: chunkPos.y,
+                objName: this.objName,
+                pos: { x: this.pos.x, y: this.pos.y },
+                z: this.z
+            });
+
+            break; //trap only triggers once
+        }
+    }
+}
+
 }
 
 function createExplosion(origin) {
