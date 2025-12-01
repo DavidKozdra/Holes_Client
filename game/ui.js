@@ -2052,9 +2052,49 @@ savedVolume = savedVolume !== null ? parseInt(savedVolume) : 50;
     removeData_button.style("color", "white");
     removeData_button.style("border-radius", "5px");
     removeData_button.style("cursor", "pointer");
-    removeData_button.mousePressed(() => {
-        localStorage.clear();
-    });
+  removeData_button.mousePressed(() => {
+    localStorage.clear();
+    localStorage.setItem("keyBindings", JSON.stringify(default_keys));
+
+    Controls_move_Up_code = default_keys.upCode;
+    Controls_Up_key = default_keys.upKey;
+
+    Controls_move_Left_code = default_keys.leftCode;
+    Controls_Left_key = default_keys.leftKey;
+
+    Controls_move_Down_code = default_keys.downCode;
+    Controls_Down_key = default_keys.downKey;
+
+    Controls_move_Right_code = default_keys.rightCode;
+    Controls_Right_key = default_keys.rightKey;
+
+    Controls_Interact_code = default_keys.interactCode;
+    Controls_Interact_key = default_keys.interactKey;
+
+    Controls_Inventory_code = default_keys.invCode;
+    Controls_Inventory_key = default_keys.invKey;
+
+    Controls_Crafting_code = default_keys.craftCode;
+    Controls_Crafting_key = default_keys.craftKey;
+
+    Controls_Pause_code = default_keys.pauseCode;
+    Controls_Pause_key = default_keys.pauseKey;
+
+    Controls_MoveHotBarRight_code = default_keys.moveHotBarRightCode;
+    Controls_MoveHotBarRight_key = default_keys.moveHotBarRightKey;
+
+    Controls_MoveHotBarLeft_code = default_keys.moveHotBarLeftCode;
+    Controls_MoveHotBarLeft_key = default_keys.moveHotBarLeftKey;
+
+    Controls_Build_code = default_keys.buildCode;
+    Controls_Build_key = default_keys.buildKey;
+
+    Controls_Space_code = default_keys.spaceCode;
+    Controls_Space_key = default_keys.spaceKey;
+
+    console.log("Key bindings reset to defaults:", default_keys);
+});
+
 
     saveButton = createButton("Save");
     saveButton.class("button");

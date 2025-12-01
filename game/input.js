@@ -760,6 +760,40 @@ var Controls_MoveHotBarRight_code = 69;  //e
 var Controls_MoveHotBarLeft_code = 81;   //q
 var Controls_Build_code = 82;           //r
 var Controls_Space_code = 32;           //space
+const default_keys = {
+    upCode: 87,
+    upKey: 'w',
+    leftCode: 65,
+    leftKey: 'a',
+    downCode: 83,
+    downKey: 's',
+    rightCode: 68,
+    rightKey: 'd',
+
+    interactCode: 70,
+    interactKey: 'f',
+
+    invCode: 73,
+    invKey: 'i',
+
+    craftCode: 67,
+    craftKey: 'c',
+
+    pauseCode: 80,
+    pauseKey: 'p',
+
+    moveHotBarRightCode: 69,
+    moveHotBarRightKey: 'e',
+
+    moveHotBarLeftCode: 81,
+    moveHotBarLeftKey: 'q',
+
+    buildCode: 82,
+    buildKey: 'r',
+
+    spaceCode: 32,
+    spaceKey: ' '
+};
 
 var control_set = 0;
 var lastKey = '!';
