@@ -1982,7 +1982,9 @@ function definePauseUI() {
         .style("display", "flex")
         .style("align-items", "center");
 
-    let savedVolume = parseInt(localStorage.getItem("volume")) || 50;
+let savedVolume = localStorage.getItem("volume");
+savedVolume = savedVolume !== null ? parseInt(savedVolume) : 50;
+
     let volumeLabel = createElement("label", "🔊 Volume:")
         .parent(effectsRow)
         .style("font-size", "16px")
@@ -2007,7 +2009,8 @@ function definePauseUI() {
         .style("display", "flex")
         .style("align-items", "center");
 
-    let savedMusic = parseInt(localStorage.getItem("musicVolume")) || 50;
+    let savedMusic = localStorage.getItem("musicVolume");
+    savedMusic = savedMusic !== null ? parseInt(savedMusic) : 50;
     let musicVolLabel = createElement("label", "🎵 Music:")
         .parent(musicRow)
         .style("font-size", "16px")
@@ -2146,9 +2149,6 @@ function definePauseUI() {
     });
     serverSelectButton.parent(pauseDiv);
 }
-
-
-
 
 
 var oldState = "";
