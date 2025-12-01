@@ -9,75 +9,81 @@ function getIsChatting() {
 }
 
 function keyReleased() {
-    if(keyCode == 27 && gameState != "pause" && gameState != "initial" && gameState != "race_selection"){ //ESC
-        if(gameState != "settings") {
+    if (keyCode == 27 && gameState != "pause" && gameState != "initial" && gameState != "race_selection" && gameState != "controls") { //ESC
+        if (gameState != "settings") {
             gameState = "playing";
             pauseDiv.hide();
-        }else {
+        } else {
             toggleSettings()
         }
-        invDiv.hide();
-        spaceBarDiv.hide();
-        player_status_container.hide();
-        craftDiv.hide();
-        teamPickDiv.hide();
-        curPlayer.otherInv = undefined;
-        buildMode = false;
-       
-        renderGhost = false;
-        if(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]]?.type == "Seed"){
-            ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer?.invBlock.selectedHotBar]]?.plantName, 0, 0, 0, curPlayer.color, " ", " ");
-            renderGhost = true;
+
+        if (gameState == "playing") {
+            invDiv.hide();
+            spaceBarDiv.hide();
+            player_status_container.hide();
+            craftDiv.hide();
+            teamPickDiv.hide();
+            if (curPlayer) {
+                curPlayer.otherInv = undefined;
+                if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]]?.type == "Seed") {
+                    ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer?.invBlock.selectedHotBar]]?.plantName, 0, 0, 0, curPlayer.color, " ", " ");
+                    renderGhost = true;
+                }
+            }
+            buildMode = false;
+
+            renderGhost = false;
         }
-        
+
+
     }
-    if(gameState == "playing"){
-        if (keyCode === Controls_Build_code){ //r
-           
+    if (gameState == "playing") {
+        if (keyCode === Controls_Build_code) { //r
+
             let slot = curPlayer.invBlock.selectedHotBar;
-             const option = buildOptions[slot];
-             
-             console.log(option)
-            ghostBuild = createObject(option.objName , 0, 0, 0, 0, curPlayer.id, curPlayer.name);
+            const option = buildOptions[slot];
+
+            console.log(option)
+            ghostBuild = createObject(option.objName, 0, 0, 0, 0, curPlayer.id, curPlayer.name);
             buildMode = !buildMode;
             renderGhost = buildMode;
 
-            if(!buildMode){
-                if(curPlayer.invBlock.selectedHotBar > 4){
+            if (!buildMode) {
+                if (curPlayer.invBlock.selectedHotBar > 4) {
                     curPlayer.invBlock.selectedHotBar = 4;
                 }
-                if(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed"){
+                if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed") {
                     ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
                     renderGhost = true;
                 }
             }
         }
-        if(keyCode == Controls_Inventory_code){ //i
+        if (keyCode == Controls_Inventory_code) { //i
             gameState = "inventory";
             curPlayer.invBlock.curItem = "";
             updateItemList();
             updatecurItemDiv();
             invDiv.show();
-            
+
             curPlayer.holding = { w: false, a: false, s: false, d: false };
         }
-        if(keyCode == Controls_Crafting_code){ //c
+        if (keyCode == Controls_Crafting_code) { //c
             gameState = "crafting";
             curPlayer.invBlock.curItem = "";
             updateCraftList();
             updatecurCraftItemDiv();
             craftDiv.show();
-            
+
             curPlayer.holding = { w: false, a: false, s: false, d: false };
         }
-        if( (keyCode == Controls_Pause_code ||  keyCode ==27) && gameState != "initial"){ //p
+        if ((keyCode == Controls_Pause_code || keyCode == 27) && gameState != "initial") { //p
             gameState = "pause";
             pauseDiv.show();
 
             pauseDiv.style("display", "flex")
         }
 
-        if(keyCode == 9){ //TAB
+        if (keyCode == 9) { //TAB
             gameState = "player_status";
             togglePlayerStatusTable();
         }
@@ -86,12 +92,12 @@ function keyReleased() {
             buildDiv.show();
 
             renderBuildOptions(); // cost and info div only
-            
+
             const option = buildOptions.find(opt => opt.key === keyCode);
             if (option) {
 
                 ghostBuild = createObject(
-                    option.objName, 0, 0, 0, 
+                    option.objName, 0, 0, 0,
                     0, curPlayer.id, curPlayer.name
                 );
 
@@ -101,111 +107,110 @@ function keyReleased() {
             buildDiv.hide();
         }
 
-        if(keyCode == Controls_Interact_code){ //f
+        if (keyCode == Controls_Interact_code) { //f
             let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
-            let chunkPos = testMap.globalToChunk(mouseVec.x,mouseVec.y);
+            let chunkPos = testMap.globalToChunk(mouseVec.x, mouseVec.y);
             let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
             let closest;
             let closestDist;
 
-            for(let i = 0; i < chunk.objects.length; i++){
-                if(
-                    chunk.objects[i].type == "InvObj" || 
+            for (let i = 0; i < chunk.objects.length; i++) {
+                if (
+                    chunk.objects[i].type == "InvObj" ||
                     (
-                        chunk.objects[i].type == "Plant" && 
-                        chunk.objects[i].stage == (objImgs[chunk.objects[i].imgNum].length-1) &&
+                        chunk.objects[i].type == "Plant" &&
+                        chunk.objects[i].stage == (objImgs[chunk.objects[i].imgNum].length - 1) &&
                         (
                             (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color) ||
                             (chunk.objects[i].ownerName == curPlayer.name && chunk.objects[i].color == 0)
                         )
-                    ) || 
-                    chunk.objects[i].objName == "Door")
-                {
-                    if(chunk.objects[i].pos.dist(curPlayer.pos) < 4*TILESIZE){
-                        if(closest == undefined){
+                    ) ||
+                    chunk.objects[i].objName == "Door") {
+                    if (chunk.objects[i].pos.dist(curPlayer.pos) < 4 * TILESIZE) {
+                        if (closest == undefined) {
                             closest = chunk.objects[i];
                             closestDist = mouseVec.dist(closest.pos);
                         }
-                        else if (mouseVec.dist(chunk.objects[i].pos) < closestDist){
+                        else if (mouseVec.dist(chunk.objects[i].pos) < closestDist) {
                             closest = chunk.objects[i];
                             closestDist = mouseVec.dist(closest.pos);
                         }
                     }
                 }
             }
-            if(closest != undefined){
-                if(closestDist < 2*TILESIZE){
-                    if(closest.type == "InvObj"){
+            if (closest != undefined) {
+                if (closestDist < 2 * TILESIZE) {
+                    if (closest.type == "InvObj") {
                         closest.useInv();
                     }
-                    else if(closest.type == "Plant"){
+                    else if (closest.type == "Plant") {
                         closest.usePlant();
                     }
-                    else if(closest.objName == "Door"){
+                    else if (closest.objName == "Door") {
                         closest.useDoor();
                     }
                 }
-                else{
-                    let chunkPos = testMap.globalToChunk(curPlayer.pos.x,curPlayer.pos.y);
+                else {
+                    let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
                     let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
                     closest = undefined;
-                    for(let i = 0; i < chunk.objects.length; i++){
-                        if(
-                            chunk.objects[i].type == "InvObj" || 
+                    for (let i = 0; i < chunk.objects.length; i++) {
+                        if (
+                            chunk.objects[i].type == "InvObj" ||
                             (
-                                chunk.objects[i].type == "Plant" && 
-                                chunk.objects[i].stage == (objImgs[chunk.objects[i].imgNum].length-1) &&
+                                chunk.objects[i].type == "Plant" &&
+                                chunk.objects[i].stage == (objImgs[chunk.objects[i].imgNum].length - 1) &&
                                 (
                                     (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color) ||
                                     (chunk.objects[i].ownerName == curPlayer.name && chunk.objects[i].color == 0)
                                 )
-                            ) || 
+                            ) ||
                             chunk.objects[i].objName == "Door"
-                        ){
-                            if(closest == undefined){
+                        ) {
+                            if (closest == undefined) {
                                 closest = chunk.objects[i];
                                 closestDist = curPlayer.pos.dist(closest.pos);
                             }
-                            if (curPlayer.pos.dist(chunk.objects[i].pos) < closestDist){
+                            if (curPlayer.pos.dist(chunk.objects[i].pos) < closestDist) {
                                 closest = chunk.objects[i];
                                 closestDist = curPlayer.pos.dist(closest.pos);
                             }
                         }
                     }
 
-                    if(closestDist < 4*TILESIZE){
-                        if(closest.type == "InvObj"){
+                    if (closestDist < 4 * TILESIZE) {
+                        if (closest.type == "InvObj") {
                             closest.useInv();
                         }
-                        else if(closest.type == "Plant"){
+                        else if (closest.type == "Plant") {
                             closest.usePlant();
                         }
-                        else if(closest.objName == "Door"){
+                        else if (closest.objName == "Door") {
                             closest.useDoor();
                         }
                     }
                 }
             }
         }
-     
+
     }
-    else if(gameState == "inventory"){
+    else if (gameState == "inventory") {
 
         curPlayer.holding = { w: false, a: false, s: false, d: false };
         if (keyCode === Controls_Space_code) { //space
             curPlayer.invBlock.hotbarItem(curPlayer.invBlock.curItem, curPlayer.invBlock.selectedHotBar);
             updateSpaceBarDiv();
         }
-        if(keyCode == Controls_Inventory_code){ //i
+        if (keyCode == Controls_Inventory_code) { //i
             gameState = "playing";
             invDiv.hide();
             spaceBarDiv.hide();
-            if(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed"){
+            if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed") {
                 ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
                 renderGhost = true;
             }
         }
-        if(keyCode == Controls_Crafting_code){ //c
+        if (keyCode == Controls_Crafting_code) { //c
             gameState = "crafting";
             craftDiv.show();
             curPlayer.invBlock.curItem = "";
@@ -214,18 +219,18 @@ function keyReleased() {
             spaceBarDiv.hide();
         }
     }
-    else if(gameState == "crafting"){
+    else if (gameState == "crafting") {
 
         curPlayer.holding = { w: false, a: false, s: false, d: false };
         if (keyCode === Controls_Space_code) { //space
             //check cost
             //add item to inv
         }
-        if(keyCode == Controls_Crafting_code){ //c
+        if (keyCode == Controls_Crafting_code) { //c
             gameState = "playing";
             craftDiv.hide();
         }
-        if(keyCode == Controls_Inventory_code){ //i
+        if (keyCode == Controls_Inventory_code) { //i
             gameState = "inventory";
             invDiv.show();
             curPlayer.invBlock.curItem = "";
@@ -233,70 +238,70 @@ function keyReleased() {
             craftDiv.hide();
         }
     }
-    else if(gameState == "swap_inv"){
+    else if (gameState == "swap_inv") {
         if (keyCode === Controls_Space_code) { //space
-            if(keyIsDown(16)){
-                if(curPlayer.invBlock.curItem != ""){
+            if (keyIsDown(16)) {
+                if (curPlayer.invBlock.curItem != "") {
                     curPlayer.otherInv.invBlock.addItem(curPlayer.invBlock.curItem, curPlayer.invBlock.items[curPlayer.invBlock.curItem].amount, false);
                     curPlayer.invBlock.decreaseAmount(curPlayer.invBlock.curItem, curPlayer.invBlock.items[curPlayer.invBlock.curItem].amount);
-    
+
                     curPlayer.otherInv.invBlock.curItem = curPlayer.invBlock.curItem;
                     curPlayer.invBlock.curItem = "";
                 }
-                else if(curPlayer.otherInv.invBlock.curItem != ""){
+                else if (curPlayer.otherInv.invBlock.curItem != "") {
                     curPlayer.invBlock.addItem(curPlayer.otherInv.invBlock.curItem, curPlayer.otherInv.invBlock.items[curPlayer.otherInv.invBlock.curItem].amount, true);
                     curPlayer.otherInv.invBlock.decreaseAmount(curPlayer.otherInv.invBlock.curItem, curPlayer.otherInv.invBlock.items[curPlayer.otherInv.invBlock.curItem].amount);
-    
+
                     curPlayer.invBlock.curItem = curPlayer.otherInv.invBlock.curItem;
                     curPlayer.otherInv.invBlock.curItem = "";
                 }
             }
-            else{
-                if(curPlayer.invBlock.curItem != ""){
+            else {
+                if (curPlayer.invBlock.curItem != "") {
                     //console.log(curPlayer.otherInv);
                     curPlayer.otherInv.invBlock.addItem(curPlayer.invBlock.curItem, 1, false);
-                    curPlayer.invBlock.decreaseAmount(curPlayer.invBlock.curItem,1);
-    
-                    if(curPlayer.invBlock.items[curPlayer.invBlock.curItem] == undefined){
+                    curPlayer.invBlock.decreaseAmount(curPlayer.invBlock.curItem, 1);
+
+                    if (curPlayer.invBlock.items[curPlayer.invBlock.curItem] == undefined) {
                         curPlayer.otherInv.invBlock.curItem = curPlayer.invBlock.curItem;
                         curPlayer.invBlock.curItem = "";
                     }
                 }
-                else if(curPlayer.otherInv.invBlock.curItem != ""){
+                else if (curPlayer.otherInv.invBlock.curItem != "") {
                     curPlayer.invBlock.addItem(curPlayer.otherInv.invBlock.curItem, 1, true);
                     curPlayer.otherInv.invBlock.decreaseAmount(curPlayer.otherInv.invBlock.curItem, 1);
-    
-                    if(curPlayer.otherInv.invBlock.items[curPlayer.otherInv.invBlock.curItem] == undefined){
+
+                    if (curPlayer.otherInv.invBlock.items[curPlayer.otherInv.invBlock.curItem] == undefined) {
                         curPlayer.invBlock.curItem = curPlayer.otherInv.invBlock.curItem;
                         curPlayer.otherInv.invBlock.curItem = "";
                     }
                 }
             }
 
-            let chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x,curPlayer.otherInv.pos.y);
+            let chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
             socket.emit("update_inv", {
-                cx: chunkPos.x, cy: chunkPos.y, 
-                objName: curPlayer.otherInv.objName, 
-                pos: {x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y}, 
+                cx: chunkPos.x, cy: chunkPos.y,
+                objName: curPlayer.otherInv.objName,
+                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
                 z: curPlayer.otherInv.z,
                 items: curPlayer.otherInv.invBlock.items
             });
             updateSwapItemLists(curPlayer.otherInv.invBlock);
             updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
         }
-        if(keyCode == Controls_Inventory_code){ //i
+        if (keyCode == Controls_Inventory_code) { //i
             gameState = "playing";
             swapInvDiv.hide();
             spaceBarDiv.hide();
             curPlayer.otherInv = undefined;
         }
-        if(keyCode == 16){ //Shift
+        if (keyCode == 16) { //Shift
             updateSpaceBarDiv();
         }
     }
 
-    else if (gameState =="pause") {
-        if(keyCode == Controls_Pause_code || keyCode ==27){ //p or ESC
+    else if (gameState == "pause") {
+        if (keyCode == Controls_Pause_code || keyCode == 27) { //p or ESC
             gameState = "playing";
             pauseDiv.hide();
         }
@@ -304,12 +309,12 @@ function keyReleased() {
         curPlayer.holding = { w: false, a: false, s: false, d: false };
     }
 
-    else if(gameState == "player_status" ) {
-        if(keyCode== 9) { //TAB
+    else if (gameState == "player_status") {
+        if (keyCode == 9) { //TAB
             gameState = "playing";
             togglePlayerStatusTable()
 
-        }else {
+        } else {
 
             curPlayer.holding = { w: false, a: false, s: false, d: false };
         }
@@ -333,7 +338,7 @@ function keyReleased() {
         }
 
         key = keyToVisualKey(key);
-        if (control_set == 1 && key != lastKey){
+        if (control_set == 1 && key != lastKey) {
             Controls_move_Up_code = keyCode;
             Controls_Up_key = key;
             control_set = 0;
@@ -341,7 +346,7 @@ function keyReleased() {
             Controls_Up_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 2 && key != lastKey){
+        else if (control_set == 2 && key != lastKey) {
             Controls_move_Left_code = keyCode;
             Controls_Left_key = key;
             control_set = 0;
@@ -349,7 +354,7 @@ function keyReleased() {
             Controls_Left_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 3 && key != lastKey){
+        else if (control_set == 3 && key != lastKey) {
             Controls_move_Down_code = keyCode;
             Controls_Down_key = key;
             control_set = 0;
@@ -357,7 +362,7 @@ function keyReleased() {
             Controls_Down_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 4 && key != lastKey){
+        else if (control_set == 4 && key != lastKey) {
             Controls_move_Right_code = keyCode;
             Controls_Right_key = key;
             control_set = 0;
@@ -365,7 +370,7 @@ function keyReleased() {
             Controls_Right_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if(control_set == 5 && key != lastKey){
+        else if (control_set == 5 && key != lastKey) {
             Controls_Interact_code = keyCode;
             Controls_Interact_key = key;
             control_set = 0;
@@ -373,7 +378,7 @@ function keyReleased() {
             Controls_Interact_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 6 && key != lastKey){
+        else if (control_set == 6 && key != lastKey) {
             Controls_Inventory_code = keyCode;
             Controls_Inventory_key = key;
             control_set = 0;
@@ -381,7 +386,7 @@ function keyReleased() {
             Controls_Inventory_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 7 && key != lastKey){
+        else if (control_set == 7 && key != lastKey) {
             Controls_Crafting_code = keyCode;
             Controls_Crafting_key = key;
             control_set = 0;
@@ -389,7 +394,7 @@ function keyReleased() {
             Controls_Crafting_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 8 && key != lastKey){
+        else if (control_set == 8 && key != lastKey) {
             Controls_Pause_code = keyCode;
             Controls_Pause_key = key;
             control_set = 0;
@@ -397,7 +402,7 @@ function keyReleased() {
             Controls_Pause_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 9 && key != lastKey){
+        else if (control_set == 9 && key != lastKey) {
             Controls_MoveHotBarRight_code = keyCode;
             Controls_MoveHotBarRight_key = key;
             control_set = 0;
@@ -405,7 +410,7 @@ function keyReleased() {
             Controls_MoveHotBarRight_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 10 && key != lastKey){
+        else if (control_set == 10 && key != lastKey) {
             Controls_MoveHotBarLeft_code = keyCode;
             Controls_MoveHotBarLeft_key = key;
             control_set = 0;
@@ -413,7 +418,7 @@ function keyReleased() {
             Controls_MoveHotBarLeft_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 11 && key != lastKey){
+        else if (control_set == 11 && key != lastKey) {
             Controls_Build_code = keyCode;
             Controls_Build_key = key;
             control_set = 0;
@@ -421,7 +426,7 @@ function keyReleased() {
             Controls_Build_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
-        else if (control_set == 12 && key != lastKey){
+        else if (control_set == 12 && key != lastKey) {
             Controls_Space_code = keyCode;
             Controls_Space_key = key;
             control_set = 0;
@@ -431,16 +436,16 @@ function keyReleased() {
         }
     }
 
-    if(keyCode == Controls_MoveHotBarLeft_code || keyCode == Controls_MoveHotBarRight_code ){  //e or q -should work in inventory and playing, so players can look at their wheel
+    if (keyCode == Controls_MoveHotBarLeft_code || keyCode == Controls_MoveHotBarRight_code) {  //e or q -should work in inventory and playing, so players can look at their wheel
         updatePlayerHotBarOffset()
     }
 }
 
-function keyPressed(){ //prevents normal key related actions
-    if(keyCode == 27){ //ESC
+function keyPressed() { //prevents normal key related actions
+    if (keyCode == 27) { //ESC
         return false;
     }
-    if(keyCode == 9){ //TAB
+    if (keyCode == 9) { //TAB
         return false;
     }
     if (keyCode === 13 && isChatting) { // 13 = Enter
@@ -449,7 +454,7 @@ function keyPressed(){ //prevents normal key related actions
         isChatting = false
         return false; // prevent default enter behavior (like form submit)
     }
-    if(keyCode == 16){ //Shift
+    if (keyCode == 16) { //Shift
         updateSpaceBarDiv();
     }
 }
@@ -459,126 +464,126 @@ function blurActiveElement() {
     }
 }
 
-function mouseReleased(){
+function mouseReleased() {
 
-    if(gameState == "chating"){
+    if (gameState == "chating") {
         // remove chatting if clicked out side of bounds 
-        if(!getIsChatting()){
+        if (!getIsChatting()) {
             blurActiveElement();
             gameState = lastGameState;
         }
     }
-    if(gameState == "teleport"){
-        if(curPlayer.invBlock.useTimer <= 0){
+    if (gameState == "teleport") {
+        if (curPlayer.invBlock.useTimer <= 0) {
             //if you click on a portals circle, teleport to that portal
-            for(let i=0; i<knownPortals.length; i++){
+            for (let i = 0; i < knownPortals.length; i++) {
                 let x = knownPortals[i].pos.x - curPlayer.pos.x;
                 let y = knownPortals[i].pos.y - curPlayer.pos.y;
-                x = x/(5*CHUNKSIZE*TILESIZE);
-                y = y/(5*CHUNKSIZE*TILESIZE);
-                x = x * width/2;
-                y = y * height/2;
-                x = x + width/2;
-                y = y + height/2;
-                if(mouseX > x-30 && mouseX < x+30 && mouseY > y-30 && mouseY < y+30){
+                x = x / (5 * CHUNKSIZE * TILESIZE);
+                y = y / (5 * CHUNKSIZE * TILESIZE);
+                x = x * width / 2;
+                y = y * height / 2;
+                x = x + width / 2;
+                y = y + height / 2;
+                if (mouseX > x - 30 && mouseX < x + 30 && mouseY > y - 30 && mouseY < y + 30) {
                     //teleport to the portal
                     curPlayer.pos.x = knownPortals[i].pos.x;
                     curPlayer.pos.y = knownPortals[i].pos.y + 128;
-                    
+
                     socket.emit("update_pos", {
                         id: curPlayer.id,
                         pos: curPlayer.pos,
                         holding: curPlayer.holding
                     });
-                    
+
                     gameState = "playing";
                     curPlayer.invBlock.useTimer = 10;
                 }
             }
 
-            if(mouseX > width - 50 && mouseX < width && mouseY > 0 && mouseY < 50){
+            if (mouseX > width - 50 && mouseX < width && mouseY > 0 && mouseY < 50) {
                 gameState = "playing";
                 curPlayer.invBlock.useTimer = 10;
             }
         }
     }
-    if(gameState != "playing") return;
+    if (gameState != "playing") return;
 
 
 }
 
-function continousMouseInput(){ //ran once every frame, good for anything like digging, or items
+function continousMouseInput() { //ran once every frame, good for anything like digging, or items
 
-    if(isChatting || isElementVisible(pauseDiv)) return
+    if (isChatting || isElementVisible(pauseDiv)) return
     if (mouseIsPressed) {
         //converts screen space to global space
         let x = mouseX + camera.pos.x - width / 2;
         let y = mouseY + camera.pos.y - height / 2;
 
         if (mouseButton === LEFT) {
-            if(gameState == "playing"){
-                if(!buildMode){
-                    if(curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] != ""){
+            if (gameState == "playing") {
+                if (!buildMode) {
+                    if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] != "") {
                         curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].use(x, y, mouseButton);
                     }
-                    else{
+                    else {
                         if (dirtInv < maxDirtInv - DIGSPEED) playerDig(x, y, DIGSPEED);
-                        else dirtBagUI.shake = {intensity: dirtBagUI.shake.intensity + 0.1, length: 1};
+                        else dirtBagUI.shake = { intensity: dirtBagUI.shake.intensity + 0.1, length: 1 };
                     }
                 }
-                else{
-                    if(ghostBuild.openBool){
+                else {
+                    if (ghostBuild.openBool) {
                         let hasCost = true;
-                        for(let i=0; i<objDic[ghostBuild.objName].cost.length; i++){
-                            if(objDic[ghostBuild.objName].cost[i][0] == "dirt"){
-                                if(dirtInv < objDic[ghostBuild.objName].cost[i][1]){
+                        for (let i = 0; i < objDic[ghostBuild.objName].cost.length; i++) {
+                            if (objDic[ghostBuild.objName].cost[i][0] == "dirt") {
+                                if (dirtInv < objDic[ghostBuild.objName].cost[i][1]) {
                                     hasCost = false;
-                                    i = objDic[ghostBuild.objName].cost.length+1;
+                                    i = objDic[ghostBuild.objName].cost.length + 1;
                                 }
                             }
-                            else{ //assume item
-                                if(curPlayer.invBlock.items[objDic[ghostBuild.objName].cost[i][0]] == undefined){
+                            else { //assume item
+                                if (curPlayer.invBlock.items[objDic[ghostBuild.objName].cost[i][0]] == undefined) {
                                     hasCost = false;
-                                    i = objDic[ghostBuild.objName].cost.length+1;
+                                    i = objDic[ghostBuild.objName].cost.length + 1;
                                 }
-                                else{
-                                    if(curPlayer.invBlock.items[objDic[ghostBuild.objName].cost[i][0]].amount < objDic[ghostBuild.objName].cost[i][1]){
+                                else {
+                                    if (curPlayer.invBlock.items[objDic[ghostBuild.objName].cost[i][0]].amount < objDic[ghostBuild.objName].cost[i][1]) {
                                         hasCost = false;
-                                        i = objDic[ghostBuild.objName].cost.length+1;
+                                        i = objDic[ghostBuild.objName].cost.length + 1;
                                     }
                                 }
                             }
                         }
-                        if(hasCost){
-                            for(let i=0; i<objDic[ghostBuild.objName].cost.length; i++){
-                                if(objDic[ghostBuild.objName].cost[i][0] == "dirt"){
+                        if (hasCost) {
+                            for (let i = 0; i < objDic[ghostBuild.objName].cost.length; i++) {
+                                if (objDic[ghostBuild.objName].cost[i][0] == "dirt") {
                                     dirtInv -= objDic[ghostBuild.objName].cost[i][1];
                                 }
-                                else{
+                                else {
                                     curPlayer.invBlock.decreaseAmount(objDic[ghostBuild.objName].cost[i][0], objDic[ghostBuild.objName].cost[i][1]);
                                 }
                             }
-                            let chunkPos = testMap.globalToChunk(x,y);
+                            let chunkPos = testMap.globalToChunk(x, y);
                             let temp = createObject(ghostBuild.objName, ghostBuild.pos.x, ghostBuild.pos.y, ghostBuild.rot, curPlayer.color, curPlayer.id, curPlayer.name);
                             testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(temp);
-                            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+                            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a, b) => a.z - b.z);
                             socket.emit("new_object", {
-                                cx: chunkPos.x, 
-                                cy: chunkPos.y, 
+                                cx: chunkPos.x,
+                                cy: chunkPos.y,
                                 obj: temp
                             });
-        
+
                             //play placing_structure sound and tell server
                             let temp2 = new SoundObj("placing_structure.ogg", x, y);
-                            testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp2);
-                            socket.emit("new_sound", {sound: "placing_structure.ogg", cPos: chunkPos, pos:{x: x, y: y}, id: temp.id});
+                            testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp2);
+                            socket.emit("new_sound", { sound: "placing_structure.ogg", cPos: chunkPos, pos: { x: x, y: y }, id: temp.id });
                             curPlayer.animationCreate("put");
                             socket.emit("update_player", {
                                 id: curPlayer.id,
                                 pos: curPlayer.pos,
                                 holding: curPlayer.holding,
-                                update_names: ["animationType","animationFrame"],
-                                update_values: [curPlayer.animationType,curPlayer.animationFrame]
+                                update_names: ["animationType", "animationFrame"],
+                                update_values: [curPlayer.animationType, curPlayer.animationFrame]
                             });
 
                             renderBuildOptions();
@@ -586,41 +591,41 @@ function continousMouseInput(){ //ran once every frame, good for anything like d
                     }
                 }
             }
-            else if(gameState == "inventory"){
+            else if (gameState == "inventory") {
                 //might add a way to mess with your hotbar in here, like spin it, or quick select the item from the hotbar
             }
         }
         if (mouseButton === RIGHT) {
-            if(gameState == "playing"){
-                if(!buildMode){
-                    if(curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] != ""){
+            if (gameState == "playing") {
+                if (!buildMode) {
+                    if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] != "") {
                         curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].use(x, y, mouseButton);
                     }
-                    else{
+                    else {
                         if (dirtInv > DIGSPEED) playerDig(x, y, -DIGSPEED);
                     }
                 }
-                else{
-                    let chunkPos = testMap.globalToChunk(x,y);
+                else {
+                    let chunkPos = testMap.globalToChunk(x, y);
                     let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
-                    for(let i = 0; i < chunk.objects.length; i++){
-                        if(createVector(x,y).dist(chunk.objects[i].pos) < (chunk.objects[i].size.w+chunk.objects[i].size.h)/4){
-                            if((chunk.objects[i].color == 0 && chunk.objects[i].ownerName == curPlayer.name) || (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color)){ //only team members and you can delete your objects
+                    for (let i = 0; i < chunk.objects.length; i++) {
+                        if (createVector(x, y).dist(chunk.objects[i].pos) < (chunk.objects[i].size.w + chunk.objects[i].size.h) / 4) {
+                            if ((chunk.objects[i].color == 0 && chunk.objects[i].ownerName == curPlayer.name) || (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color)) { //only team members and you can delete your objects
                                 socket.emit("delete_obj", {
-                                    cx: chunkPos.x, cy: chunkPos.y, 
-                                    objName: chunk.objects[i].objName, 
-                                    pos: {x: chunk.objects[i].pos.x, y: chunk.objects[i].pos.y}, 
+                                    cx: chunkPos.x, cy: chunkPos.y,
+                                    objName: chunk.objects[i].objName,
+                                    pos: { x: chunk.objects[i].pos.x, y: chunk.objects[i].pos.y },
                                     z: chunk.objects[i].z
                                 });
-                                chunk.objects.splice(i,1);
+                                chunk.objects.splice(i, 1);
 
-                                i = chunk.objects.length+1;
+                                i = chunk.objects.length + 1;
                             }
                         }
                     }
                 }
             }
-            else if(gameState == "inventory"){
+            else if (gameState == "inventory") {
 
             }
         }
@@ -631,9 +636,9 @@ function isElementVisible(el) {
 }
 
 
-function continousKeyBoardInput(){
-    if(getIsChatting() || isElementVisible(pauseDiv)) return
-    if(gameState == "playing"){
+function continousKeyBoardInput() {
+    if (getIsChatting() || isElementVisible(pauseDiv)) return
+    if (gameState == "playing") {
         // default all keys to false
         curPlayer.holding = { w: false, a: false, s: false, d: false };
 
@@ -656,82 +661,82 @@ function continousKeyBoardInput(){
             });
         }
     }
-    else if(gameState == "inventory"){
-        if (keyIsDown(Controls_move_Up_code)){} //W
-        if (keyIsDown(Controls_move_Left_code)){} //A
-        if (keyIsDown(Controls_move_Down_code)){} //S
-        if (keyIsDown(Controls_move_Right_code)){} //D
-    }else {
-        if(curPlayer ) {
+    else if (gameState == "inventory") {
+        if (keyIsDown(Controls_move_Up_code)) { } //W
+        if (keyIsDown(Controls_move_Left_code)) { } //A
+        if (keyIsDown(Controls_move_Down_code)) { } //S
+        if (keyIsDown(Controls_move_Right_code)) { } //D
+    } else {
+        if (curPlayer) {
             curPlayer.holding = { w: false, a: false, s: false, d: false };
         }
     }
 }
 
 function mouseWheel(event) {
-    
-    if(gameState != "playing") return
+
+    if (gameState != "playing") return
     if (event.delta > 0) {
-      // Scrolled down
-      hotBarOffset = -1
-      mouseWheelMoved= true
+        // Scrolled down
+        hotBarOffset = -1
+        mouseWheelMoved = true
     } else {
-      // Scrolled up
-      hotBarOffset = 1
-      mouseWheelMoved = true
+        // Scrolled up
+        hotBarOffset = 1
+        mouseWheelMoved = true
     }
     updatePlayerHotBarOffset()
     mouseWheelMoved = false
     return false
-  }
+}
 
-  let hotBarOffset = null;
-  let mouseWheelMoved = false
+let hotBarOffset = null;
+let mouseWheelMoved = false
 
 
 
-  function updatePlayerHotBarOffset(){
+function updatePlayerHotBarOffset() {
 
-    if(gameState != "playing" && gameState != "inventory" ) return
+    if (gameState != "playing" && gameState != "inventory") return
 
-    if(abs(curPlayer.invBlock.animationTimer) <= 0.1){
-   
-        if(keyCode == Controls_MoveHotBarLeft_code) hotBarOffset = -1;
-        if(keyCode == Controls_MoveHotBarRight_code) hotBarOffset = 1;
+    if (abs(curPlayer.invBlock.animationTimer) <= 0.1) {
+
+        if (keyCode == Controls_MoveHotBarLeft_code) hotBarOffset = -1;
+        if (keyCode == Controls_MoveHotBarRight_code) hotBarOffset = 1;
         let slot = curPlayer.invBlock.selectedHotBar + hotBarOffset;
-        if(!buildMode){
-            if(slot < 0) slot = 4;
-            if(slot > 4) slot = 0;
+        if (!buildMode) {
+            if (slot < 0) slot = 4;
+            if (slot > 4) slot = 0;
         }
-        else{
-            if(slot < 0) slot = buildOptions.length-1;
-            if(slot > buildOptions.length-1) slot = 0;
+        else {
+            if (slot < 0) slot = buildOptions.length - 1;
+            if (slot > buildOptions.length - 1) slot = 0;
         }
         curPlayer.invBlock.selectedHotBar = slot;
         curPlayer.invBlock.animationTimer = hotBarOffset;
 
-        if(!buildMode){
-            if(curPlayer.invBlock.hotbar[slot] != ""){
-                if(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]].type == "Seed"){
+        if (!buildMode) {
+            if (curPlayer.invBlock.hotbar[slot] != "") {
+                if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]].type == "Seed") {
                     ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
                     renderGhost = true; //this is seperate from buildMode, because this is a placable item, not something you can find in buildMode
                 }
-                else{
+                else {
                     renderGhost = false;
                 }
             }
-            else{
+            else {
                 renderGhost = false;
             }
         }
-        else{
+        else {
             ghostBuild = createObject(buildOptions[curPlayer.invBlock.selectedHotBar].objName, 0, 0, 0, curPlayer.color, curPlayer.id, curPlayer.name);
             renderBuildOptions();
         }
         mouseWheelMoved = false
         updateSpaceBarDiv();
     }
-  }
+}
 
 
 
