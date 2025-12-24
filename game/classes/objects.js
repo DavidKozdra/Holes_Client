@@ -187,34 +187,38 @@ function dirtBinUpdate() {
             if (mouseIsPressed && mouseButton === RIGHT) {
                 // Check if the player has dirt in their inventory
                 if (dirtInv > 0 && this.hp < this.mhp) {
-                    dirtInv -= 1;
-
-                    this.hp += 1;
-                    socket.emit("update_obj", {
-                        cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                        cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                        objName: this.objName,
-                        pos: { x: this.pos.x, y: this.pos.y },
-                        z: this.z,
-                        update_name: "hp",
-                        update_value: this.hp
-                    });
+                    let amt = Math.min(4, dirtInv, this.mhp - this.hp);
+                    if (amt > 0) {
+                        dirtInv -= amt;
+                        this.hp += amt;
+                        socket.emit("update_obj", {
+                            cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
+                            cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
+                            objName: this.objName,
+                            pos: { x: this.pos.x, y: this.pos.y },
+                            z: this.z,
+                            update_name: "hp",
+                            update_value: this.hp
+                        });
+                    }
                 }
             }
             if (mouseIsPressed && mouseButton === LEFT) {
                 if (dirtInv < maxDirtInv && this.hp > 1) {
-                    dirtInv += 1;
-
-                    this.hp -= 1;
-                    socket.emit("update_obj", {
-                        cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                        cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                        objName: this.objName,
-                        pos: { x: this.pos.x, y: this.pos.y },
-                        z: this.z,
-                        update_name: "hp",
-                        update_value: this.hp
-                    });
+                    let amt = Math.min(4, this.hp - 1, maxDirtInv - dirtInv);
+                    if (amt > 0) {
+                        dirtInv += amt;
+                        this.hp -= amt;
+                        socket.emit("update_obj", {
+                            cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
+                            cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
+                            objName: this.objName,
+                            pos: { x: this.pos.x, y: this.pos.y },
+                            z: this.z,
+                            update_name: "hp",
+                            update_value: this.hp
+                        });
+                    }
                 }
             }
         }
