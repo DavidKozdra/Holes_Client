@@ -844,10 +844,13 @@ function setupUI() {
     nameInput = createInput("");
     nameInput.hide();
     let inputWidth = constrain(width * 0.5, 100, 200); // Responsive width
-    let inputX = (width - inputWidth) / 2;
-    let inputY = height * 0.86;
-    nameInput.size(inputWidth, AUTO); // Auto height from padding
-    nameInput.position(inputX, inputY);
+
+    // Use CSS positioning instead of .position() to prevent movement
+    nameInput.style("position", "absolute");
+    nameInput.style("left", "50%");
+    nameInput.style("top", "85dvh");
+    nameInput.style("transform", "translateX(-50%)");
+    nameInput.style("width", inputWidth + "px");
 
     // Responsive base styling
     nameInput.style("font-size", width < 500 ? "14px" : "18px");
@@ -855,16 +858,16 @@ function setupUI() {
     nameInput.style("padding", "10px");
     nameInput.style("outline", "none");
     nameInput.style("transition", "border 0.2s, box-shadow 0.2s");
-    nameInput.style("width", inputWidth + "px");
-    nameInput.attribute("placeholder", "Name :");
-    nameInput.style("border", "2px solid #ccc"); // base border
+    nameInput.attribute("placeholder", "Name (A-Z, 0-9 only)");
+    nameInput.attribute("maxlength", "20");
+    nameInput.style("border", "2px solid #ccc");
+    nameInput.style("background-color", "rgba(255, 255, 255, 0.9)");
+    nameInput.style("box-shadow", "2px 2px 4px rgba(0, 0, 0, 0.3)");
 
     // Focus style
     nameInput.elt.addEventListener("focus", () => {
         nameInput.style("border", "2px solid var(--color-gold)");
         nameInput.style("box-shadow", "0 0 6px rgba(255, 215, 0, 0.6)");
-
-
         nameInput.attribute("placeholder", "");
     });
 
@@ -874,21 +877,19 @@ function setupUI() {
         nameInput.style("box-shadow", "none");
     });
 
-
-    // Optional shadow or backdrop (optional UX polish)
-    nameInput.style("background-color", "rgba(255, 255, 255, 0.9)");
-    nameInput.style("box-shadow", "2px 2px 4px rgba(0, 0, 0, 0.3)");
-
-
-    nameInput.style("padding", "10px");
-    nameInput.style("outline", "none");
-    nameInput.attribute('placeholder', 'Name :');
-    nameInput.style("transition", "border 0.2s");
+    // Real-time validation: only allow letters and numbers, no spaces
     nameInput.input(() => {
+        let currentValue = nameInput.value();
+        // Remove any characters that aren't A-Z, a-z, or 0-9
+        let filtered = currentValue.replace(/[^A-Za-z0-9]/g, '');
+        if (filtered !== currentValue) {
+            nameInput.value(filtered);
+        }
         checkName();
     });
+
     nameInput.mouseOver(() => {
-        nameInput.style("border", "3px black #4CAF50");
+        nameInput.style("border", "3px solid #4CAF50");
     });
     nameInput.mouseOut(() => {
         nameInput.style("border", "3px solid #ccc");
