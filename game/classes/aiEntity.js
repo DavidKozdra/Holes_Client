@@ -1,15 +1,13 @@
 // AIEntity.js - AI-controlled Skizzards and Gnomes
 
 const AINames = [
-    "James", "Alexander", "Robert", "Michael", "William", "David", "Richard", "Joseph",
-    "Thomas", "Charles", "Christopher", "Daniel", "Matthew", "Anthony", "Mark", "Donald",
-    "Margaret", "Dorothy", "Elizabeth", "Jessica", "Jennifer", "Linda", "Barbara", "Susan",
-    "Sarah", "Karen", "Nancy", "Alice", "Mary", "Catherine", "Helen", "Sandra"
+  "James", "Gamer2012", "ZeldaFan", "MinerMike", "CaveDweller", "Rocky", "Diggy", "FlameThrower", "SneakyPete", "Shadow",
 ];
 
 const raceNames = {
-    0: "Gnome",
-    2: "Skizzard"
+  0: "Gnome",
+  1: "Aylah", // Added race 1
+  2: "Skizzard"
 };
 
 // AI Personalities
@@ -208,7 +206,7 @@ class AIEntity {
         
         // Personality affects aggression
         if (this.personality === "aggressive") {
-            this.fleeThreshold = 0.1; // More willing to fight
+            this.fleeThreshold = 0.01; // More willing to fight
         } else if (this.personality === "cautious") {
             this.fleeThreshold = 0.6; // Flees earlier
         } else if (this.personality === "territorial") {
