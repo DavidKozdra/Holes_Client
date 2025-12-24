@@ -100,6 +100,11 @@ class AIEntity {
         this.shootInterval = random(45, 90); // Frames between shots (more aggressive)
         this.attackCooldown = 0;
         this.retreatTimer = 0; // Timer for retreat phase after attacking
+        this.chunkRequestCooldown = 0; // Avoid spamming chunk requests
+        this.digTarget = null; // Specific tile to tunnel through when blocked
+        this.stuckTimer = 0;
+        this.stuckCheckTimer = 0;
+        this.lastPos = this.pos.copy();
         
         // Goal system
         this.goalReachDistance = 300; // Distance to consider goal reached
@@ -119,6 +124,7 @@ class AIEntity {
         this.digCooldown = 0;
         this.digEnergy = 100;
         this.maxDigEnergy = 100;
+        this.digQueue = [];
         
         // Chat system
         this.lastChatTime = 0;
@@ -139,6 +145,9 @@ class AIEntity {
         
         // Moving state
         this.moving = false;
+        
+        // Dig star effects
+        this.digStars = [];
     }
 
     update(allPlayers) {
@@ -151,6 +160,12 @@ class AIEntity {
         // Apply movement
         this.vel.mult(0.8); // Friction
         this.pos.add(this.vel);
+
+        // Auto-mine collision tiles they're hitting
+        this.autoMineCollisionTiles();
+
+        // Track if we are stuck and nudge toward digging when blocked
+        this.trackStuck();
         
         // Update animation
         this.updateAnimation();
@@ -164,6 +179,15 @@ class AIEntity {
         this.goalTimer++;
         this.lastChatTime++;
         this.digCooldown--;
+
+        // Make sure the chunk we are in exists, otherwise request it and pause logic this frame
+        const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+        const chunkKey = chunkPos.x + "," + chunkPos.y;
+        if (testMap.chunks[chunkKey] == undefined) {
+            this.requestChunk(chunkPos);
+            this.moving = false;
+            return;
+        }
         
         // Regenerate dig energy slowly
         if (this.digEnergy < this.maxDigEnergy) {
@@ -280,10 +304,71 @@ class AIEntity {
     }
     
     executeDigBehavior() {
-        // Find ground nearby to dig
+        // If we have queued blocking tiles, pick the next one first
+        if (!this.digTarget && this.digQueue && this.digQueue.length > 0) {
+            this.digTarget = this.digQueue.shift();
+        }
+
+        // Prefer digging a blocking tile if one is set
+        if (this.digTarget) {
+            const targetKey = this.digTarget.cx + "," + this.digTarget.cy;
+            const chunk = testMap.chunks[targetKey];
+
+            if (!chunk) {
+                this.requestChunk({ x: this.digTarget.cx, y: this.digTarget.cy });
+                this.moving = false;
+                return;
+            }
+
+            const idx = this.digTarget.x + this.digTarget.y * CHUNKSIZE;
+            const dirtVal = chunk.data[idx];
+
+            if (dirtVal <= 0.05) {
+                this.digTarget = null;
+                // If more queued tiles remain, keep digging; otherwise resume goals
+                if (this.digQueue && this.digQueue.length > 0) {
+                    this.behavior = "dig";
+                } else {
+                    this.behavior = "pursue_goal";
+                    this.digCooldown = random(120, 240);
+                }
+            } else {
+                const digAmount = 0.035 * this.statBlock.stats.digging * (this.digEnergy / this.maxDigEnergy);
+                this.digEnergy = max(0, this.digEnergy - 3);
+
+                socket.emit("update_node", {
+                    chunkPos: `${this.digTarget.cx},${this.digTarget.cy}`,
+                    index: idx,
+                    amt: digAmount
+                });
+
+                // Optimistically update local chunk so collision clears immediately
+                if (chunk.data[idx] > 0) chunk.data[idx] = max(0, chunk.data[idx] - digAmount);
+                if (chunk.data[idx] < 0.3 && chunk.data[idx] !== -1) chunk.data[idx] = 0;
+
+                socket.emit("ai_dig_log", {
+                    id: this.id,
+                    pos: { x: this.pos.x, y: this.pos.y },
+                    chunk: `${this.digTarget.cx},${this.digTarget.cy}`,
+                    index: idx,
+                    amount: digAmount,
+                    mode: "target"
+                });
+            }
+
+            this.moving = false;
+            return;
+        }
+
+        // Find ground nearby to dig (fallback roaming dig)
         let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) return;
+        const chunkKey = chunkPos.x + "," + chunkPos.y;
+
+        if (testMap.chunks[chunkKey] == undefined) {
+            this.requestChunk(chunkPos);
+            this.moving = false;
+            return;
+        }
         
         // Pick a random spot nearby to dig
         if (this.digTimer <= 0) {
@@ -296,22 +381,33 @@ class AIEntity {
             
             // Validate dig position
             if (digX >= 0 && digX < CHUNKSIZE && digY >= 0 && digY < CHUNKSIZE) {
-                let dirtVal = testMap.chunks[chunkPos.x + "," + chunkPos.y].data[digX + digY * CHUNKSIZE];
+                let dirtVal = testMap.chunks[chunkKey].data[digX + digY * CHUNKSIZE];
                 
                 if (dirtVal > 0.3) {
                     // Dig this tile
                     let digAmount = 0.02 * this.statBlock.stats.digging * (this.digEnergy / this.maxDigEnergy);
-                    testMap.chunks[chunkPos.x + "," + chunkPos.y].data[digX + digY * CHUNKSIZE] -= digAmount;
                     this.digEnergy -= 5;
+                    const idx = digX + digY * CHUNKSIZE;
                     
-                    // Emit dig event to server
-                    socket.emit("dig", {
-                        cx: chunkPos.x,
-                        cy: chunkPos.y,
-                        x: digX,
-                        y: digY,
+                    socket.emit("update_node", {
+                        chunkPos: `${chunkPos.x},${chunkPos.y}`,
+                        index: idx,
+                        amt: digAmount
+                    });
+
+                    // Optimistically update local chunk so collision clears immediately
+                    testMap.chunks[chunkKey].data[idx] = max(0, testMap.chunks[chunkKey].data[idx] - digAmount);
+                    if (testMap.chunks[chunkKey].data[idx] < 0.3 && testMap.chunks[chunkKey].data[idx] !== -1) {
+                        testMap.chunks[chunkKey].data[idx] = 0;
+                    }
+
+                    socket.emit("ai_dig_log", {
+                        id: this.id,
+                        pos: { x: this.pos.x, y: this.pos.y },
+                        chunk: `${chunkPos.x},${chunkPos.y}`,
+                        index: idx,
                         amount: digAmount,
-                        id: this.id
+                        mode: "random"
                     });
                 }
             }
@@ -359,9 +455,12 @@ class AIEntity {
         // Brain-like behavior: Move towards target to get in range
         if (distToTarget > this.engageRange * 0.8) {
             // Move closer to shooting range
-            if (checkAICollision(this, this.direction)) {
+            if (checkAICollision(this, this.direction, true)) {
                 dirToTarget.setMag(BASE_SPEED * this.statBlock.stats.runningSpeed * 0.55 * (deltaTime / 30));
                 this.vel.add(dirToTarget);
+            } else if (!this.queueBlockingTiles(this.direction)) {
+                this.behavior = "dig";
+                this.digCooldown = 0;
             }
             this.moving = true;
         } else {
@@ -405,7 +504,7 @@ class AIEntity {
         // Back away from target (like Brain's space behavior)
         if (distToTarget < 100) {
             // Too close, back away faster
-            if (checkAICollision(this, this.direction)) {
+            if (checkAICollision(this, this.direction, true)) {
                 dirFromTarget.setMag(BASE_SPEED * this.statBlock.stats.runningSpeed * 0.5 * (deltaTime / 30));
                 this.vel.add(dirFromTarget);
             }
@@ -413,9 +512,15 @@ class AIEntity {
             this.retreatTimer = 60;
         } else if (distToTarget < 150) {
             // Keep moderate distance
-            if (checkAICollision(this, this.direction)) {
+            if (checkAICollision(this, this.direction, true)) {
                 dirFromTarget.setMag(BASE_SPEED * this.statBlock.stats.runningSpeed * 0.4 * (deltaTime / 30));
                 this.vel.add(dirFromTarget);
+            } else {
+                // Path blocked, queue those blocking tiles to clear
+                if (!this.queueBlockingTiles(this.direction)) {
+                    this.behavior = "dig";
+                }
+                this.digCooldown = 0;
             }
         } else {
             // Far enough, reduce retreat timer faster
@@ -448,12 +553,14 @@ class AIEntity {
         }
         
         // Chase aggressively toward player - AI moves 55% of player speed
-        if (checkAICollision(this, this.direction)) {
+        if (checkAICollision(this, this.direction, true)) {
             dirToTarget.setMag(BASE_SPEED * this.statBlock.stats.runningSpeed * 0.55 * (deltaTime / 30));
             this.vel.add(dirToTarget);
         } else {
-            // Path blocked, trigger digging instead of just slowing
-            this.behavior = "dig";
+            // Path blocked, queue blocking tiles to clear
+            if (!this.queueBlockingTiles(this.direction)) {
+                this.behavior = "dig";
+            }
             this.digCooldown = 0;
         }
         this.moving = true;
@@ -473,17 +580,19 @@ class AIEntity {
         }
         
         // Move toward goal if path is passable - AI moves 45% of player speed
-        if (checkAICollision(this, this.direction)) {
+        if (checkAICollision(this, this.direction, true)) {
             dirToGoal.setMag(BASE_SPEED * this.statBlock.stats.runningSpeed * 0.45 * (deltaTime / 30));
             this.vel.add(dirToGoal);
         } else {
-            // Path blocked, try digging instead of immediately picking new goal
-            if (this.digCooldown <= 0) {
-                this.behavior = "dig";
-                this.digCooldown = 0;
-            } else {
-                this.goal = null;
-                this.goalTimer = 0;
+            // Path blocked, queue blocking tiles; if none, pick a new goal
+            if (!this.queueBlockingTiles(this.direction)) {
+                if (this.digCooldown <= 0) {
+                    this.behavior = "dig";
+                    this.digCooldown = 0;
+                } else {
+                    this.goal = null;
+                    this.goalTimer = 0;
+                }
             }
         }
         
@@ -504,12 +613,12 @@ class AIEntity {
             }
             
             // Flee aggressively away from target - AI moves 60% of player speed when fleeing
-            if (checkAICollision(this, this.direction)) {
+            if (checkAICollision(this, this.direction, true)) {
                 dirFromTarget.setMag(BASE_SPEED * this.statBlock.stats.runningSpeed * 0.6 * (deltaTime / 30));
                 this.vel.add(dirFromTarget);
             } else {
-                // Path blocked, try digging through wall or random direction
-                if (this.digCooldown <= 0) {
+                // Path blocked, queue blocking tiles; otherwise fallback to random dodge
+                if (this.digCooldown <= 0 && !this.queueBlockingTiles(this.direction)) {
                     this.behavior = "dig";
                     this.digCooldown = 0;
                 } else {
@@ -517,7 +626,7 @@ class AIEntity {
                     let randDir = p5.Vector.fromAngle(randAngle);
                     dirFromTarget = randDir;
                     
-                    if (checkAICollision(this, this.direction)) {
+                    if (checkAICollision(this, this.direction, true)) {
                         dirFromTarget.setMag(BASE_SPEED * this.statBlock.stats.runningSpeed * 0.45 * (deltaTime / 30));
                         this.vel.add(dirFromTarget);
                     } else {
@@ -638,6 +747,25 @@ class AIEntity {
         
         // Translate to screen position
         translate(-camera.pos.x + width / 2, -camera.pos.y + height / 2);
+        
+        // Render dig star effects
+        if (this.digStars) {
+            for (let i = this.digStars.length - 1; i >= 0; i--) {
+                let star = this.digStars[i];
+                let alpha = map(star.life, 0, star.maxLife, 0, 255);
+                let size = map(star.life, 0, star.maxLife, 20, 0);
+                
+                fill(255, 215, 0, alpha); // Gold color
+                noStroke();
+                // Draw star
+                drawStar(star.x, star.y, 5, size, size * 0.4);
+                
+                star.life--;
+                if (star.life <= 0) {
+                    this.digStars.splice(i, 1);
+                }
+            }
+        }
         
         // Render name and level with personality indicator
         const yOffset = 60;
@@ -872,13 +1000,262 @@ class AIEntity {
             this.invBlock.addItem("Basic Sword", 1, false);
         }
     }
+
+    trackStuck() {
+        if (this.chunkRequestCooldown > 0) {
+            this.chunkRequestCooldown--;
+        }
+
+        this.stuckCheckTimer++;
+        if (this.stuckCheckTimer < 18) return;
+
+        const movedDist = p5.Vector.dist(this.pos, this.lastPos);
+        if (movedDist < 1.5 && this.moving) {
+            this.stuckTimer++;
+            if (this.stuckTimer >= 2) {
+                // Attempt to tunnel forward similar to Ant brain "space" backoff
+                if (!this.tryDigBlockedTile()) {
+                    this.behavior = "dig";
+                    this.digCooldown = 0;
+                }
+                this.stuckTimer = 0;
+            }
+        } else {
+            this.stuckTimer = 0;
+        }
+
+        this.lastPos = this.pos.copy();
+        this.stuckCheckTimer = 0;
+    }
+
+    requestChunk(chunkPos) {
+        if (this.chunkRequestCooldown <= 0) {
+            socket.emit("get_chunk", chunkPos.x + "," + chunkPos.y);
+            this.chunkRequestCooldown = 90; // 1.5s at 60fps
+        }
+    }
+
+    getForwardTile(direction) {
+        let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+        let x = floor(this.pos.x / TILESIZE) - (chunkPos.x * CHUNKSIZE);
+        let y = floor(this.pos.y / TILESIZE) - (chunkPos.y * CHUNKSIZE);
+
+        let x2 = x;
+        let y2 = y;
+
+        if (direction == "up") {
+            y2 -= 1;
+        } else if (direction == "down") {
+            y2 += 1;
+        } else if (direction == "left") {
+            x2 -= 1;
+        } else if (direction == "right") {
+            x2 += 1;
+        }
+
+        let chunkPos2 = { x: chunkPos.x, y: chunkPos.y };
+
+        if (x2 < 0) {
+            chunkPos2.x -= 1;
+            x2 = CHUNKSIZE - 1;
+        }
+        if (x2 >= CHUNKSIZE) {
+            chunkPos2.x += 1;
+            x2 = 0;
+        }
+        if (y2 < 0) {
+            chunkPos2.y -= 1;
+            y2 = CHUNKSIZE - 1;
+        }
+        if (y2 >= CHUNKSIZE) {
+            chunkPos2.y += 1;
+            y2 = 0;
+        }
+
+        return { x: x2, y: y2, chunk: chunkPos2 };
+    }
+
+    tryDigBlockedTile() {
+        const forward = this.getForwardTile(this.direction);
+        if (!forward) return false;
+
+        const chunkKey = forward.chunk.x + "," + forward.chunk.y;
+        const chunk = testMap.chunks[chunkKey];
+
+        if (!chunk) {
+            this.requestChunk(forward.chunk);
+            return false;
+        }
+
+        const val = chunk.data[forward.x + forward.y * CHUNKSIZE];
+        if (val > 0.1) {
+            this.digTarget = { cx: forward.chunk.x, cy: forward.chunk.y, x: forward.x, y: forward.y };
+            this.behavior = "dig";
+            this.digTimer = 0;
+            this.digCooldown = 0;
+            return true;
+        }
+        return false;
+    }
+
+    getBlockingTiles(direction) {
+        // Identify the current and forward tiles that are blocking movement
+        const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+        const chunkKey = chunkPos.x + "," + chunkPos.y;
+
+        const chunk = testMap.chunks[chunkKey];
+        if (!chunk) {
+            this.requestChunk(chunkPos);
+            return [];
+        }
+
+        let x = floor(this.pos.x / TILESIZE) - chunkPos.x * CHUNKSIZE;
+        let y = floor(this.pos.y / TILESIZE) - chunkPos.y * CHUNKSIZE;
+        let x2 = x;
+        let y2 = y;
+
+        if (direction === "up") y2 -= 1;
+        else if (direction === "down") y2 += 1;
+        else if (direction === "left") x2 -= 1;
+        else if (direction === "right") x2 += 1;
+
+        let chunkPos2 = { x: chunkPos.x, y: chunkPos.y };
+        if (x2 < 0) { chunkPos2.x -= 1; x2 = CHUNKSIZE - 1; }
+        if (x2 >= CHUNKSIZE) { chunkPos2.x += 1; x2 = 0; }
+        if (y2 < 0) { chunkPos2.y -= 1; y2 = CHUNKSIZE - 1; }
+        if (y2 >= CHUNKSIZE) { chunkPos2.y += 1; y2 = 0; }
+
+        const chunkKey2 = chunkPos2.x + "," + chunkPos2.y;
+        const chunk2 = testMap.chunks[chunkKey2];
+        if (!chunk2) {
+            this.requestChunk(chunkPos2);
+            return [];
+        }
+
+        const tiles = [];
+        const val = chunk.data[x + y * CHUNKSIZE];
+        const val2 = chunk2.data[x2 + y2 * CHUNKSIZE];
+
+        if (val >= 0.7 && val !== -1) tiles.push({ cx: chunkPos.x, cy: chunkPos.y, x, y });
+        if (val2 >= 0.7 && val2 !== -1) tiles.push({ cx: chunkPos2.x, cy: chunkPos2.y, x: x2, y: y2 });
+
+        return tiles;
+    }
+
+    queueBlockingTiles(direction) {
+        const tiles = this.getBlockingTiles(direction);
+        if (!tiles || tiles.length === 0) return false;
+
+        if (!this.digQueue) this.digQueue = [];
+
+        for (const t of tiles) {
+            const key = `${t.cx},${t.cy},${t.x},${t.y}`;
+            const exists = this.digQueue.some(item => item.key === key);
+            if (!exists) this.digQueue.push({ ...t, key });
+        }
+
+        // Immediately switch to digging those tiles
+        this.digTarget = null;
+        this.behavior = "dig";
+        this.digCooldown = 0;
+        return true;
+    }
+
+    autoMineCollisionTiles() {
+        // Scan tiles around AI position for collision dirt and auto-mine them
+        const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+        const chunkKey = chunkPos.x + "," + chunkPos.y;
+        const chunk = testMap.chunks[chunkKey];
+        
+        if (!chunk) return;
+        
+        const baseTileX = floor(this.pos.x / TILESIZE) - (chunkPos.x * CHUNKSIZE);
+        const baseTileY = floor(this.pos.y / TILESIZE) - (chunkPos.y * CHUNKSIZE);
+        
+        // Check 3x3 grid around AI
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                let tileX = baseTileX + dx;
+                let tileY = baseTileY + dy;
+                let checkChunk = chunk;
+                let checkChunkPos = chunkPos;
+                
+                // Handle chunk boundary crossing
+                if (tileX < 0) {
+                    checkChunkPos = { x: chunkPos.x - 1, y: chunkPos.y };
+                    tileX = CHUNKSIZE - 1;
+                } else if (tileX >= CHUNKSIZE) {
+                    checkChunkPos = { x: chunkPos.x + 1, y: chunkPos.y };
+                    tileX = 0;
+                }
+                if (tileY < 0) {
+                    checkChunkPos = { x: checkChunkPos.x, y: chunkPos.y - 1 };
+                    tileY = CHUNKSIZE - 1;
+                } else if (tileY >= CHUNKSIZE) {
+                    checkChunkPos = { x: checkChunkPos.x, y: chunkPos.y + 1 };
+                    tileY = 0;
+                }
+                
+                const checkKey = checkChunkPos.x + "," + checkChunkPos.y;
+                checkChunk = testMap.chunks[checkKey];
+                if (!checkChunk) continue;
+                
+                const idx = tileX + tileY * CHUNKSIZE;
+                const tileVal = checkChunk.data[idx];
+                
+                // Auto-mine solid dirt tiles (0.3 < val < 1.3)
+                if (tileVal > 0.3 && tileVal < 1.3) {
+                    const mineAmount = 0.015 * this.statBlock.stats.digging;
+                    checkChunk.data[idx] = max(0, tileVal - mineAmount);
+                    if (checkChunk.data[idx] < 0.3 && checkChunk.data[idx] !== -1) {
+                        checkChunk.data[idx] = 0;
+                    }
+                    
+                    // Send update to server
+                    socket.emit("update_node", {
+                        chunkPos: `${checkChunkPos.x},${checkChunkPos.y}`,
+                        index: idx,
+                        amt: mineAmount
+                    });
+                    
+                    // Draw star effect
+                    this.drawDigStar(tileX, tileY, checkChunkPos);
+                    
+                    socket.emit("ai_dig_log", {
+                        id: this.id,
+                        pos: { x: this.pos.x, y: this.pos.y },
+                        chunk: `${checkChunkPos.x},${checkChunkPos.y}`,
+                        index: idx,
+                        amount: mineAmount,
+                        mode: "collision"
+                    });
+                }
+            }
+        }
+    }
+
+    drawDigStar(tileX, tileY, chunkPos) {
+        // This will be called during render to show star effects
+        if (!this.digStars) this.digStars = [];
+        this.digStars.push({
+            x: (chunkPos.x * CHUNKSIZE + tileX) * TILESIZE + TILESIZE / 2,
+            y: (chunkPos.y * CHUNKSIZE + tileY) * TILESIZE + TILESIZE / 2,
+            life: 20,
+            maxLife: 20
+        });
+    }
 }
 
 // Helper function for AI collision checking
-function checkAICollision(entity, direction) {
+function checkAICollision(entity, direction, requestChunk = false) {
     let chunkPos = testMap.globalToChunk(entity.pos.x, entity.pos.y);
+    const chunkKey = chunkPos.x + "," + chunkPos.y;
     
-    if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) {
+    if (testMap.chunks[chunkKey] == undefined) {
+        if (requestChunk && entity.chunkRequestCooldown !== undefined && entity.chunkRequestCooldown <= 0) {
+            socket.emit("get_chunk", chunkKey);
+            entity.chunkRequestCooldown = 90;
+        }
         return false; // Can't move, no chunk
     }
 
@@ -917,13 +1294,31 @@ function checkAICollision(entity, direction) {
         y2 = 0;
     }
 
-    if (testMap.chunks[chunkPos2.x + "," + chunkPos2.y] == undefined) {
+    const chunkKey2 = chunkPos2.x + "," + chunkPos2.y;
+    if (testMap.chunks[chunkKey2] == undefined) {
+        if (requestChunk && entity.chunkRequestCooldown !== undefined && entity.chunkRequestCooldown <= 0) {
+            socket.emit("get_chunk", chunkKey2);
+            entity.chunkRequestCooldown = 90;
+        }
         return false; // Can't move, no chunk
     }
 
-    let val = testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE];
-    let val2 = testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE];
+    let val = testMap.chunks[chunkKey].data[x + y * CHUNKSIZE];
+    let val2 = testMap.chunks[chunkKey2].data[x2 + y2 * CHUNKSIZE];
 
     // Can move if both values are below passable threshold (0.7)
     return (val < 0.7 && val2 < 0.7);
+}
+
+// Helper to draw a star shape (used by AIEntity)
+function drawStar(x, y, points, outerRadius, innerRadius) {
+    beginShape();
+    for (let i = 0; i < points * 2; i++) {
+        let radius = i % 2 === 0 ? outerRadius : innerRadius;
+        let angle = (i / (points * 2)) * TWO_PI - PI / 2;
+        let sx = x + cos(angle) * radius;
+        let sy = y + sin(angle) * radius;
+        vertex(sx, sy);
+    }
+    endShape(CLOSE);
 }
