@@ -511,7 +511,18 @@ function socketSetup(){
         for(let i=0; i<keys.length; i++) testMap.chunks[data.x+","+data.y].iron_data[keys[i]] = data.iron_data[keys[i]];
         testMap.chunkBools[data.x+","+data.y] = true;
         for(let i=0; i<data.objects.length; i++){
-            let temp = createObject(data.objects[i].objName, data.objects[i].pos.x, data.objects[i].pos.y, data.objects[i].rot, data.objects[i].color, data.objects[i].id, data.objects[i].ownerName, data.objects[i].brainID);
+            let temp = createObject(
+                data.objects[i].objName, 
+                data.objects[i].pos.x, 
+                data.objects[i].pos.y, 
+                data.objects[i].rot, 
+                data.objects[i].color, 
+                data.objects[i].id, 
+                data.objects[i].ownerName, 
+                data.objects[i].brainID,
+                data.objects[i].level,
+                data.objects[i].xp
+            );
             
             //fix some obj properties
             if(temp.type == "InvObj"){
@@ -602,6 +613,25 @@ function socketSetup(){
                             chunk.objects[j].hp = chunk.objects[j].mhp; // Cap the HP at max HP
                         }
                     }
+                }
+            }
+        }
+    });
+
+    socket.on("ENTITY_LEVEL_UPDATE", (data) => {
+        // Update entity level and stats
+        let chunk = testMap.chunks[data.cx + "," + data.cy];
+        if (chunk) {
+            for (let j = 0; j < chunk.objects.length; j++) {
+                let obj = chunk.objects[j];
+                if (obj.pos.x === data.objPos.x && obj.pos.y === data.objPos.y) {
+                    if (obj.statBlock) {
+                        obj.statBlock.level = data.level;
+                        obj.statBlock.xp = data.xp;
+                        obj.hp = data.hp;
+                        obj.mhp = data.mhp;
+                    }
+                    break;
                 }
             }
         }

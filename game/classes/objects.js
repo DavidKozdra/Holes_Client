@@ -1018,12 +1018,21 @@ class InvObj extends Placeable {
 }
 
 class Entity extends Placeable {
-    constructor(objName, x, y, w, h, rot, z, color, health, imgNum, id, ownerName, projName, brainID) {
+    constructor(objName, x, y, w, h, rot, z, color, health, imgNum, id, ownerName, projName, brainID, level, xp) {
         super(objName, x, y, w, h, rot, z, color, health, imgNum, id, ownerName, false);
         this.projName = projName;
 
         this.animationFrame = 0;
         this.currentFrame = 0;
+        
+        // Add stat block for AI entities - use race 0 (gnome) as default
+        this.statBlock = new StatBlock(0, health);
+        if (level !== undefined) {
+            this.statBlock.level = level;
+        }
+        if (xp !== undefined) {
+            this.statBlock.xp = xp;
+        }
 
         if (brainID == -1) {
             testMap.brains.push(new Brain(200));
@@ -1138,7 +1147,7 @@ class Entity extends Placeable {
         // Prepare text
         textSize(14);
         textAlign(CENTER, CENTER);
-        let nameText = this.objName; // Display the entity type name (Ant, Gnome, etc.)
+        let nameText = this.objName + " lvl_" + this.statBlock.level; // Display entity type and level
 
         // Measure text width to draw a background rectangle around it
         let textW = textWidth(nameText) + 8;  // some padding
@@ -1181,7 +1190,7 @@ class CustomObj extends Placeable {
     //define your own update
 }
 
-function createObject(name, x, y, rot, color, id, ownerName, brainID) {
+function createObject(name, x, y, rot, color, id, ownerName, brainID, level, xp) {
     if (objDic[name] == undefined) {
         throw new Error(`Object with name: ${name}, does not exist`);
     }
@@ -1202,7 +1211,7 @@ function createObject(name, x, y, rot, color, id, ownerName, brainID) {
             return new CustomObj(name, x, y, objDic[name].w, objDic[name].h, rot, objDic[name].z, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].update, objDic[name].canRotate);
         }
         else if (objDic[name].type == "Entity") {
-            return new Entity(name, x, y, objDic[name].w, objDic[name].h, rot, objDic[name].z, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].projName, brainID);
+            return new Entity(name, x, y, objDic[name].w, objDic[name].h, rot, objDic[name].z, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].projName, brainID, level, xp);
         }
         else {
             throw new Error(`Object type: ${objDic[name].type}, does not exist.`);
