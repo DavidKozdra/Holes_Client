@@ -99,8 +99,8 @@ class Player {
         }
 
         //MATH
-        let val = testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + (y / CHUNKSIZE)];
-        let val2 = testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + (y2 / CHUNKSIZE)];
+        let val = testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE];
+        let val2 = testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE];
 
         if (val == -1 || val2 == -1) {
             return {
@@ -160,10 +160,10 @@ class Player {
         }
 
         return {
-            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + (y / CHUNKSIZE)],
-            val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + (y2 / CHUNKSIZE)],
-            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + (y / CHUNKSIZE)],
-            iron_val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].iron_data[x2 + (y2 / CHUNKSIZE)],
+            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE],
+            val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE],
+            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + y * CHUNKSIZE],
+            iron_val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].iron_data[x2 + y2 * CHUNKSIZE],
             x: (midpoint.x + (chunkPos2.x * CHUNKSIZE)) * TILESIZE,
             y: (midpoint.y + (chunkPos2.y * CHUNKSIZE)) * TILESIZE,
             dir: direction

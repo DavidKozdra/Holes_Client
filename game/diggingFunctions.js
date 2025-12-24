@@ -89,7 +89,7 @@ function dig(x, y, amt, playerDiging, rayStart) {
     
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
-    let index = x + (y / CHUNKSIZE);
+    let index = x + y * CHUNKSIZE;
 
     if(rayStart != undefined){
         push();
@@ -142,7 +142,7 @@ function cast(x,y, angle, placeBool){
 
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
-    let index = x + (y / CHUNKSIZE);
+    let index = x + y * CHUNKSIZE;
 
     if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
 
@@ -171,7 +171,7 @@ function cast(x,y, angle, placeBool){
             chunkPos.y -= 1;
           }
           
-        index = floor(x) + (floor(y) / CHUNKSIZE);
+        index = floor(x) + floor(y) * CHUNKSIZE;
         
         if(placeBool){
             if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] >= 1.3){
@@ -267,7 +267,7 @@ function mine(x, y, amt, playerDiging, rayStart) {
     
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
-    let index = x + (y / CHUNKSIZE);
+    let index = x + y * CHUNKSIZE;
 
     if(rayStart != undefined){
         push();
@@ -315,7 +315,7 @@ function ironCast(x,y, angle, placeBool){
 
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
-    let index = x + (y / CHUNKSIZE);
+    let index = x + y * CHUNKSIZE;
 
     if(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
 
@@ -344,7 +344,7 @@ function ironCast(x,y, angle, placeBool){
             chunkPos.y -= 1;
           }
           
-        index = floor(x) + (floor(y) / CHUNKSIZE);
+        index = floor(x) + floor(y) * CHUNKSIZE;
         
         if(placeBool){
             if(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] >= 1.3){

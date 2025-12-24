@@ -78,7 +78,7 @@ class SimpleProjectile{
         let x = floor(this.pos.x / TILESIZE) - (this.cPos.x*CHUNKSIZE);
         let y = floor(this.pos.y / TILESIZE) - (this.cPos.y*CHUNKSIZE);
         let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
-        if(chunk.data[x + (y / CHUNKSIZE)] > 0 || chunk.iron_data[x + (y / CHUNKSIZE)] > 0){
+        if(chunk.data[x + y * CHUNKSIZE] > 0 || chunk.iron_data[x + y * CHUNKSIZE] > 0){
             this.deleteTag = true;
             socket.emit("delete_proj", this);
         }
@@ -354,7 +354,7 @@ class ObjProj extends SimpleProjectile{
         let y = floor(this.pos.y / TILESIZE) - (this.cPos.y*CHUNKSIZE);
         let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
         if(x > 0 && x < CHUNKSIZE && y > 0 && y < CHUNKSIZE){
-            if(chunk.data[x + (y / CHUNKSIZE)] > 0 || chunk.iron_data[x + (y / CHUNKSIZE)] > 0){
+            if(chunk.data[x + y * CHUNKSIZE] > 0 || chunk.iron_data[x + y * CHUNKSIZE] > 0){
                 this.spawnObj();
                 this.deleteTag = true;
                 socket.emit("delete_proj", this);

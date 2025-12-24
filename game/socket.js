@@ -219,7 +219,7 @@ function socketSetup(){
         for(let x = posX-data.radius; x <= posX+data.radius; x++){
             for(let y = posY-data.radius; y <= posY+data.radius; y++){
                 if(x >= 0 && x < CHUNKSIZE && y >= 0 && y < CHUNKSIZE){
-                    let index = (x + (y / CHUNKSIZE));
+                    let index = x + y * CHUNKSIZE;
                     if(data.amt > 0){
                         if (chunk.data[index] > 0) chunk.data[index] -= data.amt;
                         if (chunk.data[index] < 0.3 && chunk.data[index] !== -1){
@@ -241,35 +241,35 @@ function socketSetup(){
                     let index;
                     if(y < 0 && x >= 0 && x < CHUNKSIZE){ // top edge
                         tempChunk = testMap.getChunk(data.cx, data.cy-1);
-                        index = (x + 1 + (y / CHUNKSIZE));
+                        index = x + (CHUNKSIZE + y) * CHUNKSIZE;
                     }
                     else if(y >= CHUNKSIZE && x >= 0 && x < CHUNKSIZE){ // bottom edge
                         tempChunk = testMap.getChunk(data.cx, data.cy+1);
-                        index = x + -1 + (y / CHUNKSIZE);
+                        index = x + (y - CHUNKSIZE) * CHUNKSIZE;
                     }
                     else if(x < 0 && y >= 0 && y < CHUNKSIZE){ // left edge
                         tempChunk = testMap.getChunk(data.cx-1, data.cy);
-                        index = (x + CHUNKSIZE) + (y / CHUNKSIZE);
+                        index = (CHUNKSIZE + x) + y * CHUNKSIZE;
                     }
                     else if(x >= CHUNKSIZE && y >= 0 && y < CHUNKSIZE){ // right edge
                         tempChunk = testMap.getChunk(data.cx+1, data.cy);
-                        index = (x - CHUNKSIZE) + (y / CHUNKSIZE);
+                        index = (x - CHUNKSIZE) + y * CHUNKSIZE;
                     }
                     else if(x < 0 && y < 0){ // top left corner
                         tempChunk = testMap.getChunk(data.cx-1, data.cy-1);
-                        index = (x + CHUNKSIZE) + 1 + (y / CHUNKSIZE);
+                        index = (CHUNKSIZE + x) + (CHUNKSIZE + y) * CHUNKSIZE;
                     }
                     else if(x >= CHUNKSIZE && y < 0){ // top right corner
                         tempChunk = testMap.getChunk(data.cx+1, data.cy-1);
-                        index = (x - CHUNKSIZE) + 1 + (y / CHUNKSIZE);
+                        index = (x - CHUNKSIZE) + (CHUNKSIZE + y) * CHUNKSIZE;
                     }
                     else if(x < 0 && y >= CHUNKSIZE){ // bottom left corner
                         tempChunk = testMap.getChunk(data.cx-1, data.cy+1);
-                        index = (x + CHUNKSIZE) + -1 + (y / CHUNKSIZE);
+                        index = (CHUNKSIZE + x) + (y - CHUNKSIZE) * CHUNKSIZE;
                     }
                     else if(x >= CHUNKSIZE && y >= CHUNKSIZE){ // bottom right corner
                         tempChunk = testMap.getChunk(data.cx+1, data.cy+1);
-                        index = (x - CHUNKSIZE) + -1 + (y / CHUNKSIZE);
+                        index = (x - CHUNKSIZE) + (y - CHUNKSIZE) * CHUNKSIZE;
                     }
                     if(tempChunk != undefined){
                         if(index != undefined){
@@ -305,7 +305,7 @@ function socketSetup(){
         for(let x = posX-data.radius; x <= posX+data.radius; x++){
             for(let y = posY-data.radius; y <= posY+data.radius; y++){
                 if(x >= 0 && x < CHUNKSIZE && y >= 0 && y < CHUNKSIZE){
-                    let index = (x + (y / CHUNKSIZE));
+                    let index = x + y * CHUNKSIZE;
                     if(data.amt > 0){
                         if (chunk.iron_data[index] > 0) chunk.iron_data[index] -= data.amt;
                         if (chunk.iron_data[index] < 0.3 && chunk.iron_data[index] !== -1){
@@ -327,35 +327,35 @@ function socketSetup(){
                     let index;
                     if(y < 0 && x >= 0 && x < CHUNKSIZE){ // top edge
                         tempChunk = testMap.getChunk(data.cx, data.cy-1);
-                        index = (x + 1 + (y / CHUNKSIZE));
+                        index = x + (CHUNKSIZE + y) * CHUNKSIZE;
                     }
                     else if(y >= CHUNKSIZE && x >= 0 && x < CHUNKSIZE){ // bottom edge
                         tempChunk = testMap.getChunk(data.cx, data.cy+1);
-                        index = x + -1 + (y / CHUNKSIZE);
+                        index = x + (y - CHUNKSIZE) * CHUNKSIZE;
                     }
                     else if(x < 0 && y >= 0 && y < CHUNKSIZE){ // left edge
                         tempChunk = testMap.getChunk(data.cx-1, data.cy);
-                        index = (x + CHUNKSIZE) + (y / CHUNKSIZE);
+                        index = (CHUNKSIZE + x) + y * CHUNKSIZE;
                     }
                     else if(x >= CHUNKSIZE && y >= 0 && y < CHUNKSIZE){ // right edge
                         tempChunk = testMap.getChunk(data.cx+1, data.cy);
-                        index = (x - CHUNKSIZE) + (y / CHUNKSIZE);
+                        index = (x - CHUNKSIZE) + y * CHUNKSIZE;
                     }
                     else if(x < 0 && y < 0){ // top left corner
                         tempChunk = testMap.getChunk(data.cx-1, data.cy-1);
-                        index = (x + CHUNKSIZE) + 1 + (y / CHUNKSIZE);
+                        index = (CHUNKSIZE + x) + (CHUNKSIZE + y) * CHUNKSIZE;
                     }
                     else if(x >= CHUNKSIZE && y < 0){ // top right corner
                         tempChunk = testMap.getChunk(data.cx+1, data.cy-1);
-                        index = (x - CHUNKSIZE) + 1 + (y / CHUNKSIZE);
+                        index = (x - CHUNKSIZE) + (CHUNKSIZE + y) * CHUNKSIZE;
                     }
                     else if(x < 0 && y >= CHUNKSIZE){ // bottom left corner
                         tempChunk = testMap.getChunk(data.cx-1, data.cy+1);
-                        index = (x + CHUNKSIZE) + -1 + (y / CHUNKSIZE);
+                        index = (CHUNKSIZE + x) + (y - CHUNKSIZE) * CHUNKSIZE;
                     }
                     else if(x >= CHUNKSIZE && y >= CHUNKSIZE){ // bottom right corner
                         tempChunk = testMap.getChunk(data.cx+1, data.cy+1);
-                        index = (x - CHUNKSIZE) + -1 + (y / CHUNKSIZE);
+                        index = (x - CHUNKSIZE) + (y - CHUNKSIZE) * CHUNKSIZE;
                     }
                     if(tempChunk != undefined){
                         if(index != undefined){

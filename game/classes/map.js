@@ -13,7 +13,7 @@ class Map{
             socket.emit("get_chunk", (x+","+y));
             this.chunkBools[x+","+y] = false;
         }
-        if(this.chunkBools[x+","+y] = true) return this.chunks[x+","+y];
+        if(this.chunkBools[x+","+y] === true) return this.chunks[x+","+y];
     }
 
     globalToChunk(x,y){
@@ -143,7 +143,7 @@ class Chunk{
         push();
         for (let x = 0; x < CHUNKSIZE; x++){
             for (let y = 0; y < CHUNKSIZE; y++){
-                let index = x + (y / CHUNKSIZE);
+                let index = x + y * CHUNKSIZE;
                 let pos = this.cordToScreen(x,y);
                 fill(map(this.data[index], 0, 1, 255, 0));
                 circle(pos.x, pos.y, this.data[index]*TILESIZE);
@@ -168,23 +168,29 @@ class Chunk{
         for (let x = 0; x < CHUNKSIZE; x++){
             for (let y = 0; y < CHUNKSIZE; y++){
                 //holds the values at each corner
-                let corners = [this.iron_data[x+(y/CHUNKSIZE)],this.iron_data[x+1+(y/CHUNKSIZE)],
-                               this.iron_data[x+1+((y+1)/CHUNKSIZE)],this.iron_data[x+((y+1)/CHUNKSIZE)]];
+                let corners = [
+                    this.iron_data[x + y * CHUNKSIZE],
+                    this.iron_data[(x + 1) + y * CHUNKSIZE],
+                    this.iron_data[(x + 1) + (y + 1) * CHUNKSIZE],
+                    this.iron_data[x + (y + 1) * CHUNKSIZE]
+                ];
                 if(x == CHUNKSIZE-1){
                     if(testMap.chunks[(this.cx+1)+","+this.cy] != undefined){
-                        corners[1] = testMap.chunks[(this.cx+1)+","+this.cy].iron_data[(y/CHUNKSIZE)];
-                        corners[2] = testMap.chunks[(this.cx+1)+","+this.cy].iron_data[((y+1)/CHUNKSIZE)];
+                        // right neighbor first column
+                        corners[1] = testMap.chunks[(this.cx+1)+","+this.cy].iron_data[0 + y * CHUNKSIZE];
+                        corners[2] = testMap.chunks[(this.cx+1)+","+this.cy].iron_data[0 + (y + 1) * CHUNKSIZE];
                     }
                 }
                 if(y == CHUNKSIZE-1){
                     if(testMap.chunks[this.cx+","+(this.cy+1)] != undefined){
-                        corners[2] = testMap.chunks[this.cx+","+(this.cy+1)].iron_data[x+1];
-                        corners[3] = testMap.chunks[this.cx+","+(this.cy+1)].iron_data[x];
+                        // bottom neighbor row
+                        corners[2] = testMap.chunks[this.cx+","+(this.cy+1)].iron_data[(x + 1) + 0 * CHUNKSIZE];
+                        corners[3] = testMap.chunks[this.cx+","+(this.cy+1)].iron_data[x + 0 * CHUNKSIZE];
                     }
                 }
                 if(x == CHUNKSIZE-1 && y == CHUNKSIZE-1){
                     if(testMap.chunks[(this.cx+1)+","+(this.cy+1)] != undefined){
-                        corners[2] = testMap.chunks[(this.cx+1)+","+(this.cy+1)].iron_data[((y+1)/CHUNKSIZE)];
+                        corners[2] = testMap.chunks[(this.cx+1)+","+(this.cy+1)].iron_data[0 + 0 * CHUNKSIZE];
                     }
                 }
                 for(let i=0; i < 4; i++){
@@ -390,23 +396,27 @@ class Chunk{
         for (let x = 0; x < CHUNKSIZE; x++){
             for (let y = 0; y < CHUNKSIZE; y++){
                 //holds the values at each corner
-                let corners = [this.data[x+(y/CHUNKSIZE)],this.data[x+1+(y/CHUNKSIZE)],
-                               this.data[x+1+((y+1)/CHUNKSIZE)],this.data[x+((y+1)/CHUNKSIZE)]];
+                let corners = [
+                    this.data[x + y * CHUNKSIZE],
+                    this.data[(x + 1) + y * CHUNKSIZE],
+                    this.data[(x + 1) + (y + 1) * CHUNKSIZE],
+                    this.data[x + (y + 1) * CHUNKSIZE]
+                ];
                 if(x == CHUNKSIZE-1){
                     if(testMap.chunks[(this.cx+1)+","+this.cy] != undefined){
-                        corners[1] = testMap.chunks[(this.cx+1)+","+this.cy].data[(y/CHUNKSIZE)];
-                        corners[2] = testMap.chunks[(this.cx+1)+","+this.cy].data[((y+1)/CHUNKSIZE)];
+                        corners[1] = testMap.chunks[(this.cx+1)+","+this.cy].data[0 + y * CHUNKSIZE];
+                        corners[2] = testMap.chunks[(this.cx+1)+","+this.cy].data[0 + (y + 1) * CHUNKSIZE];
                     }
                 }
                 if(y == CHUNKSIZE-1){
                     if(testMap.chunks[this.cx+","+(this.cy+1)] != undefined){
-                        corners[2] = testMap.chunks[this.cx+","+(this.cy+1)].data[x+1];
-                        corners[3] = testMap.chunks[this.cx+","+(this.cy+1)].data[x];
+                        corners[2] = testMap.chunks[this.cx+","+(this.cy+1)].data[(x + 1) + 0 * CHUNKSIZE];
+                        corners[3] = testMap.chunks[this.cx+","+(this.cy+1)].data[x + 0 * CHUNKSIZE];
                     }
                 }
                 if(x == CHUNKSIZE-1 && y == CHUNKSIZE-1){
                     if(testMap.chunks[(this.cx+1)+","+(this.cy+1)] != undefined){
-                        corners[2] = testMap.chunks[(this.cx+1)+","+(this.cy+1)].data[((y+1)/CHUNKSIZE)];
+                        corners[2] = testMap.chunks[(this.cx+1)+","+(this.cy+1)].data[0 + 0 * CHUNKSIZE];
                     }
                 }
                 for(let i=0; i < 4; i++){
@@ -616,7 +626,7 @@ class Chunk{
         let str = "";
         for (let y = 0; y < CHUNKSIZE; y++){
             for (let x = 0; x < CHUNKSIZE; x++){
-                let index = x+(y/CHUNKSIZE);
+                let index = x + y * CHUNKSIZE;
                 str += this.data[index]*9;
                 str += ",";
             }

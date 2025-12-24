@@ -7,7 +7,7 @@ function cleanChunk(cx,cy){  //removes all dirt in a chunk
     let chunk = testMap.chunks[cx+","+cy];
     for (let x = 0; x < CHUNKSIZE; x++){
         for (let y = 0; y < CHUNKSIZE; y++){
-            let index = x + (y / CHUNKSIZE);
+            let index = x + y * CHUNKSIZE;
             chunk.data[index] = 0; 
             //socket.emit("update_node", {chunkPos: (cx+","+cy), index: index, val: 0});
         }
@@ -70,7 +70,7 @@ function createTestChunk(cx, cy){ //makes the dirt in a specific way to test the
     let chunk = testMap.chunks[cx+","+cy];
     for (let x = 0; x < CHUNKSIZE; x++){
         for (let y = 0; y < CHUNKSIZE; y++){
-            let index = x + (y / CHUNKSIZE);
+            let index = x + y * CHUNKSIZE;
             chunk.data[index] = testChunk[y][x]/9; 
             socket.emit("update_node", {chunkPos: (cx+","+cy), index: index, val: testChunk[y][x]/9});
         }

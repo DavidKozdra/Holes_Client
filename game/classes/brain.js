@@ -138,7 +138,7 @@ class Brain {
         let oldChunkPos = testMap.globalToChunk(this.obj.pos.x, this.obj.pos.y);
         let xTile = floor(this.obj.pos.x / TILESIZE) - (oldChunkPos.x * CHUNKSIZE);
         let yTile = floor(this.obj.pos.y / TILESIZE) - (oldChunkPos.y * CHUNKSIZE);
-        if(testMap.chunks[oldChunkPos.x+","+oldChunkPos.y].data[xTile + (yTile / CHUNKSIZE)] > 0){
+        if(testMap.chunks[oldChunkPos.x+","+oldChunkPos.y].data[xTile + yTile * CHUNKSIZE] > 0){
             speed = speed/2;
         }
         this.obj.pos.add(createVector(x,y).sub(this.obj.pos).setMag(speed*(deltaTime/30)));

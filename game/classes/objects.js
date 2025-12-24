@@ -628,8 +628,8 @@ class Placeable {
             y: (y + 0.5) * TILESIZE,
             cx: chunkPos.x,
             cy: chunkPos.y,
-            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + (y / CHUNKSIZE)],
-            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + (y / CHUNKSIZE)]
+            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE],
+            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + y * CHUNKSIZE]
         };
 
     }
