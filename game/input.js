@@ -126,7 +126,9 @@ function keyReleased() {
                         )
                     ) ||
                     chunk.objects[i].objName == "Door") {
-                    if (chunk.objects[i].pos.dist(curPlayer.pos) < 4 * TILESIZE) {
+                    // Different interaction ranges for bags vs chests
+                    let maxDist = chunk.objects[i].objName == "ItemBag" ? 3 * TILESIZE : 4 * TILESIZE;
+                    if (chunk.objects[i].pos.dist(curPlayer.pos) < maxDist) {
                         if (closest == undefined) {
                             closest = chunk.objects[i];
                             closestDist = mouseVec.dist(closest.pos);
@@ -139,7 +141,9 @@ function keyReleased() {
                 }
             }
             if (closest != undefined) {
-                if (closestDist < 2 * TILESIZE) {
+                // Shorter click range for bags
+                let clickRange = closest.objName == "ItemBag" ? 1.5 * TILESIZE : 2 * TILESIZE;
+                if (closestDist < clickRange) {
                     if (closest.type == "InvObj") {
                         closest.useInv();
                     }
@@ -178,7 +182,9 @@ function keyReleased() {
                         }
                     }
 
-                    if (closestDist < 4 * TILESIZE) {
+                    // Fallback with appropriate range
+                    let fallbackRange = closest.objName == "ItemBag" ? 3 * TILESIZE : 4 * TILESIZE;
+                    if (closestDist < fallbackRange) {
                         if (closest.type == "InvObj") {
                             closest.useInv();
                         }
@@ -284,12 +290,25 @@ function keyReleased() {
                 objName: curPlayer.otherInv.objName,
                 pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
                 z: curPlayer.otherInv.z,
+                invId: curPlayer.otherInv.invBlock?.invId,
                 items: curPlayer.otherInv.invBlock.items
             });
             updateSwapItemLists(curPlayer.otherInv.invBlock);
             updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
         }
         if (keyCode == Controls_Inventory_code) { //i
+            // push any chest/bag state back to server on close
+            if (curPlayer.otherInv && curPlayer.otherInv.pos) {
+                const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
+                socket.emit("update_inv", {
+                    cx: chunkPos.x, cy: chunkPos.y,
+                    objName: curPlayer.otherInv.objName,
+                    pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
+                    z: curPlayer.otherInv.z,
+                    invId: curPlayer.otherInv.invBlock?.invId,
+                    items: curPlayer.otherInv.invBlock.items
+                });
+            }
             gameState = "playing";
             swapInvDiv.hide();
             spaceBarDiv.hide();

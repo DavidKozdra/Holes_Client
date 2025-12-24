@@ -1258,6 +1258,19 @@ function defineSpaceBarUI() {
             }
             updateSwapItemLists(curPlayer.otherInv.invBlock);
             updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
+
+            // Sync other inventory back to server when clicking the spacebar UI (mirror keyboard handler)
+            if (curPlayer.otherInv && curPlayer.otherInv.pos) {
+                const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
+                socket.emit("update_inv", {
+                    cx: chunkPos.x, cy: chunkPos.y,
+                    objName: curPlayer.otherInv.objName,
+                    pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
+                    z: curPlayer.otherInv.z,
+                    invId: curPlayer.otherInv.invBlock?.invId,
+                    items: curPlayer.otherInv.invBlock.items
+                });
+            }
         }
     });
 
@@ -2522,6 +2535,18 @@ function defineSwapInvUI() {
     });
 
     closeButton.mousePressed(() => {
+        // Push any pending chest/bag changes before closing
+        if (curPlayer.otherInv && curPlayer.otherInv.pos) {
+            const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
+            socket.emit("update_inv", {
+                cx: chunkPos.x, cy: chunkPos.y,
+                objName: curPlayer.otherInv.objName,
+                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
+                z: curPlayer.otherInv.z,
+                invId: curPlayer.otherInv.invBlock?.invId,
+                items: curPlayer.otherInv.invBlock.items
+            });
+        }
         gameState = "playing"
         curPlayer.invBlock.useTimer = 10;
         swapInvDiv.hide(); // Hides the inventory when clicked
@@ -2551,6 +2576,28 @@ function getItemFrameDataURL(imgNum) {
 }
 
 /**
+ * Backfills missing imgNum fields for loot bags while leaving chests/other containers untouched.
+ * Only runs when the currently opened otherInv is an ItemBag.
+ * @param {Inventory} inv
+ * @returns {Inventory}
+ */
+function hydrateBagItemImages(inv) {
+    if (!inv || !inv.items) return inv;
+    if (!curPlayer || !curPlayer.otherInv || curPlayer.otherInv.objName !== "ItemBag") return inv;
+
+    Object.keys(inv.items).forEach((name) => {
+        const entry = inv.items[name];
+        if (!entry) return;
+        if (entry.imgNum === undefined || entry.imgNum === null) {
+            const imgNum = itemDic?.[name]?.imgNum;
+            if (imgNum !== undefined) entry.imgNum = imgNum;
+        }
+    });
+
+    return inv;
+}
+
+/**
  * Rebuilds the two inventory columns for swapping between the current player and another inventory.
  * Never throws if an image/frame is missing; falls back to a text placeholder.
  *
@@ -2559,7 +2606,8 @@ function getItemFrameDataURL(imgNum) {
 function updateSwapItemLists(otherInv) {
     if (!curPlayer || !curPlayer.invBlock) return;
 
-    updatecurSwapItemDiv(otherInv);
+    const normalizedOtherInv = hydrateBagItemImages(otherInv);
+    updatecurSwapItemDiv(normalizedOtherInv);
 
     // LEFT SIDE (current player)
     itemListDivLeft.html("");
@@ -2641,7 +2689,7 @@ function updateSwapItemLists(otherInv) {
     // RIGHT SIDE (other inventory)
     itemListDivRight.html("");
     /** @type {Inventory} */
-    const safeOther = otherInv || /** @type {Inventory} */({ items: {}, curItem: "" });
+    const safeOther = normalizedOtherInv || /** @type {Inventory} */({ items: {}, curItem: "" });
     const otherItems = safeOther.items || {};
     arr = Object.keys(otherItems);
 
@@ -2740,8 +2788,10 @@ function getItemFrameDataURL(imgNum) {
 function updatecurSwapItemDiv(otherInv) {
     if (!curPlayer || !curPlayer.invBlock) return;
 
+    const normalizedOther = hydrateBagItemImages(otherInv);
+
     /** @type {Inventory} */
-    const safeOther = otherInv || /** @type {Inventory} */ ({ items: {}, curItem: "" });
+    const safeOther = normalizedOther || /** @type {Inventory} */ ({ items: {}, curItem: "" });
 
     let curSwapItem;
     const myCur = curPlayer.invBlock.curItem || "";

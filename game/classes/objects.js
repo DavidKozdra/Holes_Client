@@ -978,6 +978,22 @@ class InvObj extends Placeable {
     }
 
     useInv() {
+        // Ensure this is actually an InvObj before proceeding
+        if (this.type !== "InvObj") return;
+        if (!this.invBlock) return;
+
+        // ItemBags can always be opened by anyone
+        if (this.objName === "ItemBag") {
+            gameState = "swap_inv";
+            curPlayer.otherInv = this;
+            curPlayer.invBlock.curItem = "";
+            curPlayer.otherInv.invBlock.curItem = "";
+            updateSwapItemLists(this.invBlock);
+            swapInvDiv.show();
+            return;
+        }
+
+        // For other containers (chests), check ownership
         if (this.locked) { //when locked only owner can open
             if (curPlayer.name == this.ownerName) {
                 gameState = "swap_inv";
@@ -986,7 +1002,6 @@ class InvObj extends Placeable {
                 curPlayer.otherInv.invBlock.curItem = "";
                 updateSwapItemLists(this.invBlock);
                 swapInvDiv.show();
-                //console.log("open Inv");
             }
         }
         else { //when unlocked all team members can open
@@ -997,7 +1012,6 @@ class InvObj extends Placeable {
                 curPlayer.otherInv.invBlock.curItem = "";
                 updateSwapItemLists(this.invBlock);
                 swapInvDiv.show();
-                //console.log("open Inv");
             }
         }
     }
