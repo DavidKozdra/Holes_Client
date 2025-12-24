@@ -271,6 +271,7 @@ function renderServerBrowser() {
         serverBrowserContainer.style("left", "50%");
         serverBrowserContainer.style("transform", "translate(-50%, -50%)");
 
+        
         // Title
         let title = createDiv("Select A Server");
         title.style("font-size", "2.5rem");
@@ -279,8 +280,44 @@ function renderServerBrowser() {
         title.style("text-align", "center");
         title.parent(serverBrowserContainer);
 
+                // Search input for filtering servers
+        let searchContainer = createDiv();
+        searchContainer.style("margin-bottom", "15px");
+        searchContainer.parent(serverBrowserContainer);
+
+        let searchInput = createInput("");
+        searchInput.attribute("placeholder", "🔍 Search Servers...");
+        searchInput.parent(searchContainer);
+        searchInput.style("width", "90%");
+        searchInput.style("padding", "10px");
+        searchInput.style("font-size", "1rem");
+        searchInput.style("border-radius", "5px");
+        searchInput.style("border", "1px solid #444");
+        searchInput.style("background-color", "#333");
+        searchInput.style("color", "#fff");
+        searchInput.style("margin", "0 auto");
+        searchInput.style("display", "block");
+
+        searchInput.elt.addEventListener("focus", () => {
+            lastGameState = gameState;
+            gameState = "search";
+        });
+
+        searchInput.elt.addEventListener("blur", () => {
+            if (gameState === "search") {
+                gameState = lastGameState;
+            }
+        });
+
+        searchInput.elt.addEventListener("input", () => {
+            const filterText = searchInput.value().toLowerCase();
+            renderFilteredServerList(filterText);
+        });
         serverListDiv = createDiv();
         serverListDiv.parent(serverBrowserContainer);
+
+
+
         // Render the server list
         renderServerList();
 
@@ -397,6 +434,145 @@ function renderServerBrowser() {
     }
 }
 
+// Helper function to render filtered server list
+function renderFilteredServerList(filterText) {
+    if (!serverListDiv) return;
+    
+    // Clear the container
+    serverListDiv.html("");
+
+    const filtered = serverList.filter(server =>
+        server.name.toLowerCase().includes(filterText) ||
+        server.ip.toLowerCase().includes(filterText)
+    );
+
+    if (filtered.length === 0) {
+        let emptyMsg = createDiv("No servers found.");
+        emptyMsg.parent(serverListDiv);
+        emptyMsg.style("color", "white");
+        emptyMsg.style("padding", "20px");
+        emptyMsg.style("text-align", "center");
+        return;
+    }
+
+    filtered.forEach((server, index) => {
+        renderSingleServerEntry(server, serverList.indexOf(server));
+    });
+}
+
+// Helper function to render a single server entry
+function renderSingleServerEntry(server, indexInFullList) {
+    let serverEntry = createDiv();
+    serverEntry.class("serverEntry");
+
+    // Basic layout styling
+    serverEntry.style("font-size", "2rem");
+    serverEntry.style("padding", "12px");
+    serverEntry.style("margin-bottom", "12px");
+    serverEntry.style("background-color", "var(--color-dirt-dark)");
+    serverEntry.style("cursor", "pointer");
+    serverEntry.style("display", "flex");
+    serverEntry.style("align-items", "center");
+    serverEntry.style("gap", "12px");
+    serverEntry.style("transition", "transform 0.15s ease-in-out");
+
+    // === Logo Container ===
+    let logoContainer = createDiv();
+    logoContainer.style("width", "100px");
+    logoContainer.style("height", "100px");
+    logoContainer.style("display", "flex");
+    logoContainer.style("border-radius", "8px");
+    logoContainer.style("overflow", "hidden");
+    logoContainer.style("border", "2px solid var(--color-dirt-clay)");
+
+    let serverLogo = createImg(server.image);
+    serverLogo.style("width", "100%");
+    serverLogo.style("height", "100%");
+    serverLogo.style("object-fit", "cover");
+    serverLogo.parent(logoContainer);
+    logoContainer.parent(serverEntry);
+
+    // === Text Details Container ===
+    let textContainer = createDiv();
+    textContainer.style("display", "flex");
+    textContainer.style("flex-direction", "column");
+    textContainer.style("justify-content", "center");
+    textContainer.style("flex-grow", "1");
+    textContainer.style("font-size", "1.2rem");
+
+    // Server Name
+    let serverName = createDiv(server.name);
+    serverName.style("font-weight", "bold");
+    serverName.style("color", "white");
+    serverName.style("margin-bottom", "20px");
+    serverName.parent(textContainer);
+
+    // IP
+    let serverIP = createDiv(`IP: ${server.ip}`);
+    serverIP.style("color", "yellow");
+    serverIP.style("margin-bottom", "15px");
+    serverIP.parent(textContainer);
+
+    // Status
+    let serverStatus = createDiv("Status: Loading...");
+    serverStatus.style("color", "var(--color-gold)");
+    serverStatus.style("margin-bottom", "15px");
+    serverEntry.style("pointer-events", "none");
+    serverEntry.style("opacity", "0.5");
+    serverStatus.parent(textContainer);
+
+    // Player Count
+    let playerCount = createDiv("Players: Loading...");
+    playerCount.style("color", "#00ffff");
+    playerCount.style("margin-bottom", "5px");
+    playerCount.parent(textContainer);
+
+    textContainer.parent(serverEntry);
+
+    // Fetch server status
+    fetchServerStatus(server, (data) => {
+        serverStatus.html(`Status: ${data.status}`);
+        serverStatus.style("color", data.status === "Online" ? "#4CAF50" : "#F44336");
+        serverStatus.style("background-color", data.status === "Online" ? "black" : "white");
+        serverName.html(data.name || "Unnamed Server");
+        playerCount.html(`Players: ${data.playerCount}` + (!data.max ? `` : `/ ${data.max}`));
+        serverLogo.attribute("src", data.image);
+
+        serverEntry.style("opacity", data.status === "Online" ? "1" : "0.5");
+        serverEntry.style("pointer-events", data.status === "Online" ? "auto" : "none");
+    });
+
+    // Remove server button
+    let removeButton = createButton(" &#x20E0; &nbsp; Remove ");
+    removeButton.parent(serverEntry);
+    removeButton.style("margin-left", "10px");
+    removeButton.style("padding", "15px");
+    removeButton.style("background-color", "#F44336");
+    removeButton.style("color", "#fff");
+    removeButton.style("border", "none");
+    removeButton.style("border-radius", "3px");
+    removeButton.style("cursor", "pointer");
+    removeButton.style("pointer-events", "auto");
+
+    removeButton.mousePressed(() => {
+        serverList.splice(indexInFullList, 1);
+        saveServers();
+        renderServerList();
+    });
+
+    // Select a server
+    serverEntry.mousePressed(() => {
+        let entries = selectAll(".serverEntry");
+        for (let e of entries) {
+            e.style("background-color", "#404040");
+        }
+        serverEntry.style("background-color", "#4CAF50");
+        selectedServer = server;
+    });
+
+    serverEntry.parent(serverListDiv);
+}
+
 function getServerUrl(server) {
     const isLocal = isLocalAddress(server.ip);
     // Use HTTP with port 3000 for local, otherwise HTTPS with no extra port for production
@@ -406,14 +582,13 @@ function getServerUrl(server) {
 }
 
 function isLocalAddress(ipOrHost) {
-    // Exact matches for localhost or loopback
-    if (ipOrHost === 'localhost' || ipOrHost === '127.0.0.1') {
+    // Only treat true localhost/loopback as local (needs :3000 port)
+    // Domain names and public IPs should use public schema (https without port)
+    if (ipOrHost === 'localhost' || ipOrHost === '127.0.0.1' || ipOrHost === '::1') {
         return true;
     }
-
-    // A simple regex for IPv4 addresses (it doesn't enforce 0-255 on each octet, but is sufficient for a basic check)
-    return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(ipOrHost);
-
+    // All other addresses (domain names, public IPs) are treated as public
+    return false;
 }
 
 function fetchServerStatus(server, callback) {
@@ -428,135 +603,26 @@ function fetchServerStatus(server, callback) {
 }
 
 function renderServerList() {
-    let oldEntries = selectAll(".serverEntry");
-    for (let e of oldEntries) {
-        e.remove();
+    // Clear the entire container to avoid stale elements
+    if (serverListDiv) {
+        serverListDiv.html("");
     }
 
+    // Return early if list is empty
+    if (serverList.length === 0) {
+        if (serverListDiv) {
+            let emptyMsg = createDiv("No servers added yet.");
+            emptyMsg.parent(serverListDiv);
+            emptyMsg.style("color", "white");
+            emptyMsg.style("padding", "20px");
+            emptyMsg.style("text-align", "center");
+        }
+        return;
+    }
+
+    // Render all servers
     serverList.forEach((server, index) => {
-        let serverEntry = createDiv();
-        serverEntry.class("serverEntry");
-
-        // Basic layout styling
-        serverEntry.style("font-size", "2rem");
-        serverEntry.style("padding", "12px");
-        serverEntry.style("margin-bottom", "12px");
-        serverEntry.style("background-color", "var(--color-dirt-dark)");
-        serverEntry.style("cursor", "pointer");
-        serverEntry.style("display", "flex");
-        serverEntry.style("align-items", "center"); // align items horizontally centered
-        serverEntry.style("gap", "12px");
-        serverEntry.style("transition", "transform 0.15s ease-in-out");
-
-        // === Logo Container ===
-        let logoContainer = createDiv();
-        logoContainer.style("width", "100px");
-        logoContainer.style("height", "100px");
-        logoContainer.style("display", "flex");
-        logoContainer.style("border-radius", "8px"); // blocky-pixel style instead of circular
-        logoContainer.style("overflow", "hidden");
-        logoContainer.style("border", "2px solid var(--color-dirt-clay)");
-
-        let serverLogo = createImg(server.image);
-        serverLogo.style("width", "100%");
-        serverLogo.style("height", "100%");
-        serverLogo.style("object-fit", "cover");
-        serverLogo.parent(logoContainer);
-        logoContainer.parent(serverEntry);
-
-        // === Text Details Container ===
-        let textContainer = createDiv();
-        textContainer.style("display", "flex");
-        textContainer.style("flex-direction", "column");
-        textContainer.style("justify-content", "center");
-        textContainer.style("flex-grow", "1");
-        textContainer.style("font-size", "1.2rem");
-
-        // Server Name
-        let serverName = createDiv(server.name);
-        serverName.style("font-weight", "bold");
-        serverName.style("color", "white");
-        serverName.style("margin-bottom", "20px");
-        serverName.parent(textContainer);
-
-        // IP
-        let serverIP = createDiv(`IP: ${server.ip}`);
-        serverIP.style("color", "yellow");
-        serverIP.style("margin-bottom", "15px");
-        serverIP.parent(textContainer);
-
-        // Status
-        let serverStatus = createDiv("Status: Loading...");
-        serverStatus.style("color", "var(--color-gold)");
-        serverStatus.style("margin-bottom", "15px");
-
-        serverEntry.style("pointer-events", "none");
-
-        serverEntry.style("opacity", "0.5");
-        serverStatus.parent(textContainer);
-
-        // Player Count
-        let playerCount = createDiv("Players: Loading...");
-        playerCount.style("color", "#00ffff"); // neon cyan stands out nicely
-        playerCount.style("margin-bottom", "5px")
-        playerCount.parent(textContainer);
-
-        textContainer.parent(serverEntry);
-
-
-        // Fetch server status
-        fetchServerStatus(server, (data) => {
-            serverStatus.html(`Status: ${data.status}`);
-            serverStatus.style("color", data.status === "Online" ? "#4CAF50" : "#F44336");
-
-            serverStatus.style("background-color", data.status === "Online" ? "black" : "white");
-            serverName.html(data.name || "Unnamed Server")
-            playerCount.html(`Players: ${data.playerCount}` +( !data.max ? ``: `/ ${data.max}`)) ;
-            serverLogo.attribute("src", data.image);
-
-
-
-            // Optionally, adjust opacity to signal a disabled state
-            serverEntry.style("opacity", data.status === "Online" ? "1" : "0.5");
-
-            // server entry can not be clicked if status is not online 
-            serverEntry.style("pointer-events", data.status === "Online" ? "auto" : "none");
-        });
-
-        // Remove server button
-        let removeButton = createButton(" &#x20E0; &nbsp; Remove ");
-        removeButton.parent(serverEntry);
-        removeButton.style("margin-left", "10px");
-        removeButton.style("padding", "15px");
-        removeButton.style("background-color", "#F44336");
-        removeButton.style("color", "#fff");
-        removeButton.style("border", "none");
-        removeButton.style("border-radius", "3px");
-        removeButton.style("cursor", "pointer");
-
-
-        removeButton.style("pointer-events", "auto");
-
-
-        removeButton.mousePressed(() => {
-            serverList.splice(index, 1);
-            saveServers();
-            renderServerList();
-            //renderServerList();
-        });
-
-        // Select a server
-        serverEntry.mousePressed(() => {
-            let entries = selectAll(".serverEntry");
-            for (let e of entries) {
-                e.style("background-color", "#404040");
-            }
-            serverEntry.style("background-color", "#4CAF50");
-            selectedServer = server;
-            //console.log("Server selected:", selectedServer);
-        });
-
-        serverEntry.parent(serverListDiv);
+        renderSingleServerEntry(server, index);
     });
 }
 

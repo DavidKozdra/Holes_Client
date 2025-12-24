@@ -48,10 +48,8 @@
                            ws://localhost:3000
                            wss://localhost:3000
                            http://localhost:3000
-                           https://api.holesgame.com
-                           wss://api.holesgame.com
-                           https://dig.holesgame.com
-                           wss://dig.holesgame.com;
+                           https:
+                           wss:;
           img-src          'self'
                            data:
                            https://publicholesinfo.s3.us-east-1.amazonaws.com;
@@ -108,6 +106,14 @@
 
   <!-- External SW registration -->
   <script defer src="sw-register.js"></script>
+  <script>
+    // Suppress SW registration errors if not available
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {
+        console.log('Service Worker registration failed or not available');
+      });
+    }
+  </script>
 </head>
 
 <body>

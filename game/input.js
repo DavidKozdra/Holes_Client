@@ -9,7 +9,13 @@ function getIsChatting() {
 }
 
 function keyReleased() {
-    if (keyCode == 27 && gameState != "pause" && gameState != "initial" && gameState != "race_selection" && gameState != "controls") { //ESC
+    // Exit search state on ESC
+    if (keyCode == 27 && gameState == "search") {
+        gameState = lastGameState;
+        blurActiveElement();
+        return;
+    }
+    if (keyCode == 27 && gameState != "pause" && gameState != "initial" && gameState != "race_selection" && gameState != "controls" && gameState != "search") { //ESC
         if (gameState != "settings") {
             gameState = "playing";
             pauseDiv.hide();
@@ -462,10 +468,24 @@ function keyReleased() {
 
 function keyPressed() { //prevents normal key related actions
     if (keyCode == 27) { //ESC
+        // Allow escape to exit search state
+        if (gameState == "search") {
+            gameState = lastGameState;
+            blurActiveElement();
+            return false;
+        }
         return false;
     }
     if (keyCode == 9) { //TAB
         return false;
+    }
+    // Block most keys if in search mode (allow only basic input/control keys)
+    if (gameState == "search") {
+        const allowedKeyCodes = [8, 13, 16, 17, 18, 27, 37, 38, 39, 40]; // Backspace, Enter, Shift, Ctrl, Alt, ESC, arrows
+        if (!allowedKeyCodes.includes(keyCode)) {
+            // Letter/number keys are allowed in input, just let them through
+            return true;
+        }
     }
     if (keyCode === 13 && isChatting) { // 13 = Enter
         //console.log("dd");
