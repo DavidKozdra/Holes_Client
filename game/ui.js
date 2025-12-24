@@ -3487,6 +3487,7 @@ function updatecurSwapItemDiv(otherInv) {
 let timerEnabled = true;
 let timerRemaining = 15 * 60; // in seconds
 let lastUpdateTime = 0;
+let timerEndsAt = null;
 
 let timerDisplay = "15:00";
 function setTimeUI(data) {
@@ -3496,7 +3497,12 @@ function setTimeUI(data) {
         return;
     }
     timerEnabled = true;
-    timerRemaining = data.totalSeconds ?? (data.minutes * 60 + data.seconds);
+    if (data && typeof data.endsAt === "number") {
+        timerEndsAt = data.endsAt;
+        timerRemaining = Math.max(0, Math.round((timerEndsAt - Date.now()) / 1000));
+    } else {
+        timerRemaining = data.totalSeconds ?? (data.minutes * 60 + data.seconds);
+    }
     updateTimerDisplay();
 }
 
@@ -3523,6 +3529,7 @@ function updateTimerDisplay() {
     // Optional: call resize function here
     adjustFontSize(timerRemaining);
 }
+
 function adjustFontSize(timerRemaining) {
     const el = document.getElementById("timer");
 
