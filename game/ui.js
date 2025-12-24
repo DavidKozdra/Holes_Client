@@ -1869,8 +1869,39 @@ function togglePlayerStatusTable() {
     title.style("text-decoration", "underline");
 
     if (gameState == "player_status") {
-        fetch(getServerUrl(selectedServer) + "/playerinfo")
+        fetch(getServerUrl(selectedServer) + "/status")
             .then(res => res.json())
+            .then(statusData => {
+                // Calculate server age
+                let serverAgeStr = "Server Age: Unknown";
+                if (statusData && statusData.serverStartTime) {
+                    const startTime = new Date(statusData.serverStartTime);
+                    const now = new Date();
+                    const ageMs = now - startTime;
+                    const ageSecs = Math.floor(ageMs / 1000);
+                    const ageMins = Math.floor(ageSecs / 60);
+                    const ageHours = Math.floor(ageMins / 60);
+                    const ageDays = Math.floor(ageHours / 24);
+                    
+                    if (ageDays > 0) {
+                        serverAgeStr = `Server Age: ${ageDays}d ${ageHours % 24}h`;
+                    } else if (ageHours > 0) {
+                        serverAgeStr = `Server Age: ${ageHours}h ${ageMins % 60}m`;
+                    } else if (ageMins > 0) {
+                        serverAgeStr = `Server Age: ${ageMins}m ${ageSecs % 60}s`;
+                    } else {
+                        serverAgeStr = `Server Age: ${ageSecs}s`;
+                    }
+                }
+
+                const ageP = createP(serverAgeStr).parent(player_status_container);
+                ageP.style("font-size", "16px");
+                ageP.style("color", "#00ff00");
+                ageP.style("margin-bottom", "15px");
+
+                // Fetch player info separately
+                return fetch(getServerUrl(selectedServer) + "/playerinfo").then(res => res.json());
+            })
             .then(players => {
                 let tableWrapper = createDiv().parent(player_status_container);
                 tableWrapper.style("overflow-y", "auto");
