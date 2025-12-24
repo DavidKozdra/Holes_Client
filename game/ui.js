@@ -5,6 +5,18 @@ var nameEntered = false;
 var raceButtons = []; // now storing "card" divs instead of p5 buttons
 var goButton;
 var nameInput;
+var singlePlayerCheckbox;
+var singlePlayerLabel;
+var selectedWorldId = localStorage.getItem("sp_selected_world") || null;
+var selectedWorldName = localStorage.getItem("sp_selected_world_name") || "";
+
+function updateSinglePlayerLabelText() {
+    const isSingle = (singlePlayerCheckbox && singlePlayerCheckbox.checked()) || localStorage.getItem("single_player") === "true";
+    const name = isSingle ? (selectedWorldName || localStorage.getItem("sp_selected_world_name") || "") : "";
+    if (singlePlayerLabel || isSingle) {
+        singlePlayerLabel.elt.innerText = name ? `Single Player (${name})` : "";
+    }
+}
 
 // Array of build option objects
 
@@ -33,6 +45,8 @@ function hideRaceSelect() {
     // Hide UI elements during gameplay
     nameInput.hide();
     goButton.hide();
+    if (singlePlayerCheckbox) singlePlayerCheckbox.hide();
+    if (singlePlayerLabel) singlePlayerLabel.hide();
     raceButtons.forEach((card) => {
         card.hide();
     });
@@ -52,6 +66,15 @@ serverList[0] = { ip: "muddygame.net", name: "Holes Offical", status: "Online"};
 let selectedServer = null;
 let serverBrowserContainer, inputIP, inputStatus, addServerButton, serverListDiv;
 let renderedserverBrowserContainer = false;
+
+function getOrCreateBrowserId(){
+    let id = localStorage.getItem("browserId");
+    if(!id){
+        id = "b-" + Math.random().toString(36).slice(2) + "-" + Date.now();
+        localStorage.setItem("browserId", id);
+    }
+    return id;
+}
 
 function saveServers() {
     localStorage.setItem("servers", JSON.stringify(serverList));
@@ -409,27 +432,22 @@ function renderServerBrowser() {
 
         addServerSection.parent(serverBrowserContainer);
         connectButton.mousePressed(() => {
-            if (!selectedServer) {
-                alert("⚠️ Please select a server first.");
-                return;
-            }
-            // Pre-check capacity via status endpoint before connecting
-            fetchServerStatus(selectedServer, (data) => {
-                if (data && typeof data.playerCount === 'number' && typeof data.max === 'number') {
-                    if (data.playerCount >= data.max) {
-                        alert(`Server is full (${data.playerCount}/${data.max}). Please try again later.`);
-                        return;
-                    }
-                }
+            connectToSelectedServer({ singlePlayer: false });
+        });
 
-                socket = io.connect(getServerUrl(selectedServer));
-                socketSetup();
-                testMap = new Map();
-                ghostBuild = createObject("Wall", 0, 0, 0, 0, " ", " ");
-                hideServerBrowser();
-                gameState = "race_selection";
-                renderedserverBrowserContainer = false;
-            });
+        const singleConnectButton = createButton("▶ Play Singleplayer");
+        singleConnectButton.parent(serverBrowserContainer);
+        singleConnectButton.style("width", "80%");
+        singleConnectButton.style("height", "5dvw");
+        singleConnectButton.style("font-size", "2rem");
+        singleConnectButton.style("margin-top", "10px");
+        singleConnectButton.style("padding", "12px");
+        singleConnectButton.style("background", "#5c6bc0");
+        singleConnectButton.style("color", "#fff");
+        singleConnectButton.style("border", "none");
+        singleConnectButton.style("border-radius", "5px");
+        singleConnectButton.mousePressed(() => {
+            openSPWorldsPanel({ autoConnect: true });
         });
     }
 }
@@ -602,6 +620,42 @@ function fetchServerStatus(server, callback) {
         });
 }
 
+function connectToSelectedServer({ singlePlayer } = {}) {
+    if (!selectedServer) {
+        // Fallback to first known server to avoid blocking SP flow
+        if (serverList && serverList.length > 0) {
+            selectedServer = serverList[0];
+        } else {
+            alert("⚠️ Please select a server first.");
+            return;
+        }
+    }
+    fetchServerStatus(selectedServer, (data) => {
+        if (data && typeof data.playerCount === 'number' && typeof data.max === 'number') {
+            if (data.playerCount >= data.max) {
+                alert(`Server is full (${data.playerCount}/${data.max}). Please try again later.`);
+                return;
+            }
+        }
+
+        socket = io.connect(getServerUrl(selectedServer));
+        socketSetup();
+        testMap = new Map();
+        ghostBuild = createObject("Wall", 0, 0, 0, 0, " ", " ");
+        hideServerBrowser();
+        gameState = "race_selection";
+        renderedserverBrowserContainer = false;
+        if (singlePlayer) {
+            localStorage.setItem("single_player", "true");
+            if (singlePlayerCheckbox) singlePlayerCheckbox.checked(true);
+        } else {
+            localStorage.setItem("single_player", "false");
+            if (singlePlayerCheckbox) singlePlayerCheckbox.checked(false);
+        }
+        updateSinglePlayerLabelText();
+    });
+}
+
 function renderServerList() {
     // Clear the entire container to avoid stale elements
     if (serverListDiv) {
@@ -669,6 +723,9 @@ function drawSelection() {
 
     nameInput.show();
     goButton.show();
+    if (singlePlayerCheckbox) singlePlayerCheckbox.show();
+    if (singlePlayerLabel) singlePlayerLabel.show();
+    updateSinglePlayerLabelText();
 
 
     //back to server selection button
@@ -899,6 +956,17 @@ function setupUI() {
         }
     });
 
+    // Single Player toggle UI (created near name input)
+    singlePlayerLabel = createDiv("Single Player");
+    singlePlayerLabel.hide();
+    singlePlayerLabel.style("position", "absolute");
+    singlePlayerLabel.style("left", "calc(50% - 150px)");
+    singlePlayerLabel.style("top", "calc(85dvh - 40px)");
+    singlePlayerLabel.style("color", "#fff");
+    singlePlayerLabel.style("font-size", width < 500 ? "14px" : "18px");
+    updateSinglePlayerLabelText();
+
+
 
     // ---------------------------------------------------
     //   "Go" Button (centered, larger & responsive)
@@ -931,6 +999,8 @@ function setupUI() {
     goButton.mousePressed(() => {
         startGame();
     })
+
+    // (Removed: dedicated SP Worlds button; use server browser "Play Singleplayer" flow instead)
 
 }
 
@@ -1147,6 +1217,10 @@ function startGame() {
     giveDefaultItems();
 
     document.getElementById("canvas-container").style.display = "block";
+    // Send mode selection prior to joining
+    const single = singlePlayerCheckbox?.checked() || localStorage.getItem("single_player") === "true";
+    const worldId = selectedWorldId || localStorage.getItem("sp_selected_world") || null;
+    socket.emit("SET_MODE", { singlePlayer: !!single, browserId: getOrCreateBrowserId(), worldId });
     socket.emit("new_player", curPlayer);
     
     // Request current teams list
@@ -1171,6 +1245,159 @@ function startGame() {
             mine(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────
+// Single Player Worlds Panel (server-backed)
+// ─────────────────────────────────────────────────────────
+async function fetchServerWorlds() {
+    const browserId = getOrCreateBrowserId();
+    const url = window.location.origin + `/worlds?browserId=${encodeURIComponent(browserId)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to load worlds (${res.status})`);
+    const json = await res.json();
+    return json.worlds || [];
+}
+
+async function createServerWorld(name) {
+    const browserId = getOrCreateBrowserId();
+    const url = window.location.origin + `/worlds`;
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ browserId, name })
+    });
+    if (!res.ok) throw new Error(`Failed to create world (${res.status})`);
+    const json = await res.json();
+    return json.world;
+}
+
+async function deleteServerWorld(id) {
+    const browserId = getOrCreateBrowserId();
+    const url = window.location.origin + `/worlds/${encodeURIComponent(id)}?browserId=${encodeURIComponent(browserId)}`;
+    const res = await fetch(url, { method: "DELETE" });
+    if (!res.ok) throw new Error(`Failed to delete world (${res.status})`);
+}
+
+function applyWorldSelection(world, { autoConnect } = {}) {
+    selectedWorldId = world.id;
+    selectedWorldName = world.name || world.id;
+    localStorage.setItem("sp_selected_world", selectedWorldId);
+    localStorage.setItem("sp_selected_world_name", selectedWorldName);
+    localStorage.setItem("single_player", "true");
+    if (singlePlayerCheckbox) singlePlayerCheckbox.checked(true);
+    updateSinglePlayerLabelText();
+    if (autoConnect && (!socket || !socket.connected)) {
+        connectToSelectedServer({ singlePlayer: true });
+    }
+}
+
+function openSPWorldsPanel({ autoConnect = false } = {}) {
+    const panel = createDiv();
+    panel.style("position", "fixed");
+    panel.style("left", "50%");
+    panel.style("top", "50%");
+    panel.style("transform", "translate(-50%, -50%)");
+    panel.style("background", "rgba(34,34,34,0.9)");
+    panel.style("color", "#fff");
+    panel.style("padding", "16px");
+    panel.style("border-radius", "10px");
+    panel.style("z-index", "1000");
+    panel.style("min-width", "340px");
+
+    const title = createDiv("Single Player Worlds");
+    title.style("font-size", "20px");
+    title.style("margin-bottom", "8px");
+    title.parent(panel);
+
+    const list = createDiv();
+    list.parent(panel);
+
+    const statusRow = createDiv("Loading worlds...");
+    statusRow.style("margin", "8px 0");
+    statusRow.parent(list);
+
+    async function renderList() {
+        statusRow.html("Loading worlds...");
+        list.html("");
+        list.child(statusRow);
+        try {
+            const worlds = await fetchServerWorlds();
+            list.html("");
+            if (!worlds || worlds.length === 0) {
+                // Auto-create a default world if none exist
+                try {
+                    const defaultWorld = await createServerWorld("My World");
+                    applyWorldSelection(defaultWorld, { autoConnect: true });
+                    panel.remove();
+                    return;
+                } catch (err) {
+                    const empty = createDiv("Failed to create default world.");
+                    empty.parent(list);
+                    return;
+                }
+            }
+            worlds.forEach((w) => {
+                const row = createDiv();
+                row.style("display", "flex");
+                row.style("gap", "8px");
+                row.style("align-items", "center");
+                row.style("margin", "4px 0");
+                row.parent(list);
+
+                const nameEl = createDiv(w.name || w.id);
+                nameEl.parent(row);
+
+                const selectBtn = createButton("Select");
+                selectBtn.parent(row);
+                selectBtn.mousePressed(() => {
+                    applyWorldSelection(w, { autoConnect });
+                    // Always connect into the selected SP world immediately
+                    connectToSelectedServer({ singlePlayer: true });
+                    panel.remove();
+                });
+
+                const delBtn = createButton("Delete");
+                delBtn.parent(row);
+                delBtn.mousePressed(async () => {
+                    try {
+                        await deleteServerWorld(w.id);
+                        await renderList();
+                    } catch (err) {
+                        alert(err.message || "Failed to delete world");
+                    }
+                });
+            });
+        } catch (err) {
+            statusRow.html("Failed to load worlds.");
+            console.error(err);
+        }
+    }
+
+    renderList();
+
+    const actions = createDiv();
+    actions.style("margin-top", "12px");
+    actions.style("display", "flex");
+    actions.style("gap", "8px");
+    actions.parent(panel);
+
+    const createBtn = createButton("Create World");
+    createBtn.parent(actions);
+    createBtn.mousePressed(async () => {
+        const name = prompt("World name?") || "My World";
+        try {
+            const w = await createServerWorld(name);
+            applyWorldSelection(w, { autoConnect: true });
+            panel.remove();
+        } catch (err) {
+            alert(err.message || "Failed to create world");
+        }
+    });
+
+    const closeBtn = createButton("Close");
+    closeBtn.parent(actions);
+    closeBtn.mousePressed(() => panel.remove());
 }
 
 // ─────────────────────────────────────────────────────────

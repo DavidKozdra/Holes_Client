@@ -79,11 +79,13 @@ function socketSetup(){
             //console.log("Your ID is already set to: " + curPlayer.id);
             //console.log("New ID received: " + data.id);
             //Reconnection
-            curPlayer.id = data.id;
-            socket.emit("player_reconnected", {
-                player: curPlayer,
-                oldID: curID
-            });
+            if (curPlayer) {
+                curPlayer.id = data.id;
+                socket.emit("player_reconnected", {
+                    player: curPlayer,
+                    oldID: curID
+                });
+            }
             curID = data.id;
         }
         else{
