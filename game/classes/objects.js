@@ -778,7 +778,7 @@ class Trap extends Placeable {
 update() {
     super.update();
 
-    // Collect every valid target: ALL players + ALL entities
+    // Collect every valid target: ALL players + ALL entities + ALL AI entities
     let targets = [];
 
     // Add all players
@@ -787,6 +787,12 @@ update() {
         targets.push(players[pKeys[i]]);
     }
     if (curPlayer) targets.push(curPlayer);
+
+    // Add all AI entities
+    let aiKeys = Object.keys(aiEntities);
+    for (let i = 0; i < aiKeys.length; i++) {
+        targets.push(aiEntities[aiKeys[i]]);
+    }
 
     // Add all entities within a 5x5 tile window around the trap
     let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
@@ -872,6 +878,13 @@ update() {
                     update_names: ["stats.hp"],
                     update_values: [curPlayer.statBlock.stats.hp]
                 });
+            } else if (t.id && t.id.startsWith('ai_')) {
+                // Handle AI entity damage
+                socket.emit("ai_damage", {
+                    id: t.id,
+                    damage: this.damage,
+                    hp: t.statBlock.stats.hp
+                });
             } else {
                 socket.emit("update_obj", {
                     cx: chunkPos.x,
@@ -915,19 +928,60 @@ function createExplosion(origin) {
         square(0, 0, random(20, 50));
         pop();
     }
-    // Bomb hurts all objects nearby
+    
+    let explosionRadius = 33 + (6 * (origin.size.w + origin.size.h) / 4);
     let chunkPos = testMap.globalToChunk(origin.pos.x, origin.pos.y);
 
-        //play hit noise and tell server
-        let temp = new SoundObj("snd_bizarreexplode.ogg", curPlayer.pos.x, curPlayer.pos.y);
+    //play hit noise and tell server
+    let temp = new SoundObj("snd_bizarreexplode.ogg", origin.pos.x, origin.pos.y);
+    if (testMap.chunks[chunkPos.x + "," + chunkPos.y]) {
         testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
-        socket.emit("new_sound", { sound: "snd_bizarreexplode.ogg", cPos: chunkPos, pos: { x: curPlayer.pos.x, y: curPlayer.pos.y }, id: temp.id });
+    }
+    socket.emit("new_sound", { sound: "snd_bizarreexplode.ogg", cPos: chunkPos, pos: { x: origin.pos.x, y: origin.pos.y }, id: temp.id });
+    
+    // Damage all nearby players
+    if (curPlayer && curPlayer.pos.dist(origin.pos) < explosionRadius) {
+        let damage = (explosionRadius - curPlayer.pos.dist(origin.pos)) / 2;
+        curPlayer.statBlock.stats.hp -= damage;
+        camera.shake = { intensity: damage, length: 5 };
+        camera.edgeBlood = 5;
+        socket.emit("update_player", {
+            id: curPlayer.id,
+            pos: curPlayer.pos,
+            holding: curPlayer.holding,
+            update_names: ["stats.hp"],
+            update_values: [curPlayer.statBlock.stats.hp]
+        });
+    }
+    
+    // Damage all other players
+    for (let id in players) {
+        if (players[id] && players[id].pos.dist(origin.pos) < explosionRadius) {
+            let damage = (explosionRadius - players[id].pos.dist(origin.pos)) / 2;
+            players[id].statBlock.stats.hp -= damage;
+        }
+    }
+    
+    // Damage all AI entities
+    for (let aiId in aiEntities) {
+        if (aiEntities[aiId] && aiEntities[aiId].pos.dist(origin.pos) < explosionRadius) {
+            let damage = (explosionRadius - aiEntities[aiId].pos.dist(origin.pos)) / 2;
+            aiEntities[aiId].takeDamage(damage);
+            socket.emit("ai_damage", {
+                id: aiId,
+                damage: damage,
+                hp: aiEntities[aiId].statBlock.stats.hp
+            });
+        }
+    }
+    
+    // Damage all chunk objects
     let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
     if (chunk != undefined) {
         for (let i = 0; i < chunk.objects.length; i++) {
-            if (chunk.objects[i].pos.dist(origin.pos) < 33 + (6 * (origin.size.w + origin.size.h) / 4)) {
+            if (chunk.objects[i].pos.dist(origin.pos) < explosionRadius) {
                 if (chunk.objects[i].hp != undefined) {
-                    chunk.objects[i].hp -= ((33 + (6 * (origin.size.w + origin.size.h) / 4)) - chunk.objects[i].pos.dist(origin.pos)) / 2;
+                    chunk.objects[i].hp -= (explosionRadius - chunk.objects[i].pos.dist(origin.pos)) / 2;
                     chunk.objects[i].shake = { intensity: 10, length: 5 };
 
                     scareBrain(chunk.objects[i].brainID, origin);

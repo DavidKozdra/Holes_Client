@@ -155,6 +155,35 @@ class SimpleProjectile{
                 });
             }
         }
+
+        // Check collision with AI entities
+        let aiKeys = Object.keys(aiEntities);
+        for (let i = 0; i < aiKeys.length; i++) {
+            let ai = aiEntities[aiKeys[i]];
+            // Only damage if not from the same AI
+            if (this.ownerName !== ai.name) {
+                if (this.pos.dist(ai.pos) < 29) {
+                    this.deleteTag = true;
+                    socket.emit("delete_proj", this);
+                    
+                    let chunkPos = testMap.globalToChunk(ai.pos.x, ai.pos.y);
+                    let temp = new SoundObj("hit.ogg", ai.pos.x, ai.pos.y);
+                    testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
+                    socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: ai.pos.x, y: ai.pos.y}, id: temp.id});
+                    
+                    let tempV = createVector(this.knockback, 0);
+                    tempV.setHeading(ai.pos.copy().sub(this.pos).heading());
+                    ai.vel.add(tempV);
+                    ai.takeDamage(this.damage);
+                    
+                    socket.emit("ai_damage", {
+                        id: ai.id,
+                        damage: this.damage,
+                        hp: ai.statBlock.stats.hp
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -273,6 +302,39 @@ class MeleeProjectile extends SimpleProjectile{
                     holding: curPlayer.holding,
                     update_names: ["stats.hp"],
                     update_values: [curPlayer.statBlock.stats.hp]
+                });
+                
+                this.deleteTag = true;
+                socket.emit("delete_proj", this);
+            }
+        }
+        
+        //check collision with AI entities
+        for (let aiId in aiEntities) {
+            if (!aiEntities[aiId] || !aiEntities[aiId].pos) continue;
+            
+            let ai = aiEntities[aiId];
+            let d = ai.pos.dist(this.pos);
+            
+            if(d-5 < (this.range)+this.safeRange && d+64 > this.safeRange && 
+                ai.pos.copy().sub(this.pos).heading() > this.flightPath.a-(this.angleWidth/2) &&
+                ai.pos.copy().sub(this.pos).heading() < this.flightPath.a+(this.angleWidth/2)
+            ){
+                let chunkPos = testMap.globalToChunk(ai.pos.x, ai.pos.y);
+                //play hit noise and tell server
+                let temp = new SoundObj("hit.ogg", ai.pos.x, ai.pos.y);
+                testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: ai.pos.x, y: ai.pos.y}, id: temp.id});
+                
+                let tempV = createVector(this.knockback, 0);
+                tempV.setHeading(ai.pos.copy().sub(this.pos).heading());
+                ai.vel.add(tempV);
+                ai.takeDamage(this.damage);
+                
+                socket.emit("ai_damage", {
+                    id: ai.id,
+                    damage: this.damage,
+                    hp: ai.statBlock.stats.hp
                 });
                 
                 this.deleteTag = true;

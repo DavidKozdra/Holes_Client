@@ -184,6 +184,34 @@ function socketSetup(){
         updatePlayerCount();
     });
 
+    // AI Entity handlers
+    socket.on('NEW_AI_ENTITY', (data) => {
+        aiEntities[data.id] = new AIEntity(
+            data.pos.x,
+            data.pos.y,
+            data.race,
+            data.level,
+            data.id,
+            data.color
+        );
+    });
+
+    socket.on('UPDATE_AI_ENTITY', (data) => {
+        if (aiEntities[data.id]) {
+            aiEntities[data.id].pos.x = data.pos.x;
+            aiEntities[data.id].pos.y = data.pos.y;
+            if (data.hp !== undefined) {
+                aiEntities[data.id].statBlock.stats.hp = data.hp;
+            }
+        }
+    });
+
+    socket.on('REMOVE_AI_ENTITY', (data) => {
+        if (aiEntities[data]) {
+            delete aiEntities[data];
+        }
+    });
+
     socket.on('PLAYERS_CHECK', (data) => {
         if(data.ids.length != Object.keys(players).length+1){
             let keys = Object.keys(players);

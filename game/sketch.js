@@ -213,6 +213,26 @@ function draw() {
             }
         }
 
+        // Update and render AI entities
+        let aiKeys = Object.keys(aiEntities);
+        for (let i = 0; i < aiKeys.length; i++) {
+            if (curPlayer) {
+                if (aiEntities[aiKeys[i]].pos.dist(curPlayer.pos) < TILESIZE * CHUNKSIZE * 2) {
+                    aiEntities[aiKeys[i]].render();
+                    aiEntities[aiKeys[i]].update(players);
+                    
+                    // Broadcast AI position every 10 frames to server
+                    if (frameCount % 10 === 0) {
+                        socket.emit('update_ai_pos', {
+                            id: aiKeys[i],
+                            pos: { x: aiEntities[aiKeys[i]].pos.x, y: aiEntities[aiKeys[i]].pos.y },
+                            hp: aiEntities[aiKeys[i]].statBlock.stats.hp
+                        });
+                    }
+                }
+            }
+        }
+
         if (curPlayer) {
             moveCamera();
 
