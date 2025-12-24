@@ -3040,12 +3040,18 @@ function updatecurSwapItemDiv(otherInv) {
 
 
 //render timer on the top of the screen 
+let timerEnabled = true;
 let timerRemaining = 15 * 60; // in seconds
 let lastUpdateTime = 0;
 
 let timerDisplay = "15:00";
 function setTimeUI(data) {
-    //console.log(data)
+    if (data && data.disabled) {
+        timerEnabled = false;
+        if (timerDiv) timerDiv.hide();
+        return;
+    }
+    timerEnabled = true;
     timerRemaining = data.totalSeconds ?? (data.minutes * 60 + data.seconds);
     updateTimerDisplay();
 }
@@ -3091,6 +3097,7 @@ function adjustFontSize(timerRemaining) {
 
 
 function renderTimeUI() {
+    if (!timerEnabled) return;
     if (millis() - lastUpdateTime >= 1000) {
         if (timerRemaining > 0) {
             timerRemaining--;
@@ -3098,7 +3105,7 @@ function renderTimeUI() {
         }
         lastUpdateTime = millis();
     }
-    if (timerDiv) {
+    if (timerDiv && timerEnabled) {
         timerDiv.html(" ⏳ " + timerDisplay);
         applyStyle(timerDiv, {
             position: "absolute",

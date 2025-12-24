@@ -181,7 +181,11 @@ function draw() {
     }
     
     if (gameState === "playing") {
-        timerDiv.show()
+        if (typeof timerEnabled === 'undefined' || timerEnabled) {
+            timerDiv.show()
+        } else if (timerDiv) {
+            timerDiv.hide()
+        }
 
         MusicPlayer.playRandom()
         //console.log(MusicPlayer, "music !")
