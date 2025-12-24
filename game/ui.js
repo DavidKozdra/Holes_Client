@@ -372,19 +372,27 @@ function renderServerBrowser() {
 
         addServerSection.parent(serverBrowserContainer);
         connectButton.mousePressed(() => {
-            if (selectedServer) {
-                //console.log(getServerUrl(selectedServer))
+            if (!selectedServer) {
+                alert("⚠️ Please select a server first.");
+                return;
+            }
+            // Pre-check capacity via status endpoint before connecting
+            fetchServerStatus(selectedServer, (data) => {
+                if (data && typeof data.playerCount === 'number' && typeof data.max === 'number') {
+                    if (data.playerCount >= data.max) {
+                        alert(`Server is full (${data.playerCount}/${data.max}). Please try again later.`);
+                        return;
+                    }
+                }
+
                 socket = io.connect(getServerUrl(selectedServer));
                 socketSetup();
                 testMap = new Map();
                 ghostBuild = createObject("Wall", 0, 0, 0, 0, " ", " ");
-                //console.log("Connected to " + selectedServer, socket);
                 hideServerBrowser();
                 gameState = "race_selection";
                 renderedserverBrowserContainer = false;
-            } else {
-                alert("⚠️ Please select a server first.");
-            }
+            });
         });
     }
 }

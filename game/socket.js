@@ -5,6 +5,27 @@ function socketSetup(){
     //all caps means it came from the server
     //all lower means it came from the client
 
+    // Server capacity notification
+    socket.on('SERVER_FULL', (data) => {
+        try {
+            const msg = data && data.message
+                ? `${data.message} (${data.current ?? '?'} / ${data.max ?? '?'})`
+                : 'Server is full. Please try again later.';
+            alert(msg);
+        } catch (e) {
+            // no-op
+        }
+        // Back to server selection UI
+        try {
+            if (typeof gameState !== 'undefined') gameState = 'initial';
+            const canvas = document.getElementById('canvas-container');
+            if (canvas) canvas.style.display = 'none';
+        } catch (e) {}
+        try {
+            socket.disconnect();
+        } catch (e) {}
+    });
+
     // Socket event handlers
     socket.on('GIVE_MAP', (data) => {
         testMap.data = data;
