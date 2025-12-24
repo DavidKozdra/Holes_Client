@@ -658,4 +658,70 @@ function socketSetup(){
             window.location.reload();
         }, 5000);
     });
+
+    // Team system handlers
+    socket.on('TEAMS_UPDATE', (data) => {
+        if (typeof window.allTeams === 'undefined') window.allTeams = {};
+        window.allTeams = data.teams;
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
+        }
+    });
+
+    socket.on('TEAM_CREATED', (data) => {
+        if (typeof window.allTeams === 'undefined') window.allTeams = {};
+        window.allTeams[data.teamId] = data.team;
+    });
+
+    socket.on('TEAM_JOINED', (data) => {
+        if (curPlayer) {
+            curPlayer.teamId = data.teamId;
+            curPlayer.teamData = data.team;
+        }
+        alert(`Joined team: ${data.team.name}`);
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
+        }
+    });
+
+    socket.on('TEAM_LEFT', (data) => {
+        if (curPlayer) {
+            curPlayer.teamId = null;
+            curPlayer.teamData = null;
+            curPlayer.color = 0;
+        }
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
+        }
+    });
+
+    socket.on('TEAM_DISBANDED', (data) => {
+        if (curPlayer) {
+            curPlayer.teamId = null;
+            curPlayer.teamData = null;
+            curPlayer.color = 0;
+        }
+        alert('Your team has been disbanded');
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
+        }
+    });
+
+    socket.on('TEAM_REQUEST', (data) => {
+        if (typeof addTeamRequest === 'function') {
+            addTeamRequest(data);
+        }
+    });
+
+    socket.on('TEAM_REQUEST_SENT', (data) => {
+        alert('Team join request sent!');
+    });
+
+    socket.on('TEAM_REQUEST_DENIED', (data) => {
+        alert('Your team join request was denied');
+    });
+
+    socket.on('TEAM_ERROR', (data) => {
+        alert(data.message);
+    });
 }

@@ -317,7 +317,13 @@ class Player {
         // Now draw text with a stroke
         stroke(0);       // black stroke around letters
         strokeWeight(2);
-        fill(teamColors[this.color].r, teamColors[this.color].g, teamColors[this.color].b);
+        
+        // Use custom team color if player is in a team
+        let displayColor = teamColors[this.color];
+        if (this.teamId && window.allTeams && window.allTeams[this.teamId]) {
+            displayColor = window.allTeams[this.teamId].color;
+        }
+        fill(displayColor.r, displayColor.g, displayColor.b);
         text(nameText, this.pos.x, this.pos.y - yOffset);
 
         let raceName = races[this.race]

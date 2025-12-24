@@ -1148,6 +1148,10 @@ function startGame() {
 
     document.getElementById("canvas-container").style.display = "block";
     socket.emit("new_player", curPlayer);
+    
+    // Request current teams list
+    socket.emit("get_teams");
+    
     gameState = "playing";
     hideRaceSelect();
 
@@ -2481,8 +2485,12 @@ function renderPlayerCardUI() {
         text("Mana:", width - 530 + 6 + 30, 100);
     }
     //fill with team color
-    fill(teamColors[curPlayer.color].r, teamColors[curPlayer.color].g, teamColors[curPlayer.color].b);
-    stroke(teamColors[curPlayer.color].r, teamColors[curPlayer.color].g, teamColors[curPlayer.color].b);
+    let displayColor = teamColors[curPlayer.color];
+    if (curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {
+        displayColor = window.allTeams[curPlayer.teamId].color;
+    }
+    fill(displayColor.r, displayColor.g, displayColor.b);
+    stroke(displayColor.r, displayColor.g, displayColor.b);
     textAlign(CENTER, CENTER);
     nameBtn = createButton(curPlayer.name);
 
@@ -2490,9 +2498,7 @@ function renderPlayerCardUI() {
     nameBtn.style('background', 'none');
     nameBtn.style('border', 'none');
     nameBtn.style('padding', '0');
-    nameBtn.style('color', `rgb(${teamColors[curPlayer.color].r},
-                                ${teamColors[curPlayer.color].g},
-                                ${teamColors[curPlayer.color].b})`);
+    nameBtn.style('color', `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`);
     nameBtn.style('font-size', '20px');   // adjust if needed
     nameBtn.style('cursor', 'pointer');   // so it behaves like clickable text
 
@@ -2514,6 +2520,7 @@ function renderPlayerCardUI() {
 
 
 var teamPickDiv;
+var pendingRequests = [];
 
 function defineTeamPickUI() {
     teamPickDiv = createDiv();
@@ -2524,75 +2531,415 @@ function defineTeamPickUI() {
     teamPickDiv.style("left", "50%");
     teamPickDiv.style("transform", "translate(-50%, -50%)");
     teamPickDiv.style("display", "none");
-    teamPickDiv.style("width", "25%");
-    // teamPickDiv.style("height", "20%");
+    teamPickDiv.style("width", "600px");
+    teamPickDiv.style("max-height", "80vh");
+    teamPickDiv.style("overflow-y", "auto");
     teamPickDiv.style("border", "2px solid black");
     teamPickDiv.style("border-radius", "10px");
     teamPickDiv.style("text-align", "center");
     teamPickDiv.style("padding", "20px");
 
-    updateTeamPickUI();
+    updateTeamManagementUI();
 }
 
-function updateTeamPickUI() {
+function addTeamRequest(data) {
+    pendingRequests.push(data);
+    if (gameState === "team_select") {
+        updateTeamManagementUI();
+    }
+}
+
+function updateTeamManagementUI() {
+    if (!teamPickDiv) return;
     teamPickDiv.html("");
 
-    let teamPickTitle = createP("Pick Team");
-    teamPickTitle.style("font-size", "28px");
-    teamPickTitle.style("font-weight", "bold");
-    teamPickTitle.style("color", "white");
-    teamPickTitle.style("text-decoration", "underline");
-    teamPickTitle.style("margin", "0px");
-    teamPickTitle.style("margin-bottom", "10px");
-    teamPickTitle.parent(teamPickDiv);
+    let title = createP("Team Management");
+    title.style("font-size", "28px");
+    title.style("font-weight", "bold");
+    title.style("color", "white");
+    title.style("margin", "0 0 20px 0");
+    title.parent(teamPickDiv);
 
-    //turn the team colors into buttons
-    for (let i = 0; i < teamColors.length; i++) {
-        let teamButton = createButton("");
+    // Close button
+    let closeBtn = createButton("✕");
+    closeBtn.style("position", "absolute");
+    closeBtn.style("top", "10px");
+    closeBtn.style("right", "10px");
+    closeBtn.style("background", "rgba(255,0,0,0.7)");
+    closeBtn.style("border", "none");
+    closeBtn.style("color", "white");
+    closeBtn.style("font-size", "20px");
+    closeBtn.style("cursor", "pointer");
+    closeBtn.style("padding", "5px 10px");
+    closeBtn.style("border-radius", "5px");
+    closeBtn.mousePressed(() => {
+        teamPickDiv.hide();
+        gameState = "playing";
+        curPlayer.invBlock.useTimer = 10;
+    });
+    closeBtn.parent(teamPickDiv);
 
-        teamButton.style("width", "50px");
-        teamButton.style("height", "50px");
-        teamButton.style("background-color", "rgb(" + teamColors[i].r + "," + teamColors[i].g + "," + teamColors[i].b + ")");
-        teamButton.style("margin", "10px");
-        teamButton.style("padding", "0px");
-        teamButton.style("border-radius", "0px");
-        teamButton.style("border", "2px solid black");
-        teamButton.style("box-shadow", "0 0 0 4px rgb(128, 128, 128)");
-        teamButton.style("cursor", "pointer");
-        if (curPlayer == undefined) {
-            if (i == 0) {
-                teamButton.style("box-shadow", "0 0 0 4px rgb(128, 128, 128), 0 0 0 8px rgb(255, 255, 255)");
-            }
-        }
-        else {
-            if (curPlayer.color == i) {
-                teamButton.style("box-shadow", "0 0 0 4px rgb(128, 128, 128), 0 0 0 8px rgb(255, 255, 255)");
-            }
-        }
-        if (i == 0) {
-            teamButton.style("background-color", "rgb(0,0,0)");
-            teamButton.style("background-image", "url('images/ui/none.png')");
-            teamButton.style("background-size", "contain");
-            teamButton.style("background-repeat", "no-repeat");
-            teamButton.style("background-position", "center");
-        }
-
-        teamButton.mousePressed(() => {
-            curPlayer.color = i;
-            socket.emit("update_player", {
-                id: curPlayer.id,
-                pos: curPlayer.pos,
-                holding: curPlayer.holding,
-                update_names: ["color"],
-                update_values: [curPlayer.color]
-            });
-            updateTeamPickUI();
-            teamPickDiv.hide();
-            gameState = "playing";
-            curPlayer.invBlock.useTimer = 10;
-        });
-        teamButton.parent(teamPickDiv);
+    // Show current team or creation option
+    if (curPlayer && curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {
+        showCurrentTeam();
+    } else {
+        showTeamCreationAndList();
     }
+
+    // Show pending requests if creator
+    if (curPlayer && curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {
+        const team = window.allTeams[curPlayer.teamId];
+        if (team.creator === curPlayer.id && pendingRequests.length > 0) {
+            showPendingRequests();
+        }
+    }
+}
+
+function showCurrentTeam() {
+    const team = window.allTeams[curPlayer.teamId];
+    
+    let teamContainer = createDiv();
+    teamContainer.style("background", "rgba(0,0,0,0.5)");
+    teamContainer.style("padding", "15px");
+    teamContainer.style("border-radius", "10px");
+    teamContainer.style("margin", "10px 0");
+    teamContainer.parent(teamPickDiv);
+
+    let teamName = createP(`Team: ${team.name}`);
+    teamName.style("font-size", "24px");
+    teamName.style("color", `rgb(${team.color.r}, ${team.color.g}, ${team.color.b})`);
+    teamName.style("margin", "0 0 10px 0");
+    teamName.style("font-weight", "bold");
+    teamName.parent(teamContainer);
+
+    // Color preview
+    let colorBox = createDiv();
+    colorBox.style("width", "60px");
+    colorBox.style("height", "60px");
+    colorBox.style("background", `rgb(${team.color.r}, ${team.color.g}, ${team.color.b})`);
+    colorBox.style("margin", "10px auto");
+    colorBox.style("border", "2px solid white");
+    colorBox.style("border-radius", "5px");
+    colorBox.parent(teamContainer);
+
+    // Members list
+    let membersTitle = createP("Members:");
+    membersTitle.style("color", "white");
+    membersTitle.style("margin", "15px 0 5px 0");
+    membersTitle.parent(teamContainer);
+
+    team.members.forEach(memberId => {
+        if (players[memberId]) {
+            let memberP = createP(`• ${players[memberId].name}${team.creator === memberId ? ' (Leader)' : ''}`);
+            memberP.style("color", "white");
+            memberP.style("margin", "3px 0");
+            memberP.parent(teamContainer);
+        }
+    });
+
+    // Team creator controls
+    if (team.creator === curPlayer.id) {
+        let creatorSection = createDiv();
+        creatorSection.style("margin-top", "20px");
+        creatorSection.style("padding", "15px");
+        creatorSection.style("background", "rgba(255,215,0,0.1)");
+        creatorSection.style("border-radius", "8px");
+        creatorSection.parent(teamContainer);
+
+        let creatorTitle = createP("Leader Controls");
+        creatorTitle.style("color", "#ffd700");
+        creatorTitle.style("font-weight", "bold");
+        creatorTitle.style("margin", "0 0 10px 0");
+        creatorTitle.parent(creatorSection);
+
+        // Change name
+        let nameInput = createInput(team.name);
+        nameInput.attribute("placeholder", "Team Name");
+        nameInput.style("width", "200px");
+        nameInput.style("padding", "8px");
+        nameInput.style("margin", "5px");
+        nameInput.style("border-radius", "5px");
+        nameInput.parent(creatorSection);
+
+        let nameBtn = createButton("Update Name");
+        nameBtn.style("padding", "8px 15px");
+        nameBtn.style("background", "#4CAF50");
+        nameBtn.style("color", "white");
+        nameBtn.style("border", "none");
+        nameBtn.style("border-radius", "5px");
+        nameBtn.style("cursor", "pointer");
+        nameBtn.style("margin", "5px");
+        nameBtn.mousePressed(() => {
+            socket.emit('update_team', { teamId: curPlayer.teamId, name: nameInput.value() });
+        });
+        nameBtn.parent(creatorSection);
+
+        // Change color
+        let colorLabel = createP("Team Color:");
+        colorLabel.style("color", "white");
+        colorLabel.style("margin", "15px 0 5px 0");
+        colorLabel.parent(creatorSection);
+
+        // Convert current team color to hex
+        const toHex = (n) => {
+            const hex = n.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        };
+        const currentHex = '#' + toHex(team.color.r) + toHex(team.color.g) + toHex(team.color.b);
+
+        let colorInputEdit = createInput(currentHex);
+        colorInputEdit.attribute("type", "color");
+        colorInputEdit.style("width", "100px");
+        colorInputEdit.style("height", "40px");
+        colorInputEdit.style("margin", "5px");
+        colorInputEdit.style("border", "2px solid white");
+        colorInputEdit.style("border-radius", "5px");
+        colorInputEdit.style("cursor", "pointer");
+        colorInputEdit.parent(creatorSection);
+
+        // Color preview for editing
+        let colorPreviewEdit = createDiv();
+        colorPreviewEdit.style("width", "100px");
+        colorPreviewEdit.style("height", "40px");
+        colorPreviewEdit.style("background", currentHex);
+        colorPreviewEdit.style("margin", "5px auto");
+        colorPreviewEdit.style("border", "2px solid white");
+        colorPreviewEdit.style("border-radius", "5px");
+        colorPreviewEdit.style("display", "inline-block");
+        colorPreviewEdit.parent(creatorSection);
+
+        // Update preview on color change
+        colorInputEdit.input(() => {
+            colorPreviewEdit.style("background", colorInputEdit.value());
+        });
+
+        let colorBtn = createButton("Update Color");
+        colorBtn.style("padding", "8px 15px");
+        colorBtn.style("background", "#2196F3");
+        colorBtn.style("color", "white");
+        colorBtn.style("border", "none");
+        colorBtn.style("border-radius", "5px");
+        colorBtn.style("cursor", "pointer");
+        colorBtn.style("margin", "5px");
+        colorBtn.mousePressed(() => {
+            const hex = colorInputEdit.value();
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            socket.emit('update_team', {
+                teamId: curPlayer.teamId,
+                color: { r, g, b }
+            });
+        });
+        colorBtn.parent(creatorSection);
+    }
+
+    // Leave team button
+    let leaveBtn = createButton(team.creator === curPlayer.id ? "Disband Team" : "Leave Team");
+    leaveBtn.style("padding", "10px 20px");
+    leaveBtn.style("background", "#f44336");
+    leaveBtn.style("color", "white");
+    leaveBtn.style("border", "none");
+    leaveBtn.style("border-radius", "5px");
+    leaveBtn.style("cursor", "pointer");
+    leaveBtn.style("margin-top", "20px");
+    leaveBtn.mousePressed(() => {
+        if (confirm(team.creator === curPlayer.id ? "Disband team?" : "Leave team?")) {
+            socket.emit('leave_team');
+        }
+    });
+    leaveBtn.parent(teamContainer);
+}
+
+function showTeamCreationAndList() {
+    // Create team section
+    let createSection = createDiv();
+    createSection.style("background", "rgba(0,0,0,0.5)");
+    createSection.style("padding", "15px");
+    createSection.style("border-radius", "10px");
+    createSection.style("margin", "10px 0");
+    createSection.parent(teamPickDiv);
+
+    let createTitle = createP("Create New Team");
+    createTitle.style("color", "white");
+    createTitle.style("font-size", "20px");
+    createTitle.style("margin", "0 0 10px 0");
+    createTitle.parent(createSection);
+
+    let nameInput = createInput("");
+    nameInput.attribute("placeholder", "Team Name");
+    nameInput.style("width", "200px");
+    nameInput.style("padding", "8px");
+    nameInput.style("margin", "5px");
+    nameInput.style("border-radius", "5px");
+    nameInput.parent(createSection);
+
+    let colorLabel = createP("Team Color:");
+    colorLabel.style("color", "white");
+    colorLabel.style("margin", "10px 0 5px 0");
+    colorLabel.parent(createSection);
+
+    let colorInput = createInput("#ff0000");
+    colorInput.attribute("type", "color");
+    colorInput.style("width", "100px");
+    colorInput.style("height", "40px");
+    colorInput.style("margin", "5px");
+    colorInput.style("border", "2px solid white");
+    colorInput.style("border-radius", "5px");
+    colorInput.style("cursor", "pointer");
+    colorInput.parent(createSection);
+
+
+    // Update preview on color change
+    colorInput.input(() => {
+        colorPreview.style("background", colorInput.value());
+    });
+
+    let createBtn = createButton("Create Team");
+    createBtn.style("padding", "10px 20px");
+    createBtn.style("background", "#4CAF50");
+    createBtn.style("color", "white");
+    createBtn.style("border", "none");
+    createBtn.style("border-radius", "5px");
+    createBtn.style("cursor", "pointer");
+    createBtn.style("margin", "10px 5px");
+    createBtn.mousePressed(() => {
+        const name = nameInput.value().trim();
+        if (!name) {
+            alert("Please enter a team name");
+            return;
+        }
+        // Convert hex color to RGB
+        const hex = colorInput.value();
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        socket.emit('create_team', {
+            name,
+            color: { r, g, b }
+        });
+    });
+    createBtn.parent(createSection);
+
+    // Available teams
+    if (window.allTeams && Object.keys(window.allTeams).length > 0) {
+        let teamsSection = createDiv();
+        teamsSection.style("background", "rgba(0,0,0,0.5)");
+        teamsSection.style("padding", "15px");
+        teamsSection.style("border-radius", "10px");
+        teamsSection.style("margin", "10px 0");
+        teamsSection.parent(teamPickDiv);
+
+        let teamsTitle = createP("Available Teams");
+        teamsTitle.style("color", "white");
+        teamsTitle.style("font-size", "20px");
+        teamsTitle.style("margin", "0 0 10px 0");
+        teamsTitle.parent(teamsSection);
+
+        Object.values(window.allTeams).forEach(team => {
+            let teamDiv = createDiv();
+            teamDiv.style("background", "rgba(255,255,255,0.1)");
+            teamDiv.style("padding", "10px");
+            teamDiv.style("margin", "5px 0");
+            teamDiv.style("border-radius", "5px");
+            teamDiv.style("display", "flex");
+            teamDiv.style("justify-content", "space-between");
+            teamDiv.style("align-items", "center");
+            teamDiv.parent(teamsSection);
+
+            let teamInfo = createDiv();
+            teamInfo.parent(teamDiv);
+
+            let teamNameP = createP(team.name);
+            teamNameP.style("color", `rgb(${team.color.r}, ${team.color.g}, ${team.color.b})`);
+            teamNameP.style("margin", "0");
+            teamNameP.style("font-weight", "bold");
+            teamNameP.parent(teamInfo);
+
+            let teamMembersP = createP(`${team.members.length} member${team.members.length !== 1 ? 's' : ''}`);
+            teamMembersP.style("color", "white");
+            teamMembersP.style("margin", "0");
+            teamMembersP.style("font-size", "12px");
+            teamMembersP.parent(teamInfo);
+
+            let joinBtn = createButton("Request Join");
+            joinBtn.style("padding", "8px 15px");
+            joinBtn.style("background", "#2196F3");
+            joinBtn.style("color", "white");
+            joinBtn.style("border", "none");
+            joinBtn.style("border-radius", "5px");
+            joinBtn.style("cursor", "pointer");
+            joinBtn.mousePressed(() => {
+                socket.emit('request_join_team', { teamId: team.id });
+            });
+            joinBtn.parent(teamDiv);
+        });
+    }
+}
+
+function showPendingRequests() {
+    let requestsSection = createDiv();
+    requestsSection.style("background", "rgba(255,215,0,0.1)");
+    requestsSection.style("padding", "15px");
+    requestsSection.style("border-radius", "10px");
+    requestsSection.style("margin", "20px 0");
+    requestsSection.parent(teamPickDiv);
+
+    let requestsTitle = createP("Pending Join Requests");
+    requestsTitle.style("color", "#ffd700");
+    requestsTitle.style("font-size", "18px");
+    requestsTitle.style("margin", "0 0 10px 0");
+    requestsTitle.parent(requestsSection);
+
+    pendingRequests.forEach((request, idx) => {
+        let reqDiv = createDiv();
+        reqDiv.style("background", "rgba(255,255,255,0.1)");
+        reqDiv.style("padding", "10px");
+        reqDiv.style("margin", "5px 0");
+        reqDiv.style("border-radius", "5px");
+        reqDiv.style("display", "flex");
+        reqDiv.style("justify-content", "space-between");
+        reqDiv.style("align-items", "center");
+        reqDiv.parent(requestsSection);
+
+        let nameP = createP(request.playerName);
+        nameP.style("color", "white");
+        nameP.style("margin", "0");
+        nameP.parent(reqDiv);
+
+        let btnContainer = createDiv();
+        btnContainer.style("display", "flex");
+        btnContainer.style("gap", "5px");
+        btnContainer.parent(reqDiv);
+
+        let acceptBtn = createButton("✓");
+        acceptBtn.style("padding", "5px 10px");
+        acceptBtn.style("background", "#4CAF50");
+        acceptBtn.style("color", "white");
+        acceptBtn.style("border", "none");
+        acceptBtn.style("border-radius", "5px");
+        acceptBtn.style("cursor", "pointer");
+        acceptBtn.mousePressed(() => {
+            socket.emit('accept_team_request', { teamId: curPlayer.teamId, playerId: request.playerId });
+            pendingRequests.splice(idx, 1);
+            updateTeamManagementUI();
+        });
+        acceptBtn.parent(btnContainer);
+
+        let denyBtn = createButton("✗");
+        denyBtn.style("padding", "5px 10px");
+        denyBtn.style("background", "#f44336");
+        denyBtn.style("color", "white");
+        denyBtn.style("border", "none");
+        denyBtn.style("border-radius", "5px");
+        denyBtn.style("cursor", "pointer");
+        denyBtn.mousePressed(() => {
+            socket.emit('deny_team_request', { teamId: curPlayer.teamId, playerId: request.playerId });
+            pendingRequests.splice(idx, 1);
+            updateTeamManagementUI();
+        });
+        denyBtn.parent(btnContainer);
+    });
 }
 
 var swapInvDiv;
