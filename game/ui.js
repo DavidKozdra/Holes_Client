@@ -1440,6 +1440,25 @@ function defineInvUI() {
 
 
 
+// Safe helpers for item images in inventory UI
+function _getFrameURLSafe(imgNum) {
+    const frames = (typeof imgNum === "number" && itemImgs) ? itemImgs[imgNum] : undefined;
+    const frame0 = Array.isArray(frames) ? frames[0] : undefined;
+    const canvas = frame0 && frame0.canvas;
+    return (canvas && typeof canvas.toDataURL === "function") ? canvas.toDataURL() : undefined;
+}
+
+function resolveItemImgURL(itemName, entry) {
+    const imgNum = (entry && typeof entry.imgNum === "number")
+        ? entry.imgNum
+        : (itemDic && itemDic[itemName] ? itemDic[itemName].img : undefined);
+    const dataURL = _getFrameURLSafe(imgNum);
+    if (dataURL) return dataURL;
+    const path = (typeof imgNum === "number" && Array.isArray(itemImgPaths)) ? itemImgPaths[imgNum] : undefined;
+    if (typeof path === "string" && path.length > 0) return path;
+    return undefined;
+}
+
 function updateItemList() {
     if (curPlayer == undefined) return;
 
@@ -1502,8 +1521,6 @@ function updateItemList() {
         itemInfoDiv.parent(itemDiv);
 
         // Add item icon (responsive, pixelated)
-        let imgNum = curPlayer.invBlock.items[itemName].imgNum;
-        //let itemImg = itemImgPaths[imgNum][0];
         let imgDiv = createDiv();
         imgDiv.style('width', '2.2em');  // Responsive size
         imgDiv.style('height', '2.2em');
@@ -1513,13 +1530,24 @@ function updateItemList() {
         imgDiv.style('display', 'flex');
         imgDiv.style('align-items', 'center');
         imgDiv.parent(itemInfoDiv);
-
-        let imgEl = createImg(itemImgs[imgNum][0].canvas.toDataURL(), '');
-        imgEl.style('width', '100%');
-        imgEl.style('height', '100%');
-        imgEl.style('image-rendering', 'pixelated');
-        imgEl.style('pointer-events', 'none'); // Avoid accidental drag
-        imgEl.parent(imgDiv);
+        const entry = curPlayer.invBlock.items[itemName];
+        const url = resolveItemImgURL(itemName, entry);
+        if (url) {
+            const imgEl = createImg(url, '');
+            imgEl.style('width', '100%');
+            imgEl.style('height', '100%');
+            imgEl.style('image-rendering', 'pixelated');
+            imgEl.style('pointer-events', 'none');
+            imgEl.parent(imgDiv);
+        } else {
+            const placeholder = createDiv('•');
+            placeholder.style('width', '100%');
+            placeholder.style('height', '100%');
+            placeholder.style('display', 'flex');
+            placeholder.style('align-items', 'center');
+            placeholder.style('justify-content', 'center');
+            placeholder.parent(imgDiv);
+        }
 
 
         let itemNameP = createP((itemName == curPlayer.invBlock.curItem ? "* " : "") + itemName);
@@ -1566,9 +1594,20 @@ function updatecurItemDiv() {
     itemImgDiv.style("border", "2px solid black");
     itemImgDiv.style("border-radius", "10px");
 
-    itemImgDiv.src = ""
-    //console.log(itemImgPaths[curPlayer.invBlock.items[curPlayer.invBlock.curItem].imgNum][0]);
-    itemImgDiv.style("background-image", "url('" + itemImgs[curPlayer.invBlock.items[curPlayer.invBlock.curItem].imgNum][0].canvas.toDataURL() + "')");
+    itemImgDiv.src = "";
+    const curEntry = curPlayer.invBlock.items[curPlayer.invBlock.curItem];
+    const curURL = resolveItemImgURL(curPlayer.invBlock.curItem, curEntry);
+    if (curURL) {
+        itemImgDiv.style("background-image", "url('" + curURL + "')");
+    } else {
+        itemImgDiv.style("display", "flex");
+        itemImgDiv.style("align-items", "center");
+        itemImgDiv.style("justify-content", "center");
+        const dot = createDiv("•");
+        dot.style("font-size", "28px");
+        dot.style("color", "#ccc");
+        dot.parent(itemImgDiv);
+    }
     itemImgDiv.style("background-size", "contain");
     itemImgDiv.style("background-repeat", "no-repeat");
     itemImgDiv.style("background-position", "center");
@@ -2656,10 +2695,10 @@ function updateSwapItemLists(otherInv) {
         imgDiv.style("align-items", "center");
         imgDiv.parent(itemInfoDiv);
 
-        const dataURL = getItemFrameDataURL(entry.imgNum);
+        const urlLeft = resolveItemImgURL(itemName, entry);
         let imgEl;
-        if (dataURL) {
-            imgEl = createImg(dataURL, "");
+        if (urlLeft) {
+            imgEl = createImg(urlLeft, "");
             imgEl.style("width", "32px");
             imgEl.style("height", "32px");
             imgEl.style("image-rendering", "pixelated");
@@ -2734,9 +2773,9 @@ function updateSwapItemLists(otherInv) {
         imgDiv.style("align-items", "center");
         imgDiv.parent(itemInfoDiv);
 
-        const dataURL = getItemFrameDataURL(entry.imgNum);
-        if (dataURL) {
-            const imgEl = createImg(dataURL, "");
+        const urlRight = resolveItemImgURL(itemName, entry);
+        if (urlRight) {
+            const imgEl = createImg(urlRight, "");
             imgEl.style("width", "32px");
             imgEl.style("height", "32px");
             imgEl.style("image-rendering", "pixelated");
@@ -2832,7 +2871,7 @@ function updatecurSwapItemDiv(otherInv) {
     itemImgDiv.style("width", "50%");
     itemImgDiv.style("border", "2px solid black");
     itemImgDiv.style("border-radius", "10px");
-    const bgURL = getItemFrameDataURL(curSwapItem.imgNum);
+    const bgURL = resolveItemImgURL(curSwapItem.itemName, curSwapItem);
     if (bgURL) {
         itemImgDiv.style("background-image", "url('" + bgURL + "')");
         itemImgDiv.style("image-rendering", "pixelated");
@@ -3272,13 +3311,25 @@ function updateCraftList() {
             alignItems: "center"
         });
 
-        let imgEl = createImg(itemImgs[arr[i].imgNum][0].canvas.toDataURL(), '').parent(imgDiv);
-        applyStyle(imgEl, {
-            width: "100%",
-            height: "100%",
-            imageRendering: "pixelated",
-            pointerEvents: "none"
-        });
+        const craftURL = resolveItemImgURL(itemName, { imgNum: arr[i].imgNum });
+        if (craftURL) {
+            let imgEl = createImg(craftURL, '').parent(imgDiv);
+            applyStyle(imgEl, {
+                width: "100%",
+                height: "100%",
+                imageRendering: "pixelated",
+                pointerEvents: "none"
+            });
+        } else {
+            const placeholder = createDiv('•').parent(imgDiv);
+            applyStyle(placeholder, {
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+            });
+        }
 
         let itemNameP = createP(itemName).parent(itemInfoDiv);
         itemNameP.style("font-size", "20px");
@@ -3316,17 +3367,28 @@ function updatecurCraftItemDiv() {
     });
 
     let itemImgDiv = createDiv().parent(itemCardDiv);
+    const craftBG = resolveItemImgURL(curItem, { imgNum: itemData?.img });
     applyStyle(itemImgDiv, {
         width: "50%",
         height: "100%",
         border: "2px solid black",
         borderRadius: "10px",
-        backgroundImage: `url('${itemImgs[itemData.img][0].canvas.toDataURL()}')`,
+        backgroundImage: craftBG ? `url('${craftBG}')` : "none",
         backgroundSize: "contain",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
         imageRendering: "pixelated"
     });
+    if (!craftBG) {
+        // placeholder dot for missing art
+        itemImgDiv.style("display", "flex");
+        itemImgDiv.style("align-items", "center");
+        itemImgDiv.style("justify-content", "center");
+        const dot = createDiv("•");
+        dot.style("font-size", "28px");
+        dot.style("color", "#ccc");
+        dot.parent(itemImgDiv);
+    }
 
     let itemNameDescDiv = createDiv().parent(itemCardDiv);
     itemNameDescDiv.style("width", "calc(50% - 8px)");
