@@ -1120,12 +1120,53 @@ class Entity extends Placeable {
         image(objImgs[this.imgNum][floor(this.currentFrame)], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
         pop();
 
+        // Render name tag
+        this.renderNameTag();
+
         if (this.hp < this.mhp) {
             this.renderHealthBar();
         }
 
         this.animationFrame += (1 / 7);
         this.currentFrame = (this.animationFrame) % 2;
+    }
+
+    renderNameTag() {
+        push();
+        const yOffset = this.size.h / 2 + 20; // Position above the entity
+
+        // Prepare text
+        textSize(14);
+        textAlign(CENTER, CENTER);
+        let nameText = this.objName; // Display the entity type name (Ant, Gnome, etc.)
+
+        // Measure text width to draw a background rectangle around it
+        let textW = textWidth(nameText) + 8;  // some padding
+        let textH = 18;                        // approximate line height
+
+        // Draw background box behind the text
+        rectMode(CENTER);
+        fill(0, 150);   // semi-transparent black
+        noStroke();
+        rect(
+            this.pos.x - camera.pos.x + (width / 2), 
+            this.pos.y - camera.pos.y + (height / 2) - yOffset, 
+            textW, 
+            textH, 
+            4
+        ); // last param 4 = corner radius
+
+        // Now draw text with a stroke
+        stroke(0);       // black stroke around letters
+        strokeWeight(2);
+        fill(teamColors[this.color].r, teamColors[this.color].g, teamColors[this.color].b);
+        text(
+            nameText, 
+            this.pos.x - camera.pos.x + (width / 2), 
+            this.pos.y - camera.pos.y + (height / 2) - yOffset
+        );
+
+        pop();
     }
 }
 
