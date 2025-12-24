@@ -93,6 +93,86 @@ function socketSetup(){
         
     });
 
+    // Apply saved snapshot (inventory/statBlock/pos) when provided by server
+    socket.on('PLAYER_SNAPSHOT', (data) => {
+        if (!curPlayer) return;
+        try {
+            if (data.pos && typeof data.pos.x === 'number' && typeof data.pos.y === 'number') {
+                curPlayer.pos.x = data.pos.x;
+                curPlayer.pos.y = data.pos.y;
+            }
+            if (data.statBlock) {
+                const sb = data.statBlock;
+                // Preserve StatBlock methods; merge snapshot values
+                if (curPlayer.statBlock && typeof curPlayer.statBlock.heal === 'function') {
+                    if (sb.race != null) curPlayer.statBlock.race = sb.race;
+                    if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
+                    if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
+                    if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
+                    if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                } else {
+                    // If somehow missing methods, rehydrate a new instance
+                    const health = (sb.stats && typeof sb.stats.hp === 'number') ? sb.stats.hp : undefined;
+                    const raceIndex = (typeof sb.race === 'number') ? sb.race : (typeof curPlayer.race === 'number' ? curPlayer.race : 0);
+                    curPlayer.statBlock = new StatBlock(raceIndex, health);
+                    if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
+                    if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
+                    if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
+                    if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                }
+            }
+            if (data.invBlock) {
+                const inv = data.invBlock;
+                // Hydrate plain item records into item instances
+                const itemsIn = inv.items || {};
+                curPlayer.invBlock.items = {};
+                const names = Object.keys(itemsIn);
+                for (let i = 0; i < names.length; i++) {
+                    const name = names[i];
+                    const rec = itemsIn[name];
+                    const amt = (rec && typeof rec.amount === 'number') ? rec.amount : (typeof rec === 'number' ? rec : 1);
+                    curPlayer.invBlock.addItem(name, amt, false);
+                    const inst = curPlayer.invBlock.items[name];
+                    if (rec && typeof rec === 'object') {
+                        if (typeof rec.durability === 'number') inst.durability = rec.durability;
+                        if (typeof rec.maxDurability === 'number') inst.maxDurability = rec.maxDurability;
+                    }
+                }
+
+                // Apply hotbar, validating any missing items
+                if (Array.isArray(inv.hotbar)) {
+                    curPlayer.invBlock.hotbar = inv.hotbar.slice(0, 5);
+                    for (let i = 0; i < curPlayer.invBlock.hotbar.length; i++) {
+                        const key = curPlayer.invBlock.hotbar[i];
+                        if (!key || !curPlayer.invBlock.items[key]) curPlayer.invBlock.hotbar[i] = "";
+                    }
+                }
+                // Clamp selected hotbar index
+                if (typeof inv.selectedHotBar === 'number') {
+                    const idx = Math.max(0, Math.min(4, inv.selectedHotBar));
+                    curPlayer.invBlock.selectedHotBar = idx;
+                }
+                // Apply equiped slots, validating presence
+                if (inv.equiped && typeof inv.equiped === 'object') {
+                    const eq = inv.equiped;
+                    curPlayer.invBlock.equiped = curPlayer.invBlock.equiped || { head: "", neck: "", chest: "", legs: "", feet: "" };
+                    const slots = ["head","neck","chest","legs","feet"];
+                    for (let i = 0; i < slots.length; i++) {
+                        const s = slots[i];
+                        const itemName = eq[s] || "";
+                        curPlayer.invBlock.equiped[s] = (itemName && curPlayer.invBlock.items[itemName]) ? itemName : "";
+                    }
+                }
+            }
+            // Optionally update team
+            if (data.teamId) {
+                curPlayer.teamId = data.teamId;
+            }
+        } catch (e) {
+            console.warn('Failed to apply PLAYER_SNAPSHOT', e);
+        }
+    });
+
     socket.on("change_name", (data) => {
         curPlayer.name = data
     });
