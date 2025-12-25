@@ -5,6 +5,17 @@ var nameEntered = false;
 var raceButtons = []; // now storing "card" divs instead of p5 buttons
 var goButton;
 var nameInput;
+// Lightweight perf toggle; enable with `window.__perfLog = true`
+window.__perfLog = window.__perfLog ?? false;
+
+function perfTimed(label, fn) {
+    if (!window.__perfLog) return fn();
+    const t0 = performance.now();
+    const res = fn();
+    const t1 = performance.now();
+    console.log(`[perf] ${label}: ${(t1 - t0).toFixed(2)}ms`);
+    return res;
+}
 
 // Array of build option objects
 
@@ -213,20 +224,14 @@ function createLinkItem(parent, text, url, emoji) {
 
 // Toggle function to show/hide links
 function hideLinks() {
-    if (renderLinks) {
-        if (linkContainer.style("display") === "none") {
-            linkContainer.style("display", "flex");
-            settingsToggle.style("display", "flex")
-            markee.style("display", "flex")
-            titleImage.style("display", "flex");
-        } else {
-            linkContainer.style("display", "none");
-            markee.style("display", "none")
-            titleImage.style("display", "none");
-            settingsToggle.style("display", "none")
-            renderLinks = false
-        }
-    }
+    // Ensure we only operate after links are rendered and avoid toggling per frame
+    if (!linksRendered) return;
+
+    // Hide all link-related UI elements; do not overwrite functions or toggle repeatedly
+    if (linkContainer) linkContainer.style("display", "none");
+    if (settingsToggle) settingsToggle.style("display", "none");
+    if (markee) markee.style("display", "none");
+    if (titleImage) titleImage.style("display", "none");
 }
 
 // Helper function to create a link
@@ -1538,9 +1543,45 @@ function resolveItemImgURL(itemName, entry) {
     return undefined;
 }
 
+// Batch highlight updates for inventory item list
+function highlightItemList() {
+    if (!itemListDiv || !itemListDiv.elt) return;
+    const selected = curPlayer?.invBlock?.curItem;
+    const children = itemListDiv.elt.children;
+    const apply = () => {
+        for (let i = 0; i < children.length; i++) {
+            const row = children[i];
+            const name = row.getAttribute('data-item');
+            const isSel = name === selected;
+            row.style.backgroundColor = isSel ? 'rgb(120,120,120)' : '';
+            row.style.fontStyle = isSel ? 'italic' : 'normal';
+        }
+    };
+    // Use rAF to coalesce style writes
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply); else apply();
+}
+
+// Batch highlight updates for crafting list
+function highlightCraftList() {
+    if (!craftListDiv || !craftListDiv.elt) return;
+    const selected = curPlayer?.invBlock?.curItem;
+    const children = craftListDiv.elt.children;
+    const apply = () => {
+        for (let i = 0; i < children.length; i++) {
+            const row = children[i];
+            const name = row.getAttribute('data-item');
+            const isSel = name === selected;
+            row.style.backgroundColor = isSel ? 'rgb(120,120,120)' : '';
+            row.style.fontStyle = isSel ? 'italic' : 'normal';
+        }
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply); else apply();
+}
+
 function updateItemList() {
     if (curPlayer == undefined) return;
 
+    // Build fresh list; measured if perf logging enabled
     itemListDiv.html("");
     //create a div for each item in the inventory
     let arr = Object.keys(curPlayer.invBlock.items);
@@ -1575,21 +1616,22 @@ function updateItemList() {
     for (let i = 0; i < arr.length; i++) {
         let itemName = arr[i];
         let itemDiv = createDiv();
+        // Store item name on the element for fast highlight updates
+        itemDiv.attribute('data-item', itemName);
         itemDiv.style("width", "100%");
         itemDiv.style("height", "50px");
         itemDiv.style("display", "flex");
         itemDiv.style("align-items", "center");
         itemDiv.style("justify-content", "center");
         itemDiv.style("border-bottom", "2px solid black");
-        if (curPlayer.invBlock.curItem == itemName) itemDiv.style("background-color", "rgb(120, 120, 120)");
-        if (curPlayer.invBlock.curItem == itemName) itemDiv.style("font-style", "italic");
+        // Initial selected styling applied later via highlighter
         itemDiv.style("cursor", "pointer");
         itemDiv.parent(itemListDiv);
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
-            //click to select item 
-            updateItemList();
-            updatecurItemDiv();
+            // Avoid full rebuild; update selection styles + right panel only
+            highlightItemList();
+            perfTimed('updatecurItemDiv', () => updatecurItemDiv());
         });
         let itemInfoDiv = createDiv();
         itemInfoDiv.style("width", "80%");
@@ -1629,7 +1671,7 @@ function updateItemList() {
         }
 
 
-        let itemNameP = createP((itemName == curPlayer.invBlock.curItem ? "* " : "") + itemName);
+        let itemNameP = createP(itemName);
         itemNameP.style("font-size", "20px");
         itemNameP.style("color", "white");
         itemNameP.parent(itemInfoDiv);
@@ -1639,12 +1681,14 @@ function updateItemList() {
         itemAmount.style("color", "white");
         itemAmount.parent(itemInfoDiv);
     }
+    // Apply selection highlight in one pass, batching style work
+    highlightItemList();
 }
 
 function updatecurItemDiv() {
     if (curPlayer == undefined) return;
 
-    //clear the div
+    //clear the div (timed when perfLog is on)
     curItemDiv.html("");
 
     if (curPlayer.invBlock.curItem == "") {
@@ -3740,6 +3784,7 @@ function updateCraftList() {
     for (let i = 0; i < arr.length; i++) {
         let itemName = arr[i].itemName;
         let itemDiv = createDiv();
+        itemDiv.attribute('data-item', itemName);
         applyStyle(itemDiv, {
             width: "100%",
             height: "50px",
@@ -3748,14 +3793,13 @@ function updateCraftList() {
             justifyContent: "center",
             borderBottom: "2px solid black",
             cursor: "pointer",
-            backgroundColor: curPlayer.invBlock.curItem == itemName ? "rgb(120, 120, 120)" : "",
-            fontStyle: curPlayer.invBlock.curItem == itemName ? "italic" : "normal"
+            // selected styling applied via highlighter
         });
         itemDiv.parent(craftListDiv);
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
-            updateCraftList();
-            updatecurCraftItemDiv();
+            highlightCraftList();
+            perfTimed('updatecurCraftItemDiv', () => updatecurCraftItemDiv());
         });
 
         let itemInfoDiv = createDiv().parent(itemDiv);
@@ -3806,6 +3850,7 @@ function updateCraftList() {
         craftCheckText.style("font-size", "20px");
         craftCheckText.style("color", curPlayer.invBlock.craftCheck(itemName) ? "green" : "red");
     }
+    highlightCraftList();
 }
 
 function updatecurCraftItemDiv() {
