@@ -213,7 +213,10 @@ class Melee extends SimpleItem{
         if(curPlayer.invBlock.useTimer <= 0){
             let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
             let toMouse = createVector(x,y).sub(curPlayer.pos).setMag(50);
-            let proj = createProjectile(this.itemName+" Slash", curPlayer.name, curPlayer.color, curPlayer.pos.x, curPlayer.pos.y, toMouse.heading());
+            // Slightly offset origin so the slash starts in front of the player
+            let slashOriginX = curPlayer.pos.x + toMouse.x * 0.3;
+            let slashOriginY = curPlayer.pos.y + toMouse.y * 0.3;
+            let proj = createProjectile(this.itemName+" Slash", curPlayer.name, curPlayer.color, slashOriginX, slashOriginY, toMouse.heading());
             // Apply player attack modifier to damage
             if(curPlayer.statBlock && curPlayer.statBlock.stats.attack){
                 proj.damage += curPlayer.statBlock.stats.attack;
@@ -649,7 +652,10 @@ function defineMelee(name,imgPaths, cost, weight, durability, damage, knockback,
     itemDic[name].swingSpeed = swingSpeed;
     itemDic[name].magicBool = magicBool;
 
-    defineMeleeProjectile(name+" Slash", 0, range, safeRange, angle, damage, knockback, 0.5, magicBool);
+    // Lifespan proportional to swing duration (seconds)
+    // Use ~60% of swing time, with a small floor to stay visible
+    const slashLifespan = Math.max(0.15, (swingSpeed / 60) * 0.6);
+    defineMeleeProjectile(name+" Slash", 0, range, safeRange, angle, damage, knockback, slashLifespan, magicBool);
 }
 
 /**

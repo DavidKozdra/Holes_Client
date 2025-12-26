@@ -30,6 +30,7 @@ class SimpleProjectile{
         this.pos = this.flightPath.calc(0);
         this.speed = speed;
         this.lifespan = lifespan;
+        this.initialLifespan = lifespan;
         this.ownerName = ownerName;
         this.color = color;
         this.imgNum = imgNum;
@@ -76,6 +77,10 @@ class SimpleProjectile{
         push();
         translate(this.pos.x-camera.pos.x+(width/2), this.pos.y-camera.pos.y+(height/2));
         rotate(this.flightPath.a);
+        // Fade out over lifespan
+        let t = 1 - (this.lifespan / this.initialLifespan);
+        let alpha = 255 * (1 - t);
+        tint(255, alpha);
         image(projImgs[this.imgNum][0], 0, 0, 40, 40);
         pop();
     }
@@ -179,6 +184,7 @@ class MeleeProjectile extends SimpleProjectile{
         this.range = range;
         this.safeRange = safeRange;
         this.angleWidth = angleWidth;
+        this.initialLifespan = lifespan;
 
         this.ringAngles = [];
         for(let i = 0; i < this.range/10; i++){
@@ -194,32 +200,74 @@ class MeleeProjectile extends SimpleProjectile{
         push();
         translate(-camera.pos.x+(width/2), -camera.pos.y+(height/2));
         noFill();
+        // Progress from 0 → 1 across the lifespan (accelerated 4x for snappier motion)
+        let tBase = 1 - (this.lifespan / this.initialLifespan);
+        let t = Math.min(1, tBase * 4);
+        // Sweep amount across the arc to convey motion
+        let sweep = t * (this.angleWidth * 0.8);
+        // Small outward expansion to show movement
+        let radialBoost = t * 12;
+
         if(Debuging){
-            stroke(200, 200, 215);
+            stroke(200, 200, 215, 220 * (1 - t));
             strokeCap(SQUARE);
             strokeWeight(this.range);
-            arc(this.pos.x,this.pos.y,this.range+this.safeRange,this.range+this.safeRange,this.flightPath.a-(this.angleWidth/2), this.flightPath.a+(this.angleWidth/2));
+            arc(
+                this.pos.x,
+                this.pos.y,
+                this.range+this.safeRange+radialBoost,
+                this.range+this.safeRange+radialBoost,
+                (this.flightPath.a-(this.angleWidth/2)) + sweep,
+                (this.flightPath.a+(this.angleWidth/2)) + sweep
+            );
         }
         else{
             for(let i = 0; i < this.ringAngles.length; i++){
-                let ringRadius = map(i, 0, this.ringAngles.length, 0, (this.range*2))+this.safeRange+10;
+                let ringRadius = map(i, 0, this.ringAngles.length, 0, (this.range*2)) + this.safeRange + 10 + radialBoost;
+
+                // Back outline
                 strokeWeight(4);
-                stroke(0);
-                arc(this.pos.x, this.pos.y,
+                stroke(0, 180 * (1 - t));
+                arc(
+                    this.pos.x,
+                    this.pos.y,
                     ringRadius,
                     ringRadius,
-                    this.ringAngles[i][0],
-                    this.ringAngles[i][1]
+                    this.ringAngles[i][0] + sweep,
+                    this.ringAngles[i][1] + sweep
                 );
 
+                // Foreground slash color
                 strokeWeight(3);
-                stroke(200, 200, 215);
-                arc(this.pos.x, this.pos.y,
+                stroke(200, 200, 215, 220 * (1 - t));
+                arc(
+                    this.pos.x,
+                    this.pos.y,
                     ringRadius,
                     ringRadius,
-                    this.ringAngles[i][0],
-                    this.ringAngles[i][1]
+                    this.ringAngles[i][0] + sweep,
+                    this.ringAngles[i][1] + sweep
                 );
+            }
+
+            // Overlay the weapon PNG rotated along the sweep
+            const weaponName = (this.name.endsWith(" Slash")) ? this.name.substring(0, this.name.length - 6) : this.name;
+            const weaponInfo = itemDic[weaponName];
+            if (weaponInfo && itemImgs[weaponInfo.img] && itemImgs[weaponInfo.img][0]) {
+                // Place the weapon along the arc at a reasonable radius
+                const bladeRadius = this.safeRange + (this.range * 0.4) + radialBoost;
+                const currentAngle = (this.flightPath.a - (this.angleWidth/2)) + sweep;
+                const wx = this.pos.x + Math.cos(currentAngle) * bladeRadius;
+                const wy = this.pos.y + Math.sin(currentAngle) * bladeRadius;
+
+                push();
+                translate(-camera.pos.x+(width/2), -camera.pos.y+(height/2));
+                // Fade weapon overlay in sync with slash
+                tint(255, 220 * (1 - t));
+                translate(wx, wy);
+                rotate(currentAngle + PI/2);
+                image(itemImgs[weaponInfo.img][0], -30, -30, 60, 60);
+                pop();
             }
         }
         
@@ -313,6 +361,7 @@ class ObjProj extends SimpleProjectile{
         }
         this.radius = radius;
         this.objName = objName;
+        this.initialLifespan = lifespan;
         this.type = "ObjProj";
     }
 
@@ -332,6 +381,10 @@ class ObjProj extends SimpleProjectile{
     render(){
         push();
         translate(-camera.pos.x+(width/2), -camera.pos.y+(height/2));
+        // Fade out over lifespan
+        let t = 1 - (this.lifespan / this.initialLifespan);
+        let alpha = 255 * (1 - t);
+        tint(255, alpha);
         image(objImgs[this.imgNum][0], this.pos.x, this.pos.y, 40, 40);
         pop();
     }
