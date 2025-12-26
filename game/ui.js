@@ -989,8 +989,8 @@ function renderDirtBagUI() {
         //stop dirt bag shake sound
         dirtBagShakeSound.stop();
         dirtBagUI.shake.intensity = 0;
-        dirtBagUI.vel.x = ((width - 120 - 10) - dirtBagUI.pos.x);
-        dirtBagUI.vel.y = ((height - 124 - 10) - dirtBagUI.pos.y);
+        dirtBagUI.vel.x = ((width - 180 - 10) - dirtBagUI.pos.x);
+        dirtBagUI.vel.y = ((height - 186 - 10) - dirtBagUI.pos.y);
         dirtBagUI.vel.setMag(dirtBagUI.vel.mag() / 10);
     }
     dirtBagUI.pos.add(dirtBagUI.vel);
@@ -1013,27 +1013,27 @@ function renderDirtBagUI() {
         dirtBagOpen = false;
     }
 
-    // Dirt bag dimensions (scaled down from 180x186)
-    const DIRT_BAG_W = 120;
-    const DIRT_BAG_H = 124;
+    // Dirt bag dimensions (original size)
+    const DIRT_BAG_W = 180;
+    const DIRT_BAG_H = 186;
     
     if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, DIRT_BAG_W, DIRT_BAG_H);
     else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, DIRT_BAG_W, DIRT_BAG_H);
 
-    // Dirt fill scaled proportionally (from 30px offset to 20px, 120px height to 80px)
+    // Dirt fill original proportions
     fill("#70443C");
-    const dirtFillWidth = 80;
-    const dirtFillHeight = 80;
-    const dirtOffsetX = 20;
-    const dirtOffsetY = 22;
+    const dirtFillWidth = 120;
+    const dirtFillHeight = 120;
+    const dirtOffsetX = 30;
+    const dirtOffsetY = 35;
     rect(dirtBagUI.pos.x + dirtOffsetX, dirtBagUI.pos.y + dirtOffsetY + (dirtFillHeight * (1 - (dirtInv / maxDirtInv))), dirtFillWidth, dirtFillHeight * (dirtInv / maxDirtInv));
 
     if (!dirtBagOpen) {
         fill(255);
         stroke(0);
-        strokeWeight(3);
+        strokeWeight(5);
         textAlign(CENTER, CENTER);
-        textSize(24);
+        textSize(50);
         text("Full", dirtBagUI.pos.x + DIRT_BAG_W / 2, dirtBagUI.pos.y + DIRT_BAG_H / 2);
     }
     pop();

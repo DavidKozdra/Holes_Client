@@ -332,8 +332,8 @@ class InvBlock{
         if(!this.itemLabelDiv){
             this.itemLabelDiv = createDiv();
             this.itemLabelDiv.style("position", "fixed");
-            this.itemLabelDiv.style("bottom", "calc(10px + 124px + 8px)"); // 10px (dirt bag margin) + 124px (dirt bag height) + 8px spacing
-            this.itemLabelDiv.style("right", "calc(10px + 220px + 12px)"); // 10px (dirt bag margin) + 120px (dirt bag width) + 12px spacing
+            this.itemLabelDiv.style("bottom", "calc(10px + 186px + 8px)"); // 10px (dirt bag margin) + 186px (dirt bag height) + 8px spacing
+            this.itemLabelDiv.style("right", "calc(10px + 180px + 12px)"); // 10px (dirt bag margin) + 180px (dirt bag width) + 12px spacing
             this.itemLabelDiv.style("transform", "translateY(-100%)"); // Position above, not overlapping
             this.itemLabelDiv.style("background", "rgba(20, 20, 20, 0.86)");
             this.itemLabelDiv.style("padding", "8px 12px");
