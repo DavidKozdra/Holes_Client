@@ -16,6 +16,7 @@ class InvBlock{
         this.useTimer = 0; //for some items, so you cant spam them
         this.animationTimer = 0; //for hotbar animations
         this.invId = random(100000);
+        this.itemLabelDiv = null; // Will be initialized later
     }
 
     addItem(item,amount,toPlayer){
@@ -318,39 +319,65 @@ class InvBlock{
         if(!buildMode) image(hammerImg, width - 385, height - 30, 40, 40);
         else image(Ximage, width - 385, height - 30, 40, 40);
 
-        // === Add item name at bottom center with background ===
-        let selectedItemName = "";
-        if(!buildMode){
-            selectedItemName = this.hotbar[this.selectedHotBar];
-        }
-        else{
-            selectedItemName = buildOptions[this.selectedHotBar].objName;
-        }
-        if (selectedItemName && selectedItemName !== "") {
-            push();
-            textFont(gameUIFont);
-            textSize(20);
-            textAlign(LEFT, CENTER);
-            let textX = width - 100;
-            let textY = height - 195;
-
-            let textW = textWidth(selectedItemName);
-            let textH = 28;
-
-            // Draw background rectangle
-            fill(0, 150); // semi-transparent black
-            noStroke();
-            rect(textX , textY , textW , textH, 8); // 8 = rounded corners
-
-            // Draw item name
-            fill(255);
-            stroke(0);
-            strokeWeight(2);
-            text(selectedItemName, textX - 50, textY);
-            pop();
-        }
+        // Update HTML item label
+        this.updateItemLabel(buildMode);
 
         pop();
+    }
+    
+    updateItemLabel(buildMode){
+        // Create div if it doesn't exist yet
+        if(!this.itemLabelDiv){
+            this.itemLabelDiv = createDiv();
+            this.itemLabelDiv.style("position", "fixed");
+            this.itemLabelDiv.style("bottom", "134px");
+            this.itemLabelDiv.style("right", "200px");
+            this.itemLabelDiv.style("background", "rgba(20, 20, 20, 0.86)");
+            this.itemLabelDiv.style("padding", "8px 12px");
+            this.itemLabelDiv.style("border-radius", "4px");
+            this.itemLabelDiv.style("font-family", "Arial, sans-serif");
+            this.itemLabelDiv.style("font-size", "16px");
+            this.itemLabelDiv.style("pointer-events", "none");
+            this.itemLabelDiv.style("z-index", "1000");
+            this.itemLabelDiv.style("display", "none");
+            this.itemLabelDiv.style("text-align", "right");
+        }
+        
+        let selectedItemName = "";
+        let selectedItemDurability = "";
+        
+        if(!buildMode){
+            selectedItemName = this.hotbar[this.selectedHotBar];
+            if(selectedItemName && this.items[selectedItemName]){
+                let item = this.items[selectedItemName];
+                if(item.durability !== undefined && item.maxDurability !== undefined){
+                    selectedItemDurability = Math.floor(item.durability) + "/" + item.maxDurability;
+                }
+            }
+        } else {
+            selectedItemName = buildOptions[this.selectedHotBar].objName;
+        }
+        
+        if (selectedItemName && selectedItemName !== "") {
+            // Get rarity color if available
+            let itemColor = "rgb(235, 235, 235)"; // default off-white
+            if(!buildMode && typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function'){
+                try{
+                    itemColor = window.getItemRarityCSSByName(selectedItemName);
+                } catch(e){}
+            }
+            
+            // Build HTML content
+            let content = `<div style="color: ${itemColor}; font-weight: bold;">${selectedItemName}</div>`;
+            if(selectedItemDurability){
+                content += `<div style="color: rgb(180, 180, 180); font-size: 13px; margin-top: 4px;">${selectedItemDurability}</div>`;
+            }
+            
+            this.itemLabelDiv.html(content);
+            this.itemLabelDiv.style("display", "block");
+        } else {
+            this.itemLabelDiv.style("display", "none");
+        }
     }
     
 }

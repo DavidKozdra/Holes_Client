@@ -711,51 +711,11 @@ function highlightCraftList() {
     };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply); else apply();
 }
-// Simple virtualized list helpers
-const VLIST_BUFFER_ROWS = 5;
-function computeVisibleRange(container, total, rowH){
-    const st = container.elt.scrollTop || 0;
-    const vh = container.elt.clientHeight || 300;
-    let start = Math.max(0, Math.floor(st / rowH) - VLIST_BUFFER_ROWS);
-    let count = Math.ceil(vh / rowH) + 2*VLIST_BUFFER_ROWS;
-    let end = Math.min(total, start + count);
-    return { start, end };
-}
-
-function ensureListViewport(div){
-    div.style('overflow-y', 'auto');
-    div.style('position', 'relative');
-    if(!div.elt._spacer){
-        const spacer = document.createElement('div');
-        spacer.style.position = 'absolute';
-        spacer.style.left = '0';
-        spacer.style.top = '0';
-        spacer.style.width = '1px';
-        spacer.style.height = '0px';
-        spacer.style.pointerEvents = 'none';
-        div.elt.appendChild(spacer);
-        div.elt._spacer = spacer;
-    }
-}
-
-function renderVirtualRows(div, data, rowH, renderRow){
-    ensureListViewport(div);
-    if(div.elt._spacer) div.elt._spacer.style.height = (data.length * rowH) + 'px';
-    const range = computeVisibleRange(div, data.length, rowH);
-    // Clear existing children except spacer
-    const kids = Array.from(div.elt.children);
-    for(const k of kids){ if(k !== div.elt._spacer) k.remove(); }
-    for(let i = range.start; i < range.end; i++){
-        const row = renderRow(data[i], i);
-        row.style('position', 'absolute');
-        row.style('top', (i * rowH) + 'px');
-        row.parent(div);
-    }
-}
 
 function updateItemList() {
     if (!curPlayer) return;
-    // Reset container; virtualization will rebuild visible rows
+    // Reset container
+
     itemListDiv.html("");
 
     // Build filtered item name list by current tag
@@ -772,8 +732,8 @@ function updateItemList() {
     });
 
     const ROW_H = 50;
-    const renderRow = (itemName) => {
-        let itemDiv = createDiv();
+    arr.forEach((itemName) => {
+        let itemDiv = createDiv().parent(itemListDiv);
         itemDiv.attribute('data-item', itemName);
         itemDiv.style("width", "100%");
         itemDiv.style("height", ROW_H+"px");
@@ -782,6 +742,7 @@ function updateItemList() {
         itemDiv.style("justify-content", "center");
         itemDiv.style("border-bottom", "2px solid black");
         itemDiv.style("cursor", "pointer");
+        itemDiv.style("position", "relative");
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
             highlightItemList();
@@ -822,17 +783,7 @@ function updateItemList() {
         let itemAmountP = createP(curPlayer.invBlock.items[itemName].amount).parent(itemInfoDiv);
         itemAmountP.style("font-size", "20px");
         itemAmountP.style("color", "white");
-        return itemDiv;
-    };
-    renderVirtualRows(itemListDiv, arr, ROW_H, renderRow);
-    // Attach scroll handler once
-    if(!itemListDiv.elt._vscrollInv){
-        itemListDiv.elt._vscrollInv = true;
-        itemListDiv.elt.addEventListener('scroll', () => {
-            renderVirtualRows(itemListDiv, arr, ROW_H, renderRow);
-            highlightItemList();
-        });
-    }
+    });
     highlightItemList();
 }
 
@@ -904,6 +855,10 @@ function updatecurItemDiv() {
     itemNameP.style("font-size", "20px");
     itemNameP.style("color", rarityColorCSS(curPlayer.invBlock.curItem));
     itemNameP.style("margin", "5px");
+    itemNameP.style("padding", "0");
+    itemNameP.style("word-wrap", "break-word");
+    itemNameP.style("overflow-wrap", "break-word");
+    itemNameP.style("white-space", "normal");
     itemNameP.parent(itemNameDiv);
 
     //create a div for the description
@@ -1034,8 +989,8 @@ function renderDirtBagUI() {
         //stop dirt bag shake sound
         dirtBagShakeSound.stop();
         dirtBagUI.shake.intensity = 0;
-        dirtBagUI.vel.x = ((width - 180 - 10) - dirtBagUI.pos.x);
-        dirtBagUI.vel.y = ((height - 186 - 10) - dirtBagUI.pos.y);
+        dirtBagUI.vel.x = ((width - 120 - 10) - dirtBagUI.pos.x);
+        dirtBagUI.vel.y = ((height - 124 - 10) - dirtBagUI.pos.y);
         dirtBagUI.vel.setMag(dirtBagUI.vel.mag() / 10);
     }
     dirtBagUI.pos.add(dirtBagUI.vel);
@@ -1058,19 +1013,28 @@ function renderDirtBagUI() {
         dirtBagOpen = false;
     }
 
-    if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, 180, 186);
-    else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, 180, 186);
+    // Dirt bag dimensions (scaled down from 180x186)
+    const DIRT_BAG_W = 120;
+    const DIRT_BAG_H = 124;
+    
+    if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, DIRT_BAG_W, DIRT_BAG_H);
+    else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, DIRT_BAG_W, DIRT_BAG_H);
 
+    // Dirt fill scaled proportionally (from 30px offset to 20px, 120px height to 80px)
     fill("#70443C");
-    rect(dirtBagUI.pos.x + 30, dirtBagUI.pos.y + 35 + (120 * (1 - (dirtInv / maxDirtInv))), 120, 120 * (dirtInv / maxDirtInv));
+    const dirtFillWidth = 80;
+    const dirtFillHeight = 80;
+    const dirtOffsetX = 20;
+    const dirtOffsetY = 22;
+    rect(dirtBagUI.pos.x + dirtOffsetX, dirtBagUI.pos.y + dirtOffsetY + (dirtFillHeight * (1 - (dirtInv / maxDirtInv))), dirtFillWidth, dirtFillHeight * (dirtInv / maxDirtInv));
 
     if (!dirtBagOpen) {
         fill(255);
         stroke(0);
-        strokeWeight(5);
+        strokeWeight(3);
         textAlign(CENTER, CENTER);
-        textSize(50);
-        text("Full", dirtBagUI.pos.x + 90, dirtBagUI.pos.y + 100);
+        textSize(24);
+        text("Full", dirtBagUI.pos.x + DIRT_BAG_W / 2, dirtBagUI.pos.y + DIRT_BAG_H / 2);
     }
     pop();
 }
@@ -2378,6 +2342,10 @@ function updatecurSwapItemDiv(otherInv) {
     itemNameP.style("font-size", "20px");
     itemNameP.style("color", rarityColorCSS(curSwapItem.itemName));
     itemNameP.style("margin", "5px");
+    itemNameP.style("padding", "0");
+    itemNameP.style("word-wrap", "break-word");
+    itemNameP.style("overflow-wrap", "break-word");
+    itemNameP.style("white-space", "normal");
     itemNameP.parent(itemNameDiv);
 
     // Description
@@ -2768,9 +2736,9 @@ function updateCraftList() {
 
 
     const ROW_H = 50;
-    const renderRow = (entry) => {
+    arr.forEach((entry) => {
         let itemName = entry.itemName;
-        let itemDiv = createDiv();
+        let itemDiv = createDiv().parent(craftListDiv);
         itemDiv.attribute('data-item', itemName);
         applyStyle(itemDiv, {
             width: "100%",
@@ -2780,6 +2748,7 @@ function updateCraftList() {
             justifyContent: "center",
             borderBottom: "2px solid black",
             cursor: "pointer",
+            position: "relative"
         });
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
@@ -2841,16 +2810,7 @@ function updateCraftList() {
             craftIndicator.style("pointerEvents", "none");
         }
         craftIndicator.parent(itemInfoDiv);
-        return itemDiv;
-    };
-    renderVirtualRows(craftListDiv, arr, ROW_H, renderRow);
-    if(!craftListDiv.elt._vscrollCraft){
-        craftListDiv.elt._vscrollCraft = true;
-        craftListDiv.elt.addEventListener('scroll', () => {
-            renderVirtualRows(craftListDiv, arr, ROW_H, renderRow);
-            highlightCraftList();
-        });
-    }
+    });
     highlightCraftList();
 }
 
@@ -2917,7 +2877,11 @@ function updatecurCraftItemDiv() {
     let itemNameP = createP(curItem).parent(itemNameDiv);
     applyStyle(itemNameP, {
         fontSize: "20px",
-        margin: "5px"
+        margin: "5px",
+        padding: "0",
+        wordWrap: "break-word",
+        overflowWrap: "break-word",
+        whiteSpace: "normal"
     });
     itemNameP.style("color", rarityColorCSS(curItem));
 
@@ -2936,9 +2900,32 @@ function updatecurCraftItemDiv() {
         margin: "5px"
     });
 
+    // Durability display if item has it
+    if (itemData.durability && itemData.durability > 0) {
+        let durabilityDiv = createDiv().parent(curCraftItemDiv);
+        applyStyle(durabilityDiv, {
+            width: "calc(100% - 14px)",
+            height: "8%",
+            padding: "5px",
+            border: "2px solid black",
+            borderRadius: "10px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "5px"
+        });
+
+        let durabilityText = createP("Durability: " + itemData.durability).parent(durabilityDiv);
+        applyStyle(durabilityText, {
+            fontSize: "16px",
+            color: "white",
+            margin: "0"
+        });
+    }
+
     let itemCostDiv = createDiv().parent(curCraftItemDiv);
     itemCostDiv.style("width", "100%");
-    itemCostDiv.style("height", "69%");
+    itemCostDiv.style("height", "61%");
 
     let craftButton = createButton("Craft").parent(itemCostDiv);
     applyStyle(craftButton, {

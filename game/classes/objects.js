@@ -1328,10 +1328,10 @@ class Entity extends Placeable {
             4
         ); // last param 4 = corner radius
 
-        // Now draw text with a white outline for readability
-        stroke(255);
-        strokeWeight(3);
+        // Draw text without white outline
+        noStroke();
         fill(teamColors[this.color].r, teamColors[this.color].g, teamColors[this.color].b);
+        textFont(gameUIFont);
         text(
             nameText, 
             this.pos.x - camera.pos.x + (width / 2), 
