@@ -1,5 +1,28 @@
 var digSoundTimer = 0;
 
+function getEquippedShovelImage() {
+    if (!curPlayer || !curPlayer.invBlock) return null;
+    const slotName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+    if (!slotName) return null;
+    const item = curPlayer.invBlock.items[slotName];
+    if (!item || item.type !== "Shovel") return null;
+
+    const imgIdx = itemDic[slotName]?.img;
+    if (imgIdx === undefined || !itemImgs[imgIdx] || !itemImgs[imgIdx][0]) return null;
+    return itemImgs[imgIdx][0];
+}
+
+function drawShovelHead(x, y, angle, overrideImg) {
+    const sprite = overrideImg || shovelHeadImg;
+    if (!sprite) return;
+    push();
+    translate(x, y);
+    rotate(angle);
+    imageMode(CENTER);
+    image(sprite, 0, 0, TILESIZE * 0.9, TILESIZE * 0.9);
+    pop();
+}
+
 function playerDig(x,y, amount){
     let ray = createVector(x-curPlayer.pos.x, y-curPlayer.pos.y);
 
@@ -92,25 +115,103 @@ function dig(x, y, amt, playerDiging, rayStart) {
     let index = x + y * CHUNKSIZE;
 
     if(rayStart != undefined){
+        // Calculate distance and angle for effects
+        const digX = (chunkPos.x * CHUNKSIZE + floor(x)) * TILESIZE;
+        const digY = (chunkPos.y * CHUNKSIZE + floor(y)) * TILESIZE;
+        const distance = curPlayer.pos.dist(createVector(digX, digY));
+        const angle = atan2(digY - curPlayer.pos.y, digX - curPlayer.pos.x);
+
+        // Clear guide line from player to target (monochrome for clarity) and leave room for the tool sprite
         push();
-        stroke(255,50);
-        strokeWeight(10);
-        line(
-            curPlayer.pos.x -camera.pos.x+(width/2), 
-            curPlayer.pos.y -camera.pos.y+(height/2), 
-            (chunkPos.x*CHUNKSIZE+floor(x))*TILESIZE -camera.pos.x+(width/2), 
-            (chunkPos.y*CHUNKSIZE+floor(y))*TILESIZE -camera.pos.y+(height/2)
-        );
+        stroke(245, 245, 245, 70);
+        strokeWeight(4);
+        const startX = curPlayer.pos.x - camera.pos.x + (width / 2);
+        const startY = curPlayer.pos.y - camera.pos.y + (height / 2);
+        const targetX = digX - camera.pos.x + (width / 2);
+        const targetY = digY - camera.pos.y + (height / 2);
+        const dx = targetX - startX;
+        const dy = targetY - startY;
+        const len = sqrt(dx * dx + dy * dy);
+        const shorten = 30; // shorten further so the tool sprite is clear
+        const endX = len > shorten ? startX + (dx / len) * (len - shorten) : targetX;
+        const endY = len > shorten ? startY + (dy / len) * (len - shorten) : targetY;
+        line(startX, startY, endX, endY);
         pop();
-        
+
+        // Shovel swing arc near the player
         push();
-        translate(((chunkPos.x*CHUNKSIZE+x)*TILESIZE) - camera.pos.x + (width/2), ((chunkPos.y*CHUNKSIZE+y)*TILESIZE) - camera.pos.y + (height/2));
-        rotate(random(0, 360));
-        fill("#492925");
-        stroke(0);
-        strokeWeight(2);
-        rectMode(CENTER);
-        rect(0,0, TILESIZE/2, TILESIZE/2);
+        translate(curPlayer.pos.x - camera.pos.x + (width / 2), curPlayer.pos.y - camera.pos.y + (height / 2));
+        rotate(angle);
+        noStroke();
+        fill(255, 255, 255, 200);
+        beginShape();
+        vertex(0, 0);
+        vertex(18, -10);
+        vertex(38, -2);
+        vertex(22, 12);
+        endShape(CLOSE);
+        pop();
+
+        // Impact burst at dig location (no circles)
+        push();
+        translate(digX - camera.pos.x + (width / 2), digY - camera.pos.y + (height / 2));
+
+            // Draw current shovel head to show action
+            drawShovelHead(0, 0, angle + PI / 2, getEquippedShovelImage());
+
+        // Floating dirt particles with text-style animation
+        for (let i = 0; i < 4; i++) {
+            spawnFloatingText(0, digX + random(-6, 6), digY + random(-6, 6), "dirtParticle", false);
+        }
+
+        // Directional dust spray away from the player
+        const sprayDir = angle + PI; // push dust away from player
+        for (let i = 0; i < 10; i++) {
+            const spread = random(-0.5, 0.5);
+            const len = random(12, 24);
+            const px = cos(sprayDir + spread) * len;
+            const py = sin(sprayDir + spread) * len;
+            stroke(240, 240, 240, 210);
+            strokeWeight(random(2.2, 3.8));
+            line(0, 0, px, py);
+        }
+
+        // Compact dirt chunks with brighter tones
+        for (let i = 0; i < 6; i++) {
+            push();
+            const chunkAngle = sprayDir + random(-0.7, 0.7);
+            const chunkDist = random(9, 19);
+            translate(cos(chunkAngle) * chunkDist, sin(chunkAngle) * chunkDist);
+            rotate(frameCount * 0.12 + i);
+            fill(220, 220, 220);
+            stroke(70, 70, 70);
+            strokeWeight(1);
+            rectMode(CENTER);
+            rect(0, 0, random(4, 8), random(3, 6));
+            pop();
+        }
+
+        // Textured dirt flakes with fade motion
+        if (typeof dirtParticleImg !== 'undefined' && dirtParticleImg) {
+            imageMode(CENTER);
+            for (let i = 0; i < 7; i++) {
+                const life = (sin(frameCount * 0.25 + i * 0.9) + 1) * 0.5; // 0..1 fade
+                const drift = random(10, 22) * (0.6 + life * 0.6);
+                const a = sprayDir + random(-0.55, 0.55);
+                const px = cos(a) * drift;
+                const py = sin(a) * drift;
+                push();
+                translate(px, py);
+                rotate(a + frameCount * 0.08);
+                const alpha = 90 + life * 110;
+                tint(255, alpha);
+                const size = TILESIZE * 0.28 * (0.8 + life * 0.7);
+                image(dirtParticleImg, 0, 0, size, size);
+                pop();
+            }
+            noTint();
+        }
+
         pop();
     }
 
@@ -270,25 +371,62 @@ function mine(x, y, amt, playerDiging, rayStart) {
     let index = x + y * CHUNKSIZE;
 
     if(rayStart != undefined){
+        // Calculate distance and angle for effects
+        const digX = (chunkPos.x * CHUNKSIZE + floor(x)) * TILESIZE;
+        const digY = (chunkPos.y * CHUNKSIZE + floor(y)) * TILESIZE;
+        const distance = curPlayer.pos.dist(createVector(digX, digY));
+        const angle = atan2(digY - curPlayer.pos.y, digX - curPlayer.pos.x);
+
+        // Clear steel guide line full length (monochrome) and leave room for tool sprite
         push();
-        stroke(255,50);
-        strokeWeight(10);
-        line(
-            curPlayer.pos.x -camera.pos.x+(width/2), 
-            curPlayer.pos.y -camera.pos.y+(height/2), 
-            (chunkPos.x*CHUNKSIZE+floor(x))*TILESIZE -camera.pos.x+(width/2), 
-            (chunkPos.y*CHUNKSIZE+floor(y))*TILESIZE -camera.pos.y+(height/2)
-        );
+        stroke(240, 240, 240, 70);
+        strokeWeight(3);
+        const startX = curPlayer.pos.x - camera.pos.x + (width / 2);
+        const startY = curPlayer.pos.y - camera.pos.y + (height / 2);
+        const targetX = digX - camera.pos.x + (width / 2);
+        const targetY = digY - camera.pos.y + (height / 2);
+        const dx = targetX - startX;
+        const dy = targetY - startY;
+        const len = sqrt(dx * dx + dy * dy);
+        const shorten = 30; // shorten further so the tool sprite is clear
+        const endX = len > shorten ? startX + (dx / len) * (len - shorten) : targetX;
+        const endY = len > shorten ? startY + (dy / len) * (len - shorten) : targetY;
+        line(startX, startY, endX, endY);
         pop();
-        
+
+        // Impact clarity: sparks + shards (no circles)
         push();
-        translate(((chunkPos.x*CHUNKSIZE+x)*TILESIZE) - camera.pos.x + (width/2), ((chunkPos.y*CHUNKSIZE+y)*TILESIZE) - camera.pos.y + (height/2));
-        rotate(random(0, 360));
-        fill("#492925");
-        stroke(0);
-        strokeWeight(2);
-        rectMode(CENTER);
-        rect(0,0, TILESIZE/2, TILESIZE/2);
+        translate(digX - camera.pos.x + (width / 2), digY - camera.pos.y + (height / 2));
+
+        // Draw shovel/pick head from equipped tool to show action
+        drawShovelHead(0, 0, angle + PI / 2, getEquippedShovelImage());
+
+        // Sparks (amber for contrast)
+        for (let i = 0; i < 12; i++) {
+            const sparkAngle = angle + PI + random(-0.8, 0.8);
+            const len = random(14, 26);
+            const px = cos(sparkAngle) * len;
+            const py = sin(sparkAngle) * len;
+            stroke(255, 255, 255, 220);
+            strokeWeight(random(2.2, 3.5));
+            line(0, 0, px, py);
+        }
+
+        // Metal shards
+        for (let i = 0; i < 6; i++) {
+            push();
+            const shardAngle = angle + PI + random(-0.6, 0.6);
+            const shardDist = random(11, 22);
+            translate(cos(shardAngle) * shardDist, sin(shardAngle) * shardDist);
+            rotate(frameCount * 0.18 + i);
+            fill(230, 230, 230);
+            stroke(90, 90, 90);
+            strokeWeight(1.2);
+            rectMode(CENTER);
+            rect(0, 0, random(3, 7), random(3, 7));
+            pop();
+        }
+
         pop();
     }
 
