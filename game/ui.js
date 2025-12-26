@@ -106,6 +106,21 @@ function setupUI() {
     defineTutorialUI();
     defineKeyBindingUI();
     defineSignUI();
+    defineStatsPanel();
+    defineRacePortrait();
+
+    // Create player name button once
+    nameBtn = createButton("");
+    nameBtn.style('background', 'none');
+    nameBtn.style('border', 'none');
+    nameBtn.style('padding', '0');
+    nameBtn.style('font-size', '20px');
+    nameBtn.style('cursor', 'pointer');
+    nameBtn.mousePressed(() => {
+        gameState = "team_select";
+        teamPickDiv.show();
+    });
+    nameBtn.hide(); // Hide initially until game starts
 
     timerDiv = createDiv("⏳ 15:00");
     timerDiv.position(width / 2 - 250, 10); // adjust as needed
@@ -497,6 +512,10 @@ var toolsTag;
 var weaponsTag;
 var equipmentTag;
 var consumablesTag;
+var racePortraitDiv;
+var statsPanel;
+var viewingPlayerProfile;
+var nameBtn;
 function defineInvUI() {
     // Main inventory container
     invDiv = createDiv();
@@ -1116,8 +1135,120 @@ function keyCodeToHuman(keyCode) {
 }
 
 
+// Create the race portrait as an HTML element
+function defineRacePortrait() {
+    racePortraitDiv = createDiv();
+    racePortraitDiv.style("position", "fixed");
+    racePortraitDiv.style("top", "7px");
+    racePortraitDiv.style("right", "30px");
+    racePortraitDiv.style("width", "98px");
+    racePortraitDiv.style("height", "98px");
+    racePortraitDiv.style("border", "2px solid #868686");
+    racePortraitDiv.style("border-radius", "10px");
+    racePortraitDiv.style("background-color", "#70443c");
+    racePortraitDiv.style("cursor", "pointer");
+    racePortraitDiv.style("z-index", "100");
+    racePortraitDiv.style("overflow", "hidden");
+    racePortraitDiv.style("box-shadow", "0 4px 8px rgba(0, 0, 0, 0.4)");
+    
+    // Add hover effect
+    racePortraitDiv.mouseOver(() => {
+        racePortraitDiv.style("border-color", "#ffff00");
+        racePortraitDiv.style("box-shadow", "0 4px 12px rgba(255, 255, 0, 0.5)");
+    });
+    
+    racePortraitDiv.mouseOut(() => {
+        racePortraitDiv.style("border-color", "#868686");
+        racePortraitDiv.style("box-shadow", "0 4px 8px rgba(0, 0, 0, 0.4)");
+    });
+    
+    // Click to toggle stats panel
+    racePortraitDiv.mousePressed(() => {
+        if (statsPanel.style("display") === "none") {
+            updateStatsPanel();
+            statsPanel.show();
+        } else {
+            statsPanel.hide();
+        }
+    });
+    
+    racePortraitDiv.hide(); // Initially hidden until game starts
+}
 
+// Update the race portrait image based on current player
+function updateRacePortrait() {
+    if (!racePortraitDiv || !curPlayer) return;
+    
+    let raceName = races[curPlayer.race];
+    if (raceImages[raceName] && raceImages[raceName].portrait) {
+        // Create an img element with the portrait
+        let portraitSrc = raceImages[raceName].portrait.canvas.toDataURL();
+        racePortraitDiv.html(`<img src="${portraitSrc}" style="width: 100%; height: 100%; object-fit: cover;">`);
+        racePortraitDiv.show();
+    }
+}
 
+// Create the stats panel
+function defineStatsPanel() {
+    statsPanel = createDiv();
+    statsPanel.style("position", "fixed");
+    statsPanel.style("top", "110px");
+    statsPanel.style("right", "30px");
+    statsPanel.style("width", "300px");
+    statsPanel.style("background", "rgba(34, 34, 34, 0.95)");
+    statsPanel.style("border", "2px solid #868686");
+    statsPanel.style("border-radius", "10px");
+    statsPanel.style("padding", "15px");
+    statsPanel.style("z-index", "99");
+    statsPanel.style("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.6)");
+    statsPanel.style("backdrop-filter", "blur(5px)");
+    statsPanel.style("color", "#fff");
+    statsPanel.style("font-family", "Arial, sans-serif");
+    statsPanel.style("display", "none");
+}
+
+// Update stats panel content with current player stats
+function updateStatsPanel() {
+    if (!statsPanel || !curPlayer || !curPlayer.statBlock) return;
+    
+    let stats = curPlayer.statBlock.stats;
+    let raceName = races[curPlayer.race];
+    
+    let html = `
+        <div style="text-align: center; margin-bottom: 15px;">
+            <h2 style="margin: 0; color: #ffff00; text-shadow: 2px 2px 4px #000;">${curPlayer.name || "Player"}</h2>
+            <p style="margin: 5px 0; color: #aaa; font-size: 14px;">${raceName.charAt(0).toUpperCase() + raceName.slice(1)} - Level ${curPlayer.statBlock.level}</p>
+        </div>
+        <div style="margin-bottom: 10px; padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 5px;">
+            <div style="margin: 5px 0;">
+                <strong style="color: #27f50e;">HP:</strong> ${Math.floor(stats.hp)} / ${Math.floor(stats.mhp)}
+                <div style="width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 3px; overflow: hidden;">
+                    <div style="width: ${(stats.hp / stats.mhp) * 100}%; height: 100%; background: linear-gradient(90deg, #27f50e, #1a9e0a); transition: width 0.3s;"></div>
+                </div>
+            </div>
+            <div style="margin: 5px 0;">
+                <strong style="color: #00d4ff;">MP:</strong> ${Math.floor(stats.mp)} / ${Math.floor(stats.mmp)}
+                <div style="width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 3px; overflow: hidden;">
+                    <div style="width: ${(stats.mp / stats.mmp) * 100}%; height: 100%; background: linear-gradient(90deg, #00d4ff, #0080cc); transition: width 0.3s;"></div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-bottom: 10px; padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 5px;">
+            <div style="margin: 3px 0;"><strong style="color: #ffaa00;">XP:</strong> ${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded}</div>
+        </div>
+        <div style="padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 5px; font-size: 14px;">
+            <div style="margin: 3px 0;"><strong style="color: #ff6666;">Attack:</strong> ${stats.attack.toFixed(1)}</div>
+            <div style="margin: 3px 0;"><strong style="color: #9966ff;">Magic:</strong> ${stats.magic.toFixed(1)}</div>
+            <div style="margin: 3px 0;"><strong style="color: #66ccff;">Magic Resist:</strong> ${stats.magicResistance.toFixed(1)}</div>
+            <div style="margin: 3px 0;"><strong style="color: #99ff99;">Health Regen:</strong> ${stats.healthRegen.toFixed(2)}/s</div>
+            <div style="margin: 3px 0;"><strong style="color: #ffff66;">Luck:</strong> ${stats.luck}</div>
+            <div style="margin: 3px 0;"><strong style="color: #ff9966;">Dig Speed:</strong> ${stats.handDigSpeed.toFixed(2)}</div>
+            <div style="margin: 3px 0;"><strong style="color: #66ffcc;">Run Speed:</strong> ${stats.runningSpeed.toFixed(2)}</div>
+        </div>
+    `;
+    
+    statsPanel.html(html);
+}
 
 
 
@@ -1202,8 +1333,9 @@ function renderPlayerCardUI() {
         }
     }
 
-    let raceName = races[curPlayer.race];
-    image(raceImages[raceName].portrait, width - 30 - 115 + 6 + 7, 7, 98, 98);
+    // Race portrait now rendered as HTML element - see defineRacePortrait()
+    // let raceName = races[curPlayer.race];
+    // image(raceImages[raceName].portrait, width - 30 - 115 + 6 + 7, 7, 98, 98);
 
     textFont(gameUIFont);
     textSize(20);
@@ -1292,26 +1424,16 @@ function renderPlayerCardUI() {
     fill(displayColor.r, displayColor.g, displayColor.b);
     stroke(displayColor.r, displayColor.g, displayColor.b);
     textAlign(CENTER, CENTER);
-    nameBtn = createButton(curPlayer.name);
-
-    // Style it to look like plain text
-    nameBtn.style('background', 'none');
-    nameBtn.style('border', 'none');
-    nameBtn.style('padding', '0');
+    
+    // Update existing nameBtn instead of creating new one
+    nameBtn.html(curPlayer.name);
     nameBtn.style('color', `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`);
-    nameBtn.style('font-size', '20px');   // adjust if needed
-    nameBtn.style('cursor', 'pointer');   // so it behaves like clickable text
-
+    
     // Position it EXACTLY where your text was
     let x = width - 530 + 6 + 45 + (350 / 2);
     let y = 19;
     nameBtn.position(x, y);
-
-    // Add onclick action
-    nameBtn.mousePressed(() => {
-        gameState = "team_select";
-        teamPickDiv.show();
-    });
+    nameBtn.show();
 
     let box = gameUIFont.textBounds(curPlayer.name, width - 530 + 6 + 45 + (350 / 2), 19);
     line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
@@ -3383,4 +3505,204 @@ function updateSignUI(txt){
         txtInput.style("background-color", "#222");
         txtInput.parent(signTextDiv);
     }
+}
+
+// HTML-based player profile panel
+function renderPlayerProfile() {
+    let profilePanel = select('#playerProfilePanel');
+    
+    if (!viewingPlayerProfile) {
+        if (profilePanel) profilePanel.hide();
+        return;
+    }
+    
+    const player = viewingPlayerProfile;
+    if (!player || !player.statBlock) {
+        viewingPlayerProfile = null;
+        if (profilePanel) profilePanel.hide();
+        return;
+    }
+    
+    // Create panel if doesn't exist
+    if (!profilePanel) {
+        profilePanel = createDiv();
+        profilePanel.id('playerProfilePanel');
+        profilePanel.style('position', 'fixed');
+        profilePanel.style('top', '50%');
+        profilePanel.style('left', '50%');
+        profilePanel.style('transform', 'translate(-50%, -50%)');
+        profilePanel.style('width', '400px');
+        profilePanel.style('max-height', '80vh');
+        profilePanel.style('background', 'rgba(0, 0, 0, 0.95)');
+        profilePanel.style('border', '3px solid #444');
+        profilePanel.style('border-radius', '10px');
+        profilePanel.style('padding', '20px');
+        profilePanel.style('z-index', '1000');
+        profilePanel.style('overflow-y', 'auto');
+        profilePanel.style('box-shadow', '0 0 30px rgba(0,0,0,0.8)');
+        profilePanel.style('color', 'white');
+        profilePanel.style('font-family', 'Arial, sans-serif');
+    }
+    
+    // Rebuild content
+    profilePanel.html('');
+    
+    // Close button
+    let closeBtn = createButton('\u2715');
+    closeBtn.parent(profilePanel);
+    closeBtn.style('position', 'absolute');
+    closeBtn.style('top', '10px');
+    closeBtn.style('right', '10px');
+    closeBtn.style('background', 'rgba(255, 0, 0, 0.7)');
+    closeBtn.style('border', 'none');
+    closeBtn.style('color', 'white');
+    closeBtn.style('font-size', '20px');
+    closeBtn.style('width', '30px');
+    closeBtn.style('height', '30px');
+    closeBtn.style('border-radius', '5px');
+    closeBtn.style('cursor', 'pointer');
+    closeBtn.mousePressed(() => {
+        viewingPlayerProfile = null;
+    });
+    
+    // Player name
+    let nameDiv = createDiv(player.name);
+    nameDiv.parent(profilePanel);
+    nameDiv.style('font-size', '28px');
+    nameDiv.style('font-weight', 'bold');
+    nameDiv.style('text-align', 'center');
+    nameDiv.style('margin-bottom', '15px');
+    nameDiv.style('color', '#FFD700');
+    
+    // Race
+    let raceDiv = createDiv(`Race: ${races[player.race]}`);
+    raceDiv.parent(profilePanel);
+    raceDiv.style('text-align', 'center');
+    raceDiv.style('font-size', '18px');
+    raceDiv.style('margin-bottom', '10px');
+    raceDiv.style('color', '#AAA');
+    
+    // Level and XP
+    let levelDiv = createDiv(`Level ${player.statBlock.level}`);
+    levelDiv.parent(profilePanel);
+    levelDiv.style('font-size', '20px');
+    levelDiv.style('text-align', 'center');
+    levelDiv.style('margin-bottom', '5px');
+    
+    // XP Bar
+    let xpContainer = createDiv();
+    xpContainer.parent(profilePanel);
+    xpContainer.style('width', '100%');
+    xpContainer.style('height', '25px');
+    xpContainer.style('background', '#333');
+    xpContainer.style('border', '2px solid #666');
+    xpContainer.style('border-radius', '5px');
+    xpContainer.style('position', 'relative');
+    xpContainer.style('margin-bottom', '20px');
+    
+    let xpFill = createDiv();
+    xpFill.parent(xpContainer);
+    let xpPercent = (player.statBlock.xp / player.statBlock.xpNeeded) * 100;
+    xpFill.style('width', xpPercent + '%');
+    xpFill.style('height', '100%');
+    xpFill.style('background', 'linear-gradient(90deg, #00ff00, #00aa00)');
+    xpFill.style('border-radius', '3px');
+    xpFill.style('transition', 'width 0.3s');
+    
+    let xpText = createDiv(`${player.statBlock.xp} / ${player.statBlock.xpNeeded} XP`);
+    xpText.parent(xpContainer);
+    xpText.style('position', 'absolute');
+    xpText.style('top', '50%');
+    xpText.style('left', '50%');
+    xpText.style('transform', 'translate(-50%, -50%)');
+    xpText.style('font-size', '14px');
+    xpText.style('font-weight', 'bold');
+    xpText.style('color', 'white');
+    xpText.style('text-shadow', '1px 1px 2px black');
+    
+    // Stats section
+    let statsTitle = createDiv('Statistics');
+    statsTitle.parent(profilePanel);
+    statsTitle.style('font-size', '22px');
+    statsTitle.style('font-weight', 'bold');
+    statsTitle.style('margin-top', '15px');
+    statsTitle.style('margin-bottom', '10px');
+    statsTitle.style('border-bottom', '2px solid #666');
+    statsTitle.style('padding-bottom', '5px');
+    
+    // Stats grid
+    let statsGrid = createDiv();
+    statsGrid.parent(profilePanel);
+    statsGrid.style('display', 'grid');
+    statsGrid.style('grid-template-columns', '1fr 1fr');
+    statsGrid.style('gap', '10px');
+    statsGrid.style('margin-bottom', '15px');
+    
+    const stats = player.statBlock.stats;
+    const statEntries = [
+        ['HP', `${Math.floor(stats.hp)}/${stats.mhp}`],
+        ['MP', `${Math.floor(stats.mp)}/${stats.mmp}`],
+        ['Attack', stats.attack],
+        ['Defense', stats.defense],
+        ['Magic', stats.magic],
+        ['Speed', stats.runningSpeed.toFixed(2)],
+        ['HP Regen', stats.healthRegen],
+        ['Dig Speed', stats.handDigSpeed]
+    ];
+    
+    statEntries.forEach(([label, value]) => {
+        let statDiv = createDiv();
+        statDiv.parent(statsGrid);
+        statDiv.style('background', 'rgba(255, 255, 255, 0.1)');
+        statDiv.style('padding', '8px');
+        statDiv.style('border-radius', '5px');
+        statDiv.style('border', '1px solid #555');
+        
+        let statLabel = createDiv(label + ':');
+        statLabel.parent(statDiv);
+        statLabel.style('font-size', '14px');
+        statLabel.style('color', '#AAA');
+        statLabel.style('margin-bottom', '3px');
+        
+        let statValue = createDiv(value);
+        statValue.parent(statDiv);
+        statValue.style('font-size', '18px');
+        statValue.style('font-weight', 'bold');
+        statValue.style('color', '#0F0');
+    });
+    
+    // Team info
+    if (player.teamId && window.allTeams && window.allTeams[player.teamId]) {
+        const team = window.allTeams[player.teamId];
+        let teamDiv = createDiv(`Team: ${team.name}`);
+        teamDiv.parent(profilePanel);
+        teamDiv.style('font-size', '18px');
+        teamDiv.style('margin-top', '15px');
+        teamDiv.style('padding', '10px');
+        teamDiv.style('background', `rgba(${team.color.r}, ${team.color.g}, ${team.color.b}, 0.2)`);
+        teamDiv.style('border', `2px solid rgb(${team.color.r}, ${team.color.g}, ${team.color.b})`);
+        teamDiv.style('border-radius', '5px');
+        teamDiv.style('text-align', 'center');
+    }
+    
+    // Combat stats
+    let combatTitle = createDiv('Combat Stats');
+    combatTitle.parent(profilePanel);
+    combatTitle.style('font-size', '22px');
+    combatTitle.style('font-weight', 'bold');
+    combatTitle.style('margin-top', '20px');
+    combatTitle.style('margin-bottom', '10px');
+    combatTitle.style('border-bottom', '2px solid #666');
+    combatTitle.style('padding-bottom', '5px');
+    
+    let killsDiv = createDiv(`Kills: ${player.kills || 0}`);
+    killsDiv.parent(profilePanel);
+    killsDiv.style('font-size', '16px');
+    killsDiv.style('margin-bottom', '5px');
+    
+    let deathsDiv = createDiv(`Deaths: ${player.statBlock.deaths || 0}`);
+    deathsDiv.parent(profilePanel);
+    deathsDiv.style('font-size', '16px');
+    
+    profilePanel.show();
 }

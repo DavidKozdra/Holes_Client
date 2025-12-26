@@ -418,6 +418,7 @@ function draw() {
 
             curPlayer.invBlock.renderHotBar();
             renderPlayerCardUI();
+            updateRacePortrait();
 
             if(curPlayer.statBlock.stats.hp <= 0){ //death
                 //console.log("dead",curPlayer.attackingOBJ);
@@ -435,6 +436,11 @@ function draw() {
         renderTimeUI()
         renderDirtBagUI();
         renderPopups();
+        
+        // Render player profile panel if open
+        if (typeof renderPlayerProfile === 'function') {
+            renderPlayerProfile();
+        }
     }
     if (gameState === "chating" || gameState === "inventory" || gameState === "crafting" || gameState === "swap_inv" || gameState === "pause" || gameState =="player_status" || gameState == "team_select" || gameState == "dead" || gameState == "Editing Sign") {
         //render the game in the background
@@ -472,6 +478,7 @@ function draw() {
 
         curPlayer.invBlock.renderHotBar();
         renderPlayerCardUI();
+        updateRacePortrait();
         renderDirtBagUI();
         renderPopups();
     }
