@@ -26,13 +26,14 @@ const ItemRarity = Object.freeze({
 });
 
 const RARITY_RGB = {
-    'basic': [235, 235, 235],
-    'good':  [110, 180, 255],
-    'great': [90, 220, 140],
-    'legendary':  [255, 205, 80],
-    'devil': [255, 50, 50],
-    'god': [100, 200, 255]
+  basic:     [255, 255, 255], // white
+  good:      [110, 180, 255],   // green
+  great:     [90, 220, 140],   // blue
+  legendary: [255, 215, 0],   // gold
+  devil:     [138, 0, 0],     // BLOOD RED
+  god:       [128, 0, 128],   // purple
 };
+
 
 function getItemRarityRGB(rarity){
     return RARITY_RGB[rarity] || RARITY_RGB[ItemRarity.BASIC];
