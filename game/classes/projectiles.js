@@ -335,12 +335,15 @@ class MeleeProjectile extends SimpleProjectile{
 
     checkCollision(){
         let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
+        
+        // Safety check: if chunk doesn't exist, bail out
+        if(!chunk || !chunk.objects) return;
 
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2 || chunk.objects[j].z == 0){
                 // Create unique identifier for this object
-                let objId = chunk.cx + "," + chunk.cy + "," + j;
+                let objId = this.cPos.x + "," + this.cPos.y + "," + j;
                 if(this.hitTargets.has(objId)) continue; // Already hit this target
                 
                 // Use proper collision box detection
@@ -349,8 +352,8 @@ class MeleeProjectile extends SimpleProjectile{
                     this.hitTargets.add(objId); // Mark as hit
                     //play hit noise and tell server
                     let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                    testMap.chunks[chunk.cx+","+chunk.cy].soundObjs.push(temp);
-                    socket.emit("new_sound", {sound: "hit.ogg", cPos: {x: chunk.cx, y: chunk.cy}, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
+                    testMap.chunks[this.cPos.x+","+this.cPos.y].soundObjs.push(temp);
+                    socket.emit("new_sound", {sound: "hit.ogg", cPos: {x: this.cPos.x, y: this.cPos.y}, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
                     damageObj(chunk, chunk.objects[j], this.damage);
                     
                     scareBrain(chunk.objects[j].brainID, this);

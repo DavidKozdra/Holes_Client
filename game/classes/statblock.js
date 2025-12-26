@@ -1,8 +1,8 @@
 const BASE_STATS = [
     {
         "name": "gnome",
-        "hp": 100,
-        "mhp": 100,
+        "hp": 120,
+        "mhp": 120,
         "healthRegen": 0.2,
         "attack": 2,
         "magic": 1,
@@ -11,12 +11,12 @@ const BASE_STATS = [
         "magicResistance": 2,
         "luck": 10,
         "credit": 1,
-        "hearing": 1,
+        "hearing": 2,
         "speakingRange": 2,
         "Fear": 1,
         "powerLevel": 1,
         "handDigSpeed": 0.05,
-        "runningSpeed": 1.3,
+        "runningSpeed": 1.4,
         "growth": {
             "hp": 10,
             "mhp": 10,
@@ -32,8 +32,8 @@ const BASE_STATS = [
     },
     {
         "name": "aylah",
-        "hp": 100,
-        "mhp": 100,
+        "hp": 110,
+        "mhp": 110,
         "healthRegen": 0.1,
         "attack": 1,
         "magic": 5,
@@ -47,7 +47,7 @@ const BASE_STATS = [
         "Fear": 1,
         "powerLevel": 1,
         "handDigSpeed": 0.07,
-        "runningSpeed": 1,
+        "runningSpeed": 1.5,
         "growth": {
             "hp": 5,
             "mhp": 5,
@@ -63,8 +63,8 @@ const BASE_STATS = [
     },
     {
         "name": "skizzard",
-        "hp": 100,
-        "mhp": 100,
+        "hp": 90,
+        "mhp": 90,
         "healthRegen": 5,
         "attack": 1,
         "magic": 1,

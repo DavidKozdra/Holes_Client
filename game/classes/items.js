@@ -213,6 +213,11 @@ class Shovel extends SimpleItem{
     use(x,y,mouseButton){
         if(this.itemName == "Pickaxe"){
             playerMine(x, y, this.digSpeed);
+            this.durability -= 0.01;
+            if(this.durability <= 0){
+                this.durability = this.maxDurability;
+                curPlayer.invBlock.decreaseAmount(this.itemName, 1);
+            }
             return;
         }
         //doesnt wait for useTimer, because it is a continuous action

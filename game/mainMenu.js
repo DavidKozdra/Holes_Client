@@ -700,7 +700,7 @@ function setupRaceSelectionUI() {
     // ---------------------------------------------------
     //  Create cards for each race (with responsive sizing)
     // Allowed stats to display
-    const allowedStats = ["hp", "mhp", "healthRegen", "attack", "magic", "magicResistance", "hearing", "runningSpeed"];
+    const allowedStats = ["hp", "mhp", "healthRegen", "attack", "magic", "magicResistance", "hearing", "handDigSpeed", "runningSpeed"];
 
     // Iterate over each race in the races array
     races.forEach((raceName, i) => {
@@ -750,6 +750,7 @@ function setupRaceSelectionUI() {
             "magic": "#9966ff",
             "magicResistance": "#66ccff",
             "hearing": "#ffaa00",
+            "handDigSpeed": "#ff9966",
             "runningSpeed": "#66ffcc"
         };
         
