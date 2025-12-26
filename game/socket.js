@@ -375,8 +375,8 @@ function socketSetup(){
         }
     });
 
-    socket.on("UPDATE_NODES", (data) => {
-        //console.log("update nodes", data);
+    socket.on("UPDATE_IRON_NODES", (data) => {
+        // iron node updates should not double-process normal nodes
         let chunk = testMap.getChunk(data.cx, data.cy);
         let posX = Math.round(data.pos.x / TILESIZE);
         let posY = Math.round(data.pos.y / TILESIZE);

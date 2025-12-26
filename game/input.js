@@ -299,7 +299,8 @@ function keyReleased() {
                 invId: curPlayer.otherInv.invBlock?.invId,
                 items: curPlayer.otherInv.invBlock.items
             });
-            updateSwapItemLists(curPlayer.otherInv.invBlock);
+            // PERF FIX #10: Use fast highlight instead of full DOM rebuild after transfer
+            fastHighlightSwapLists(curPlayer.invBlock.curItem, curPlayer.otherInv.invBlock.curItem);
             updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
         }
         if (keyCode == Controls_Inventory_code) { //i

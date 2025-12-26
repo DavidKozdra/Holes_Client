@@ -158,6 +158,8 @@ function updatePlayerRegen(player) {
 
 
 
+let uiHiddenForPlay = false; // prevent per-frame hide/show work
+
 function draw() {
     // image as background
 
@@ -165,19 +167,16 @@ function draw() {
     if(gameState == "initial") {
         //console.log("restart");
 
-        //! Why call these in draw if they only need to be called once? (wouldn't it be better to add them to the transitional buttons?)
-        //unless they have some form of updates that I didn't see
         renderServerBrowser();
         renderLinks();
 
         MusicPlayer.playMainTheme()
+        uiHiddenForPlay = false; // reset guard when leaving gameplay
     }
     else if (gameState === "race_selection") {
-        //! Why call these in draw if they only need to be called once? (wouldn't it be better to add them to the transitional buttons?)
-        //unless they have some form of updates that I didn't see
-
         drawSelection();
         renderLinks();
+        uiHiddenForPlay = false;
     }
     
     if (gameState === "playing") {
@@ -188,12 +187,14 @@ function draw() {
         }
 
         MusicPlayer.playRandom()
-        //console.log(MusicPlayer, "music !")
 
-        //! Why call these in draw if they only need to be called once?
-        hideRaceSelect();
-        hideLinks();
-        renderChatUI();
+        // Only hide/show UI once when entering gameplay to avoid per-frame DOM churn
+        if (!uiHiddenForPlay) {
+            hideRaceSelect();
+            hideLinks();
+            renderChatUI();
+            uiHiddenForPlay = true;
+        }
 
         // ---- (Your original gameplay code) ----
         if (Object.keys(testMap.chunks).length > 0) {
@@ -201,16 +202,16 @@ function draw() {
             testMap.update();
         }
 
-        let keys = Object.keys(players);
-        for (let i = 0; i < keys.length; i++) {
-            if(curPlayer){ //only render other players once your current player exists
-                if(players[keys[i]].pos.dist(curPlayer.pos) < TILESIZE*CHUNKSIZE*2){
-                    
-
-                    players[keys[i]].render();
-                    players[keys[i]].update();
+        // PERF FIX #1: avoid Object.keys() loop if no curPlayer
+        if(curPlayer) {
+            const RENDER_DISTANCE = TILESIZE*CHUNKSIZE*2;
+            const keys = Object.keys(players);
+            for (let i = 0; i < keys.length; i++) {
+                const p = players[keys[i]];
+                if(p.pos.dist(curPlayer.pos) < RENDER_DISTANCE){
+                    p.render();
+                    p.update();
                 }
-            }
         }
 
         if (curPlayer) {
@@ -230,14 +231,17 @@ function draw() {
                 }
 
                 if(!keyIsDown(SHIFT)){
-                    //build snapping
-                    if(ghostBuild.objName == "Wall" || ghostBuild.objName == "Floor" || ghostBuild.objName == "Door" || ghostBuild.objName == "Thin Wall" || ghostBuild.objName == "Rug"){
+                    // PERF FIX #2: cache chunk lookup key, check null before loop
+                    const isSnappable = ghostBuild.objName == "Wall" || ghostBuild.objName == "Floor" || ghostBuild.objName == "Door" || ghostBuild.objName == "Thin Wall" || ghostBuild.objName == "Rug";
+                    if(isSnappable){
                         let chunkPos = testMap.globalToChunk(ghostBuild.pos.x,ghostBuild.pos.y);
-                        let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
-                        for(let i = 0; i < chunk.objects.length; i++){
+                        let chunkKey = chunkPos.x + "," + chunkPos.y;
+                        let chunk = testMap.chunks[chunkKey];
+                        if(chunk) for(let i = 0; i < chunk.objects.length; i++){
                             if(chunk.objects[i].pos.dist(ghostBuild.pos) < 5+128){
-                                if(chunk.objects[i].objName == "Wall" || chunk.objects[i].objName == "Floor" || chunk.objects[i].objName == "Door" || chunk.objects[i].objName == "Thin Wall"){
-                                    let obj = chunk.objects[i];
+                                const obj = chunk.objects[i];
+                                const objIsSnappable = obj.objName == "Wall" || obj.objName == "Floor" || obj.objName == "Door" || obj.objName == "Thin Wall";
+                                if(objIsSnappable){
 
                                     let relX = (mouseX + camera.pos.x - width / 2) - obj.pos.x;
                                     let relY = (mouseY + camera.pos.y - height / 2) - obj.pos.y;
@@ -275,41 +279,33 @@ function draw() {
             //regen mana and health over time
             updatePlayerRegen(curPlayer,1)
 
-            //little interact key above the thing you can interact with f rendered 
+            // PERF FIX #3: cache chunk key string, use const for INTERACT_RANGE
             let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
             let chunkPos = testMap.globalToChunk(mouseVec.x,mouseVec.y);
-            let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+            let chunkKey = chunkPos.x + "," + chunkPos.y;
+            let chunk = testMap.chunks[chunkKey];
             if(chunk != undefined){
                 let closest;
                 let closestDist;
+                const INTERACT_RANGE = 4*TILESIZE;
 
                 for(let i = 0; i < chunk.objects.length; i++){
-                    if(
-                        chunk.objects[i].type == "InvObj" || 
-                        (
-                            chunk.objects[i].type == "Plant" && 
-                            chunk.objects[i].stage == (objImgs[chunk.objects[i].imgNum].length-1) &&
-                            (
-                                (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color) ||
-                                (chunk.objects[i].ownerName == curPlayer.name && chunk.objects[i].color == 0)
-                            )
-                        ) || 
-                        chunk.objects[i].objName == "Door"
-                    ){
-                        if(chunk.objects[i].pos.dist(curPlayer.pos) < 4*TILESIZE){
-                            if(closest == undefined){
-                                closest = chunk.objects[i];
-                                closestDist = mouseVec.dist(closest.pos);
-                            }
-                            else if (mouseVec.dist(chunk.objects[i].pos) < closestDist){
-                                closest = chunk.objects[i];
-                                closestDist = mouseVec.dist(closest.pos);
-                            }
+                    // PERF FIX #4: cache array access, extract interactable check
+                    const obj = chunk.objects[i];
+                    const isInteractable = obj.type == "InvObj" || obj.objName == "Door" ||
+                        (obj.type == "Plant" && 
+                         obj.stage == (objImgs[obj.imgNum].length-1) &&
+                         ((obj.color != 0 && obj.color == curPlayer.color) ||
+                          (obj.ownerName == curPlayer.name && obj.color == 0)));
+                    if(isInteractable){
+                        let dist = mouseVec.dist(obj.pos);
+                        if(closestDist === undefined || dist < closestDist){
+                            closestDist = dist;
+                            closest = obj;
                         }
                     }
                 }
-                if(closest != undefined){
-                    if(closestDist < 2*TILESIZE){
+                if(closestDist !== undefined && closestDist < INTERACT_RANGE){
                         push();
                         fill(120);
                         stroke(0);
@@ -328,30 +324,31 @@ function draw() {
                         pop();
                     }
                     else{
-                        let chunkPos = testMap.globalToChunk(curPlayer.pos.x,curPlayer.pos.y);
-                        let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+                        // PERF FIX #5: cache chunk key, cache const, cache distance calc
+                        // PERF FIX #8: Call globalToChunk only once
+                        let playerChunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
+                        let playerChunkKey = playerChunkPos.x + "," + playerChunkPos.y;
+                        let chunk = testMap.chunks[playerChunkKey];
                         if(chunk != undefined){
                             closest = undefined;
+                            closestDist = undefined;
+                            const PLAYER_INTERACT = 4*TILESIZE;
+                            
                             for(let i = 0; i < chunk.objects.length; i++){
-                                if(
-                                    chunk.objects[i].type == "InvObj" || 
-                                    (
-                                        chunk.objects[i].type == "Plant" && 
-                                        chunk.objects[i].stage == (objImgs[chunk.objects[i].imgNum].length-1) &&
-                                        (
-                                            (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color) ||
-                                            (chunk.objects[i].ownerName == curPlayer.name && chunk.objects[i].color == 0)
-                                        )
-                                    ) || 
-                                    chunk.objects[i].objName == "Door"
-                                ){
-                                    if(closest == undefined){
-                                        closest = chunk.objects[i];
-                                        closestDist = curPlayer.pos.dist(closest.pos);
-                                    }
-                                    if (curPlayer.pos.dist(chunk.objects[i].pos) < closestDist){
-                                        closest = chunk.objects[i];
-                                        closestDist = curPlayer.pos.dist(closest.pos);
+                                const obj = chunk.objects[i];
+                                const isInteractable = obj.type == "InvObj" || obj.objName == "Door" ||
+                                    (obj.type == "Plant" && 
+                                     obj.stage == (objImgs[obj.imgNum].length-1) &&
+                                     ((obj.color != 0 && obj.color == curPlayer.color) ||
+                                      (obj.ownerName == curPlayer.name && obj.color == 0)));
+                                
+                                if(isInteractable){
+                                    const dist = curPlayer.pos.dist(obj.pos);
+                                    if(dist < PLAYER_INTERACT){
+                                        if(closestDist === undefined || dist < closestDist){
+                                            closestDist = dist;
+                                            closest = obj;
+                                        }
                                     }
                                 }
                             }

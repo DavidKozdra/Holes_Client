@@ -1340,7 +1340,8 @@ function defineSpaceBarUI() {
                     }
                 }
             }
-            updateSwapItemLists(curPlayer.otherInv.invBlock);
+            // PERF FIX #10: Use fast highlight instead of full DOM rebuild after transfer
+            fastHighlightSwapLists(curPlayer.invBlock.curItem, curPlayer.otherInv.invBlock.curItem);
             updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
 
             // Sync other inventory back to server when clicking the spacebar UI (mirror keyboard handler)
@@ -3098,6 +3099,37 @@ function defineSwapInvUI() {
  */
 
 /**
+ * PERF FIX #9: Quickly update swap list highlighting without full DOM rebuild.
+ * Only updates background colors and font styles for selected rows.
+ */
+function fastHighlightSwapLists(leftSelected, rightSelected) {
+    if (!itemListDivLeft || !itemListDivRight) return;
+    
+    const leftChildren = itemListDivLeft.elt?.children;
+    const rightChildren = itemListDivRight.elt?.children;
+    
+    if (leftChildren) {
+        for (let i = 0; i < leftChildren.length; i++) {
+            const row = leftChildren[i];
+            const name = row.getAttribute('data-item');
+            const isSel = name === leftSelected;
+            row.style.backgroundColor = isSel ? 'rgb(120, 120, 120)' : '';
+            row.style.fontStyle = isSel ? 'italic' : 'normal';
+        }
+    }
+    
+    if (rightChildren) {
+        for (let i = 0; i < rightChildren.length; i++) {
+            const row = rightChildren[i];
+            const name = row.getAttribute('data-item');
+            const isSel = name === rightSelected;
+            row.style.backgroundColor = isSel ? 'rgb(120, 120, 120)' : '';
+            row.style.fontStyle = isSel ? 'italic' : 'normal';
+        }
+    }
+}
+
+/**
  * Safely resolves a data URL for the first frame of an item's image.
  * Returns undefined if not available.
  * @param {number|undefined} imgNum
@@ -3157,6 +3189,7 @@ function updateSwapItemLists(otherInv) {
         const entry = myItems[itemName] || { amount: 0 };
 
         const itemDiv = createDiv();
+        itemDiv.attribute('data-item', itemName);
         itemDiv.style("width", "100%");
         itemDiv.style("height", "50px");
         itemDiv.style("display", "flex");
@@ -3172,7 +3205,8 @@ function updateSwapItemLists(otherInv) {
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
             if (otherInv) otherInv.curItem = "";
-            updateSwapItemLists(otherInv);
+            // PERF FIX #9: Update only highlights, skip full rebuild
+            fastHighlightSwapLists(curPlayer.invBlock.curItem, safeOther.curItem);
             updatecurSwapItemDiv(otherInv);
         });
 
@@ -3234,6 +3268,7 @@ function updateSwapItemLists(otherInv) {
         const entry = otherItems[itemName] || { amount: 0 };
 
         const itemDiv = createDiv();
+        itemDiv.attribute('data-item', itemName);
         itemDiv.style("width", "100%");
         itemDiv.style("height", "50px");
         itemDiv.style("display", "flex");
@@ -3250,7 +3285,8 @@ function updateSwapItemLists(otherInv) {
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = "";
             safeOther.curItem = itemName;
-            updateSwapItemLists(safeOther);
+            // PERF FIX #9: Update only highlights, skip full rebuild
+            fastHighlightSwapLists(curPlayer.invBlock.curItem, safeOther.curItem);
             updatecurSwapItemDiv(safeOther);
         });
 
@@ -3533,6 +3569,9 @@ let timerEnabled = true;
 let timerRemaining = 15 * 60; // in seconds
 let lastUpdateTime = 0;
 let timerEndsAt = null;
+// PERF FIX #6: Use timerDiv directly for font size; avoid DOM queries
+let lastTimerFontSize = "";
+let lastTimerDisplay = ""; // PERF FIX #8: Only write to DOM when changed
 
 let timerDisplay = "15:00";
 function setTimeUI(data) {
@@ -3571,43 +3610,50 @@ function updateTimerDisplay() {
     timerDisplay = parts.join(' ');
     //console.log("Timer:", timerDisplay);
 
-    // Optional: call resize function here
+    // PERF FIX #7: Only adjust font when thresholds change
     adjustFontSize(timerRemaining);
 }
 
 function adjustFontSize(timerRemaining) {
-    const el = document.getElementById("timer");
+    if (!timerEnabled || !timerDiv) return;
 
-    if (!el) return;
-
+    let size;
     if (timerRemaining >= 365 * 24 * 3600) {
-        el.style.fontSize = "1.2rem"; // Years
+        size = "1.2rem"; // Years
     } else if (timerRemaining >= 24 * 3600) {
-        el.style.fontSize = "1.5rem"; // Days
+        size = "1.5rem"; // Days
     } else if (timerRemaining >= 3600) {
-        el.style.fontSize = "2rem"; // Hours
+        size = "2rem"; // Hours
     } else {
-        el.style.fontSize = "2.5rem"; // MM:SS
+        size = "2.5rem"; // MM:SS
+    }
+
+    if (size !== lastTimerFontSize) {
+        timerDiv.style("font-size", size);
+        lastTimerFontSize = size;
     }
 }
 
 
 function renderTimeUI() {
-    if (!timerEnabled) return;
-    if (millis() - lastUpdateTime >= 1000) {
-        if (timerRemaining > 0) {
-            timerRemaining--;
-            updateTimerDisplay();
-        }
-        lastUpdateTime = millis();
-    }
-    if (timerDiv && timerEnabled) {
-        timerDiv.html(" ⏳ " + timerDisplay);
-        applyStyle(timerDiv, {
-            position: "absolute",
-            width: "auto"
+    if (!timerEnabled || !timerDiv) return;
 
-        });
+    const now = millis();
+    if (now - lastUpdateTime >= 1000) {
+        if (typeof timerEndsAt === "number") {
+            timerRemaining = Math.max(0, Math.round((timerEndsAt - Date.now()) / 1000));
+        } else if (timerRemaining > 0) {
+            timerRemaining--;
+        }
+
+        updateTimerDisplay();
+        lastUpdateTime = now;
+
+        // PERF: Only write to DOM when the display actually changes
+        if (timerDisplay !== lastTimerDisplay) {
+            timerDiv.html(" ⏳ " + timerDisplay);
+            lastTimerDisplay = timerDisplay;
+        }
     }
 }
 

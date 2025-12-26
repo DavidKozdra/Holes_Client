@@ -16,13 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-  <link
-    rel="preload"
-    as="font"
-    href="https://fonts.gstatic.com/s/pressstart2p/v11/8QINdiTajsj_87l9YJH6ujD_X0L6.woff2"
-    type="font/woff2"
-    crossorigin
-  >
+  <!-- Font preload removed to avoid 404; CSS import will load font -->
   <!-- Preload & favicon -->
   <link rel="preload" as="image" href="./images/ui/title.png">
   <link rel="icon" href="./images/ui/title.png" type="image/png">
@@ -106,14 +100,7 @@
 
   <!-- External SW registration -->
   <script defer src="sw-register.js"></script>
-  <script>
-    // Suppress SW registration errors if not available
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {
-        console.log('Service Worker registration failed or not available');
-      });
-    }
-  </script>
+  <!-- Inline SW registration removed to satisfy CSP; handled in sw-register.js -->
 </head>
 
 <body>
