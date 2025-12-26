@@ -40,8 +40,13 @@ function defineCraftingUI() {
     craftTabBtn.class("craft-tab-btn craft-tab-active");
     craftTabBtn.mousePressed(() => switchToCraftingTab("crafting"));
 
-    let closeBtn = createButton("×").parent(header);
+    let closeBtn = createImg("images/ui/x.png", "").parent(header);
     closeBtn.class("craft-close-btn");
+    closeBtn.addClass("icon-btn");
+    closeBtn.style("width", "20px");
+    closeBtn.style("height", "20px");
+    closeBtn.style("cursor", "pointer");
+    closeBtn.style("image-rendering", "pixelated");
     closeBtn.mousePressed(closeCrafting);
 
     // Category filter buttons

@@ -996,6 +996,20 @@ input.fmt-italic-apply {
     background: #f44336;
 }
 
+/* Generic icon button hover/press effects for image-based buttons */
+.icon-btn {
+  right:10px !important;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.icon-btn:hover {
+  transform: translateY(-1px) scale(1.06);
+  filter: brightness(1.2) drop-shadow(0 0 6px rgba(255, 0, 0, 0.4));
+}
+.icon-btn:active {
+  transform: translateY(1px) scale(0.95);
+  filter: brightness(0.9);
+}
+
 .craft-category-bar {
     display: flex;
     gap: 8px;

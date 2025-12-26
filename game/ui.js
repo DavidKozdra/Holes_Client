@@ -604,17 +604,19 @@ function defineInvUI() {
     curItemDiv = createDiv().parent(bottomDiv);
     curItemDiv.class("item-details");
 
-    // Close Button
-    let closeButton = createButton("X").parent(topBar);
-    closeButton.class("close-button"); // Style it in CSS
+    // Close Button (image X)
+    let closeButton = createImg("images/ui/x.png", "").parent(topBar);
+    closeButton.addClass("icon-btn");
+    closeButton.class("close-button");
+    closeButton.addClass("icon-btn");
     applyStyle(closeButton, {
-        marginLeft: "auto",  // Pushes it to the right
+        marginLeft: "auto",
         position: "absolute",
-        fontSize: "18px",
         right: "0",
-        color: "white",
+        width: "22px",
+        height: "22px",
         cursor: "pointer",
-        background: "none",
+        imageRendering: "pixelated",
         border: "none",
     });
 
@@ -685,111 +687,128 @@ function highlightCraftList() {
     };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply); else apply();
 }
+// Simple virtualized list helpers
+const VLIST_BUFFER_ROWS = 5;
+function computeVisibleRange(container, total, rowH){
+    const st = container.elt.scrollTop || 0;
+    const vh = container.elt.clientHeight || 300;
+    let start = Math.max(0, Math.floor(st / rowH) - VLIST_BUFFER_ROWS);
+    let count = Math.ceil(vh / rowH) + 2*VLIST_BUFFER_ROWS;
+    let end = Math.min(total, start + count);
+    return { start, end };
+}
+
+function ensureListViewport(div){
+    div.style('overflow-y', 'auto');
+    div.style('position', 'relative');
+    if(!div.elt._spacer){
+        const spacer = document.createElement('div');
+        spacer.style.position = 'absolute';
+        spacer.style.left = '0';
+        spacer.style.top = '0';
+        spacer.style.width = '1px';
+        spacer.style.height = '0px';
+        spacer.style.pointerEvents = 'none';
+        div.elt.appendChild(spacer);
+        div.elt._spacer = spacer;
+    }
+}
+
+function renderVirtualRows(div, data, rowH, renderRow){
+    ensureListViewport(div);
+    if(div.elt._spacer) div.elt._spacer.style.height = (data.length * rowH) + 'px';
+    const range = computeVisibleRange(div, data.length, rowH);
+    // Clear existing children except spacer
+    const kids = Array.from(div.elt.children);
+    for(const k of kids){ if(k !== div.elt._spacer) k.remove(); }
+    for(let i = range.start; i < range.end; i++){
+        const row = renderRow(data[i], i);
+        row.style('position', 'absolute');
+        row.style('top', (i * rowH) + 'px');
+        row.parent(div);
+    }
+}
 
 function updateItemList() {
-    if (curPlayer == undefined) return;
-
-    // Build fresh list; measured if perf logging enabled
+    if (!curPlayer) return;
+    // Reset container; virtualization will rebuild visible rows
     itemListDiv.html("");
-    //create a div for each item in the inventory
-    let arr = Object.keys(curPlayer.invBlock.items);
-    arr = arr.filter((itemName) => {
-        if (curPlayer.invBlock.curTag == "All") {
-            return true;
-        }
-        else if (curPlayer.invBlock.curTag == "Tools/Seeds") {
-            if (curPlayer.invBlock.items[itemName].type == "Shovel" || curPlayer.invBlock.items[itemName].type == "Seed") {
-                return true;
-            }
-        }
-        else if (curPlayer.invBlock.curTag == "Weapons") {
-            if (curPlayer.invBlock.items[itemName].type == "Melee" || curPlayer.invBlock.items[itemName].type == "Ranged") {
-                return true;
-            }
-        }
-        else if (curPlayer.invBlock.curTag == "Equipment") {
-            if (curPlayer.invBlock.items[itemName].type == "Equipment") {
-                return true;
-            }
-        }
-        else if (curPlayer.invBlock.curTag == "Consumables") {
-            if (curPlayer.invBlock.items[itemName].type == "Food" || curPlayer.invBlock.items[itemName].type == "Potion") {
-                return true;
-            }
-        }
 
+    // Build filtered item name list by current tag
+    let arr = Object.keys(curPlayer.invBlock.items || {});
+    arr = arr.filter((itemName) => {
+        const entry = curPlayer.invBlock.items[itemName];
+        const tag = curPlayer.invBlock.curTag;
+        if (tag === "All") return true;
+        if (tag === "Tools/Seeds") return entry.type === "Shovel" || entry.type === "Seed";
+        if (tag === "Weapons") return entry.type === "Melee" || entry.type === "Ranged";
+        if (tag === "Equipment") return entry.type === "Equipment";
+        if (tag === "Consumables") return entry.type === "Food" || entry.type === "Potion";
         return false;
     });
 
-    for (let i = 0; i < arr.length; i++) {
-        let itemName = arr[i];
+    const ROW_H = 50;
+    const renderRow = (itemName) => {
         let itemDiv = createDiv();
-        // Store item name on the element for fast highlight updates
         itemDiv.attribute('data-item', itemName);
         itemDiv.style("width", "100%");
-        itemDiv.style("height", "50px");
+        itemDiv.style("height", ROW_H+"px");
         itemDiv.style("display", "flex");
         itemDiv.style("align-items", "center");
         itemDiv.style("justify-content", "center");
         itemDiv.style("border-bottom", "2px solid black");
-        // Initial selected styling applied later via highlighter
         itemDiv.style("cursor", "pointer");
-        itemDiv.parent(itemListDiv);
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
-            // Avoid full rebuild; update selection styles + right panel only
             highlightItemList();
             perfTimed('updatecurItemDiv', () => updatecurItemDiv());
         });
-        let itemInfoDiv = createDiv();
+        let itemInfoDiv = createDiv().parent(itemDiv);
         itemInfoDiv.style("width", "80%");
-        itemInfoDiv.style("height", "50px");
+        itemInfoDiv.style("height", ROW_H+"px");
         itemInfoDiv.style("display", "flex");
         itemInfoDiv.style("align-items", "center");
         itemInfoDiv.style("justify-content", "space-between");
-        itemInfoDiv.parent(itemDiv);
-
-        // Add item icon (responsive, pixelated)
-        let imgDiv = createDiv();
-        imgDiv.style('width', '2.2em');  // Responsive size
-        imgDiv.style('height', '2.2em');
-        imgDiv.style('min-width', '28px');
-        imgDiv.style('min-height', '28px');
-        imgDiv.style('margin-right', '0.5em');
-        imgDiv.style('display', 'flex');
-        imgDiv.style('align-items', 'center');
-        imgDiv.parent(itemInfoDiv);
-        const entry = curPlayer.invBlock.items[itemName];
-        const url = resolveItemImgURL(itemName, entry);
+        let imgDiv = createDiv().parent(itemInfoDiv);
+        imgDiv.style("width", "2.2em");
+        imgDiv.style("height", "2.2em");
+        imgDiv.style("minWidth", "28px");
+        imgDiv.style("minHeight", "28px");
+        imgDiv.style("marginRight", "0.5em");
+        imgDiv.style("display", "flex");
+        imgDiv.style("align-items", "center");
+        const url = resolveItemImgURL(itemName, curPlayer.invBlock.items[itemName]);
         if (url) {
-            const imgEl = createImg(url, '');
-            imgEl.style('width', '100%');
-            imgEl.style('height', '100%');
-            imgEl.style('image-rendering', 'pixelated');
-            imgEl.style('pointer-events', 'none');
-            imgEl.parent(imgDiv);
+            let imgEl = createImg(url, '').parent(imgDiv);
+            imgEl.style("width", "100%");
+            imgEl.style("height", "100%");
+            imgEl.style("imageRendering", "pixelated");
+            imgEl.style("pointerEvents", "none");
         } else {
-            const placeholder = createDiv('•');
-            placeholder.style('width', '100%');
-            placeholder.style('height', '100%');
-            placeholder.style('display', 'flex');
-            placeholder.style('align-items', 'center');
-            placeholder.style('justify-content', 'center');
-            placeholder.parent(imgDiv);
+            const placeholder = createDiv('•').parent(imgDiv);
+            placeholder.style("width", "100%");
+            placeholder.style("height", "100%");
+            placeholder.style("display", "flex");
+            placeholder.style("alignItems", "center");
+            placeholder.style("justifyContent", "center");
         }
-
-
-        let itemNameP = createP(itemName);
+        let itemNameP = createP(itemName).parent(itemInfoDiv);
         itemNameP.style("font-size", "20px");
         itemNameP.style("color", "white");
-        itemNameP.parent(itemInfoDiv);
-
-        let itemAmount = createP(curPlayer.invBlock.items[itemName].amount);
-        itemAmount.style("font-size", "20px");
-        itemAmount.style("color", "white");
-        itemAmount.parent(itemInfoDiv);
+        let itemAmountP = createP(curPlayer.invBlock.items[itemName].amount).parent(itemInfoDiv);
+        itemAmountP.style("font-size", "20px");
+        itemAmountP.style("color", "white");
+        return itemDiv;
+    };
+    renderVirtualRows(itemListDiv, arr, ROW_H, renderRow);
+    // Attach scroll handler once
+    if(!itemListDiv.elt._vscrollInv){
+        itemListDiv.elt._vscrollInv = true;
+        itemListDiv.elt.addEventListener('scroll', () => {
+            renderVirtualRows(itemListDiv, arr, ROW_H, renderRow);
+            highlightItemList();
+        });
     }
-    // Apply selection highlight in one pass, batching style work
     highlightItemList();
 }
 
@@ -1489,17 +1508,15 @@ function updateTeamManagementUI() {
     title.parent(teamPickDiv);
 
     // Close button
-    let closeBtn = createButton("✕");
+    let closeBtn = createImg("images/ui/x.png", "");
+    closeBtn.addClass("icon-btn");
     closeBtn.style("position", "absolute");
     closeBtn.style("top", "10px");
     closeBtn.style("right", "10px");
-    closeBtn.style("background", "rgba(255,0,0,0.7)");
-    closeBtn.style("border", "none");
-    closeBtn.style("color", "white");
-    closeBtn.style("font-size", "20px");
+    closeBtn.style("width", "24px");
+    closeBtn.style("height", "24px");
     closeBtn.style("cursor", "pointer");
-    closeBtn.style("padding", "5px 10px");
-    closeBtn.style("border-radius", "5px");
+    closeBtn.style("image-rendering", "pixelated");
     closeBtn.mousePressed(() => {
         teamPickDiv.hide();
         gameState = "playing";
@@ -1939,17 +1956,18 @@ function defineSwapInvUI() {
     itemListDivRight.class("item-list");
     itemListDivRight.style("border-left", "2px solid black");
 
-    // Close Button
-    let closeButton = createButton("X").parent(swapInvTitleBar);
-    closeButton.class("close-button"); // Style it in CSS
+    // Close Button (image X)
+    let closeButton = createImg("images/ui/x.png", "").parent(swapInvTitleBar);
+    closeButton.class("close-button");
+    closeButton.addClass("icon-btn");
     applyStyle(closeButton, {
-        marginLeft: "auto",  // Pushes it to the right
+        marginLeft: "auto",
         position: "absolute",
-        fontSize: "18px",
         right: "0",
-        color: "white",
+        width: "22px",
+        height: "22px",
         cursor: "pointer",
-        background: "none",
+        imageRendering: "pixelated",
         border: "none",
     });
 
@@ -2640,16 +2658,17 @@ function defineCraftingUI() {
     curCraftItemDiv = createDiv().parent(bottomDiv);
     curCraftItemDiv.class("item-details");
 
-    let closeButton = createButton("X").parent(topBar);
+    let closeButton = createImg("images/ui/x.png", "").parent(topBar);
     closeButton.class("close-button");
+    closeButton.addClass("icon-btn");
     applyStyle(closeButton, {
         marginLeft: "auto",
         position: "absolute",
         right: "0",
-        fontSize: "18px",
+        width: "22px",
+        height: "22px",
         cursor: "pointer",
-        background: "none",
-        color: "white",
+        imageRendering: "pixelated",
         border: "none",
     });
 
@@ -2724,36 +2743,33 @@ function updateCraftList() {
     }
 
 
-    for (let i = 0; i < arr.length; i++) {
-        let itemName = arr[i].itemName;
+    const ROW_H = 50;
+    const renderRow = (entry) => {
+        let itemName = entry.itemName;
         let itemDiv = createDiv();
         itemDiv.attribute('data-item', itemName);
         applyStyle(itemDiv, {
             width: "100%",
-            height: "50px",
+            height: ROW_H+"px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             borderBottom: "2px solid black",
             cursor: "pointer",
-            // selected styling applied via highlighter
         });
-        itemDiv.parent(craftListDiv);
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
             highlightCraftList();
             perfTimed('updatecurCraftItemDiv', () => updatecurCraftItemDiv());
         });
-
         let itemInfoDiv = createDiv().parent(itemDiv);
         applyStyle(itemInfoDiv, {
             width: "80%",
-            height: "50px",
+            height: ROW_H+"px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between"
         });
-
         let imgDiv = createDiv().parent(itemInfoDiv);
         applyStyle(imgDiv, {
             width: "2.2em",
@@ -2764,8 +2780,7 @@ function updateCraftList() {
             display: "flex",
             alignItems: "center"
         });
-
-        const craftURL = resolveItemImgURL(itemName, { imgNum: arr[i].imgNum });
+        const craftURL = resolveItemImgURL(itemName, { imgNum: entry.imgNum });
         if (craftURL) {
             let imgEl = createImg(craftURL, '').parent(imgDiv);
             applyStyle(imgEl, {
@@ -2784,14 +2799,33 @@ function updateCraftList() {
                 justifyContent: "center"
             });
         }
-
         let itemNameP = createP(itemName).parent(itemInfoDiv);
         itemNameP.style("font-size", "20px");
         itemNameP.style("color", "white");
-
-        let craftCheckText = createP(curPlayer.invBlock.craftCheck(itemName) ? "✔" : "✘").parent(itemInfoDiv);
-        craftCheckText.style("font-size", "20px");
-        craftCheckText.style("color", curPlayer.invBlock.craftCheck(itemName) ? "green" : "red");
+        const canCraft = curPlayer.invBlock.craftCheck(itemName);
+        let craftIndicator;
+        if (canCraft) {
+            craftIndicator = createP("✔");
+            craftIndicator.style("color", "green");
+            craftIndicator.style("font-size", "20px");
+        } else {
+            // Use red X image from images folder
+            craftIndicator = createImg("images/ui/x.png", "");
+            craftIndicator.style("width", "20px");
+            craftIndicator.style("height", "20px");
+            craftIndicator.style("imageRendering", "pixelated");
+            craftIndicator.style("pointerEvents", "none");
+        }
+        craftIndicator.parent(itemInfoDiv);
+        return itemDiv;
+    };
+    renderVirtualRows(craftListDiv, arr, ROW_H, renderRow);
+    if(!craftListDiv.elt._vscrollCraft){
+        craftListDiv.elt._vscrollCraft = true;
+        craftListDiv.elt.addEventListener('scroll', () => {
+            renderVirtualRows(craftListDiv, arr, ROW_H, renderRow);
+            highlightCraftList();
+        });
     }
     highlightCraftList();
 }
@@ -3151,12 +3185,12 @@ function defineTutorialUI() {
         width: "100%",
         justifyContent: "flex-end",
     });
-    let closeButton = createButton("X").parent(topBar);
+    let closeButton = createImg("images/ui/x.png", "").parent(topBar);
     applyStyle(closeButton, {
-        fontSize: "18px",
+        width: "22px",
+        height: "22px",
         cursor: "pointer",
-        background: "none",
-        color: "white",
+        imageRendering: "pixelated",
         border: "none",
     });
     closeButton.mousePressed(() => {
@@ -3420,17 +3454,17 @@ function defineSignUI(){
     let title = createP("Sign Editor").parent(topBar);
     title.class("inventory-title");
 
-    // Close Button
-    let closeButton = createButton("X").parent(topBar);
-    closeButton.class("close-button"); // Style it in CSS
+    // Close Button (image X)
+    let closeButton = createImg("images/ui/x.png", "").parent(topBar);
+    closeButton.class("close-button");
     applyStyle(closeButton, {
-        marginLeft: "auto",  // Pushes it to the right
+        marginLeft: "auto",
         position: "absolute",
-        fontSize: "18px",
         right: "0",
-        color: "white",
+        width: "22px",
+        height: "22px",
         cursor: "pointer",
-        background: "none",
+        imageRendering: "pixelated",
         border: "none",
     });
 

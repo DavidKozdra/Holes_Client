@@ -49,8 +49,13 @@ function defineSwapInvUI() {
     otherInvTitle.class("swap-inv-section-title");
 
     // Close button in title bar
-    let closeButton = createButton("×").parent(titleBar);
+    let closeButton = createImg("images/ui/x.png", "").parent(titleBar);
     closeButton.class("swap-inv-close-btn");
+    closeButton.addClass("icon-btn");
+    closeButton.style("width", "20px");
+    closeButton.style("height", "20px");
+    closeButton.style("cursor", "pointer");
+    closeButton.style("image-rendering", "pixelated");
     closeButton.mousePressed(closeSwapInventory);
 
     // Main content area: three columns
