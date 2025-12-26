@@ -1347,6 +1347,16 @@ function defineRacePortrait() {
         window.healthEventListenerSetup = true;
     }
     
+    // Setup mana event listener (once)
+    if (!window.manaEventListenerSetup) {
+        window.addEventListener('playerManaChange', (event) => {
+            if (curPlayer && curPlayer.statBlock) {
+                updateManaDisplay(event.detail.mp, event.detail.mmp);
+            }
+        });
+        window.manaEventListenerSetup = true;
+    }
+    
     racePortraitDiv.hide(); // Initially hidden until game starts
 }
 
@@ -1402,9 +1412,9 @@ function updateStatsPanel() {
                 </div>
             </div>
             <div style="margin: 5px 0;">
-                <strong style="color: #00d4ff;">MP:</strong> ${Math.floor(stats.mp)} / ${Math.floor(stats.mmp)}
+                <strong style="color: #00d4ff;">MP:</strong> <span id="mp-text">${Math.floor(stats.mp)} / ${Math.floor(stats.mmp)}</span>
                 <div style="width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 3px; overflow: hidden;">
-                    <div style="width: ${(stats.mp / stats.mmp) * 100}%; height: 100%; background: linear-gradient(90deg, #00d4ff, #0080cc); transition: width 0.3s;"></div>
+                    <div id="mp-bar" style="width: ${(stats.mp / stats.mmp) * 100}%; height: 100%; background: linear-gradient(90deg, #00d4ff, #0080cc); transition: width 0.3s;"></div>
                 </div>
             </div>
         </div>
@@ -1435,6 +1445,19 @@ function updateHealthDisplay(hp, mhp) {
     }
     if (hpBar) {
         hpBar.style.width = `${(hp / mhp) * 100}%`;
+    }
+}
+
+// Event-driven mana update for stats panel
+function updateManaDisplay(mp, mmp) {
+    const mpText = document.getElementById('mp-text');
+    const mpBar = document.getElementById('mp-bar');
+    
+    if (mpText) {
+        mpText.textContent = `${Math.floor(mp)} / ${Math.floor(mmp)}`;
+    }
+    if (mpBar) {
+        mpBar.style.width = `${(mp / mmp) * 100}%`;
     }
 }
 
@@ -1485,7 +1508,8 @@ function renderPlayerCardUI() {
     image(hpBarImg, width - 530 + 93, 52, 281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp), 14, 0, 0, 281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp), 14);
     let heldItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]];
     if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "") {
-        image(manaBarImg, width - 530 + 93, 83, 281 * (curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp), 14, 0, 0, 281 * (curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp), 14);
+        let manaRatio = Math.min(curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp, 1);
+        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14, 0, 0, 281 * manaRatio, 14);
     }
     else if (heldItem.manaCost == 0 && heldItem.type == "Ranged") {
         //render ammo bar
@@ -1513,7 +1537,8 @@ function renderPlayerCardUI() {
         }
     }
     else {
-        image(manaBarImg, width - 530 + 93, 83, 281 * (curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp), 14, 0, 0, 281 * (curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp), 14);
+        let manaRatio = Math.min(curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp, 1);
+        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14, 0, 0, 281 * manaRatio, 14);
         stroke(0);
         strokeWeight(1);
         for (let i = 1; i < curPlayer.statBlock.stats.mmp / heldItem.manaCost; i++) {

@@ -193,9 +193,57 @@ class StatBlock{
         return actualDamage;
     }
 
+    // Add mana (e.g., from items)
+    addMana(amount) {
+        const oldMP = this.stats.mp;
+        this.stats.mp = this.stats.mp + amount;
+
+        if(this.stats.mp > this.stats.mmp) {
+            this.stats.mp = this.stats.mmp;
+        }
+
+        // Dispatch mana change event
+        if (typeof window !== 'undefined' && this.stats.mp !== oldMP) {
+            window.dispatchEvent(new CustomEvent('playerManaChange', {
+                detail: { mp: this.stats.mp, mmp: this.stats.mmp, change: this.stats.mp - oldMP }
+            }));
+        }
+
+        socket.emit("update_player", {
+            id: curPlayer.id,
+            pos: curPlayer.pos,
+            holding: curPlayer.holding,
+            update_names: ["stats.mp"],
+            update_values: [this.stats.mp]
+        });
+    }
+
+    // Use mana (e.g., for abilities)
+    useMana(amount) {
+        const oldMP = this.stats.mp;
+        this.stats.mp = Math.max(0, this.stats.mp - amount);
+
+        // Dispatch mana change event
+        if (typeof window !== 'undefined' && this.stats.mp !== oldMP) {
+            window.dispatchEvent(new CustomEvent('playerManaChange', {
+                detail: { mp: this.stats.mp, mmp: this.stats.mmp, change: this.stats.mp - oldMP }
+            }));
+        }
+
+        return oldMP - this.stats.mp;
+    }
+
     // Regenerate mana over time
     regenMana(amount) {
+        const oldMP = this.stats.mp;
         this.stats.mp = Math.min(this.stats.mp + amount, this.stats.mmp);
+        
+        // Dispatch mana change event
+        if (typeof window !== 'undefined' && this.stats.mp !== oldMP) {
+            window.dispatchEvent(new CustomEvent('playerManaChange', {
+                detail: { mp: this.stats.mp, mmp: this.stats.mmp, change: this.stats.mp - oldMP }
+            }));
+        }
     }
 
     // Regenerate health over time

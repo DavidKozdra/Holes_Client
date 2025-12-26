@@ -813,10 +813,10 @@ function setupRaceSelectionUI() {
 
     // Use CSS positioning instead of .position() to prevent movement
     nameInput.style("position", "absolute");
-    nameInput.style("left", "50%");
+    nameInput.style("left", "45%");
     nameInput.style("top", "85dvh");
     nameInput.style("transform", "translateX(-50%)");
-    nameInput.style("width", inputWidth + "px");
+    nameInput.style("width", "20%");
 
     // Responsive base styling
     nameInput.style("font-size", width < 500 ? "14px" : "18px");

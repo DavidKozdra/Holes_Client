@@ -540,7 +540,7 @@ class Player {
             this.moving) {
             
             // Consume mana
-            this.statBlock.stats.mp -= this.dashManaCost;
+            this.statBlock.useMana(this.dashManaCost);
             
             // Activate dash
             this.isDashing = true;

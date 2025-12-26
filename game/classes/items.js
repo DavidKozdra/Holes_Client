@@ -92,7 +92,7 @@ defineSimpleItem("Arrow", [[3,0]], [2,["Log", 1], ["Rock", 1]], 1, "An arrow", I
 defineFood("Apple", [[2,0]], [], 1, 100, 10, 0, "A juicy apple", ItemRarity.GOOD, false);
 defineFood("Bad Apple", [[4,0]], [], 1, 100, 5, 5, "Looks like this apple would bite back", ItemRarity.GREAT, false);
 defineFood("Mushroom", [[458,47]], [], 1, 100, 5, 10, "A tasty mushroom", ItemRarity.BASIC, false);
-defineFood("Salad", [[5,5]], [1,["Mushroom",1],["Apple",1],["Log",1]], 1, 100, 20, 10, "A salad", ItemRarity.GOOD, true);
+defineFood("Salad", [[5,5]], [1,["Mushroom",1],["Apple",1],["Log",1]], 1, 100, 50, 50, "A salad", ItemRarity.GOOD, true);
 defineFood("Skizzard Tail", [[6,5]], [], 1, 100, 5, 5, "A raw tail", ItemRarity.BASIC, false);
 defineFood("Roasted Tail", [[7,5]], [1,["Skizzard Tail", 1]], 1, 100, 30, 15, "A roasted tail", ItemRarity.GOOD, false);
 
@@ -361,7 +361,7 @@ class Ranged extends SimpleItem{
                         socket.emit("new_proj", proj);
                         this.bulletsLeft --;
                         if(this.ammoName != "mana") curPlayer.invBlock.decreaseAmount(this.ammoName, 1);
-                        else curPlayer.statBlock.stats.mp -= this.manaCost;
+                        else curPlayer.statBlock.useMana(this.manaCost);
                         curPlayer.invBlock.useTimer = this.fireRate;
                         if(this.ammoName != this.itemName){
                             this.durability -= 1;
@@ -439,7 +439,7 @@ class Food extends SimpleItem{
                 testMap.chunks[chunkPos.x+','+chunkPos.y].soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "eat.ogg", cPos: chunkPos, pos: {x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
                 
-                curPlayer.statBlock.stats.mp += this.manaRegen;
+                curPlayer.statBlock.addMana(this.manaRegen);
                 curPlayer.invBlock.useTimer = this.eatWait;
                 curPlayer.invBlock.decreaseAmount(this.itemName, 1);
             }

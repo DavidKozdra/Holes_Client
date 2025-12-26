@@ -166,7 +166,7 @@ function updatePlayerRegen(player) {
         if (player.statBlock.stats.mp < mmp) {
 
             let mpRegen = (player.statBlock.stats.magic || 1) * 0.1; // Regen 10% of magic stat as MP
-            player.statBlock.stats.mp = Math.min(player.statBlock.stats.mp + mpRegen, mmp);
+            player.statBlock.regenMana(mpRegen);
             //console.log(`✅ Regenerated ${mpRegen.toFixed(1)} MP. Current MP: ${player.statBlock.stats.mp.toFixed(1)}/${mmp}`);  
             // Sync with server
             socket.emit("update_player", {
