@@ -1877,13 +1877,26 @@ function hydrateBagItemImages(inv) {
  *
  * @param {Inventory} otherInv
  */
-function updateSwapItemLists(otherInv) {
-    if (!curPlayer || !curPlayer.invBlock) return;
-
-    const normalizedOtherInv = hydrateBagItemImages(otherInv);
-    updatecurSwapItemDiv(normalizedOtherInv);
+/**
+ * DEPRECATED: Old updateSwapItemLists - kept for reference only
+ * This function caused major performance issues:
+ * - 17+ .style() calls per item causing reflows
+ * - Full DOM rebuild with .html("")
+ * - Heavy nested DOM structure per item
+ * 
+ * USE: updateSwapItemLists() from swapInventory.js module instead
+ * The new version uses CSS classes and smart partial updates
+ * 
+ * THIS FUNCTION IS DISABLED - DO NOT USE
+ */
+function updateSwapItemLists_DEPRECATED_FROZEN(otherInv) {
+    return;  // Disabled - use swapInventory.js version instead
 
     // LEFT SIDE (current player)
+    // DISABLED - this entire block caused severe freezing
+    // The original code did 17+ .style() calls per item and full DOM rebuilds
+    // See swapInventory.js for the optimized version
+    /*
     itemListDivLeft.html("");
 
     /** @type {Record<string, ItemEntry>} */
@@ -2039,7 +2052,9 @@ function updateSwapItemLists(otherInv) {
         itemAmount.style("color", "white");
         itemAmount.parent(itemInfoDiv);
     }
+    // End of commented-out old function
 }
+
 /**
  * @typedef {{ amount: number, imgNum?: number, itemName?: string, desc?: string, type?: string, durability?: number, maxDurability?: number }} ItemEntry
  * @typedef {{ items: Record<string, ItemEntry>, curItem?: string, getItemStats?: (name: string) => Array<[string, number|string]> }} Inventory

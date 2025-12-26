@@ -719,3 +719,510 @@ input.fmt-italic-apply {
     max-height: 70%;
     margin-top: 10px;
 }
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* SWAP INVENTORY UI - Modern Reactive */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.swap-inv-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 1200px;
+    height: 70vh;
+    background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
+    border: 3px solid var(--color-dirt-dark);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+    z-index: 1002;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.swap-inv-titlebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 2px solid var(--color-dirt-dark);
+    background: rgba(0, 0, 0, 0.3);
+    gap: 10px;
+}
+
+.swap-inv-section-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    margin: 0;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.swap-inv-close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 28px;
+    padding: 0;
+    background: #d32f2f;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.swap-inv-close-btn:hover {
+    background: #f44336;
+}
+
+.swap-inv-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 12px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.swap-inv-column {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    overflow-y: auto;
+}
+
+.swap-inv-column.swap-inv-middle {
+    align-items: center;
+    justify-content: flex-start;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.swap-inv-item-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.swap-inv-item-row:hover {
+    background: rgba(76, 175, 80, 0.2);
+    transform: translateX(4px);
+}
+
+.swap-inv-item-row.selected {
+    background: rgba(76, 175, 80, 0.4);
+    border-left: 4px solid var(--color-gold);
+}
+
+.swap-inv-item-image {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.swap-inv-img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.swap-inv-placeholder {
+    font-size: 24px;
+    opacity: 0.5;
+}
+
+.swap-inv-item-info {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-width: 0;
+}
+
+.swap-inv-item-name {
+    font-size: 14px;
+    color: #fff;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.swap-inv-item-amount {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.swap-inv-detail-image {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.swap-inv-detail-img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    object-fit: contain;
+}
+
+.swap-inv-detail-placeholder {
+    font-size: 64px;
+    opacity: 0.3;
+}
+
+.swap-inv-detail-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    margin: 8px 0;
+    text-align: center;
+}
+
+.swap-inv-detail-amount {
+    font-size: 14px;
+    color: #00ff00;
+    margin: 4px 0 12px;
+    text-align: center;
+}
+
+.swap-inv-detail-desc {
+    font-size: 12px;
+    color: #ccc;
+    margin: 0;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.swap-inv-empty {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* CRAFTING UI - Modern Reactive */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.craft-container {
+    position: absolute;
+    top: 45%;
+    left: 55%;
+    transform: translate(-50%, -50%);
+    width: 85%;
+    max-width: 1100px;
+    height: 75vh;
+    background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
+    border: 3px solid var(--color-dirt-dark);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+    z-index: 1002;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.craft-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--color-dirt-dark);
+    background: rgba(0, 0, 0, 0.3);
+    gap: 10px;
+}
+
+.craft-tab-btn {
+    padding: 8px 16px;
+    background: #333;
+    border: 2px solid transparent;
+    color: #999;
+    font-weight: bold;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.craft-tab-btn:hover {
+    color: #fff;
+    background: #444;
+}
+
+.craft-tab-btn.craft-tab-active {
+    color: var(--color-gold);
+    background: rgba(255, 193, 7, 0.2);
+    border-color: var(--color-gold);
+}
+
+.craft-close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 28px;
+    padding: 0;
+    background: #d32f2f;
+    border: none;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: auto;
+    transition: background 0.2s;
+}
+
+.craft-close-btn:hover {
+    background: #f44336;
+}
+
+.craft-category-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    overflow-x: auto;
+    flex-wrap: wrap;
+}
+
+.craft-category-btn {
+    padding: 6px 14px;
+    background: #333;
+    border: 2px solid transparent;
+    color: #999;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.craft-category-btn:hover {
+    background: #444;
+    color: #fff;
+}
+
+.craft-category-btn.craft-category-active {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: #4caf50;
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.craft-search-input {
+    margin: 10px 16px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    transition: border 0.2s;
+}
+
+.craft-search-input:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 8px rgba(255, 193, 7, 0.3);
+}
+
+.craft-search-input::placeholder {
+    color: #666;
+}
+
+.craft-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.craft-column {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    overflow-y: auto;
+}
+
+.craft-recipe-list {
+    padding: 0;
+}
+
+.craft-recipe-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.craft-recipe-row:hover {
+    background: rgba(76, 175, 80, 0.2);
+    transform: translateX(4px);
+}
+
+.craft-recipe-row.selected {
+    background: rgba(76, 175, 80, 0.4);
+    border-left: 4px solid var(--color-gold);
+}
+
+.craft-recipe-image {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.craft-recipe-img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.craft-recipe-placeholder {
+    font-size: 24px;
+    opacity: 0.5;
+}
+
+.craft-recipe-name {
+    font-size: 14px;
+    color: #fff;
+    margin: 0;
+    flex: 1;
+}
+
+.craft-recipe-details {
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.craft-detail-image {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.craft-detail-img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    object-fit: contain;
+}
+
+.craft-detail-placeholder {
+    font-size: 64px;
+    opacity: 0.3;
+}
+
+.craft-detail-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    margin: 0 0 8px 0;
+    text-align: center;
+}
+
+.craft-detail-desc {
+    font-size: 13px;
+    color: #ccc;
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.craft-detail-ingredients-title {
+    font-size: 13px;
+    color: var(--color-gold);
+    font-weight: bold;
+    margin: 8px 0 6px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.craft-detail-ingredient {
+    font-size: 12px;
+    color: #4caf50;
+    margin: 4px 0;
+    padding: 4px 8px;
+    background: rgba(76, 175, 80, 0.1);
+    border-left: 2px solid rgba(76, 175, 80, 0.5);
+}
+
+.craft-detail-ingredient.craft-detail-missing {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+    border-left-color: #ff6b6b;
+}
+
+.craft-detail-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    border: none;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: all 0.2s;
+}
+
+.craft-detail-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.craft-detail-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.craft-detail-btn.craft-detail-btn-disabled {
+    background: #555;
+    color: #888;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.craft-empty {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+    margin: auto;
+}
