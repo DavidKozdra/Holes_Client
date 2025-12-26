@@ -235,7 +235,32 @@ function definePauseUI() {
     serverSelectButton = createButton("Disconnect");
     styleButton(serverSelectButton);
     serverSelectButton.mousePressed(() => {
-        location.reload();
+        // Save player data before disconnecting
+        if (curPlayer && socket && socket.connected) {
+            const playerData = {
+                invBlock: curPlayer.invBlock ? {
+                    items: curPlayer.invBlock.items || {},
+                    hotbar: curPlayer.invBlock.hotbar || ["","","","",""],
+                    selectedHotBar: curPlayer.invBlock.selectedHotBar || 0,
+                    equiped: curPlayer.invBlock.equiped || {}
+                } : null,
+                statBlock: curPlayer.statBlock || null,
+                pos: curPlayer.pos || null,
+                teamId: curPlayer.teamId || null,
+                race: curPlayer.race || null,
+                color: curPlayer.color || 0,
+                name: curPlayer.name || null
+            };
+            console.log('[Disconnect] Saving player data:', playerData);
+            socket.emit('save_player_state', playerData);
+            
+            // Small delay to ensure data is sent before reload
+            setTimeout(() => {
+                location.reload();
+            }, 100);
+        } else {
+            location.reload();
+        }
     });
     serverSelectButton.parent(pauseDiv);
 }

@@ -93,10 +93,121 @@ function socketSetup(){
         
     });
 
+    // Handle items response from server after requesting them
+    socket.on('receive_my_items', (data) => {
+        if (!curPlayer) return;
+        
+        console.log('[Items] Received response from server:', data.hasOldItems);
+        if (data.invBlock) {
+            console.log('[Items] Items to restore:', Object.keys(data.invBlock.items || {}));
+        }
+        
+        if (data.hasOldItems) {
+            console.log('[Items] Restoring old inventory - you are a returning player');
+            try {
+                // Restore position first
+                if (data.pos && typeof data.pos.x === 'number' && typeof data.pos.y === 'number') {
+                    curPlayer.pos.x = data.pos.x;
+                    curPlayer.pos.y = data.pos.y;
+                    camera.pos = createVector(data.pos.x, data.pos.y);
+                }
+                
+                // Restore stats
+                if (data.statBlock) {
+                    const sb = data.statBlock;
+                    if (curPlayer.statBlock && typeof curPlayer.statBlock.heal === 'function') {
+                        if (sb.race != null) curPlayer.statBlock.race = sb.race;
+                        if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
+                        if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
+                        if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
+                        if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                    } else {
+                        const health = (sb.stats && typeof sb.stats.hp === 'number') ? sb.stats.hp : undefined;
+                        const raceIndex = (typeof sb.race === 'number') ? sb.race : (typeof curPlayer.race === 'number' ? curPlayer.race : 0);
+                        curPlayer.statBlock = new StatBlock(raceIndex, health);
+                        if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
+                        if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
+                        if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
+                        if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                    }
+                }
+                
+                // Restore inventory - inventory is already empty from constructor
+                if (data.invBlock) {
+                    const inv = data.invBlock;
+                    const itemsIn = inv.items || {};
+                    const names = Object.keys(itemsIn);
+                    
+                    console.log(`[Items] About to restore ${names.length} items:`, names);
+                    
+                    for (let i = 0; i < names.length; i++) {
+                        const name = names[i];
+                        const rec = itemsIn[name];
+                        const amt = (rec && typeof rec.amount === 'number') ? rec.amount : (typeof rec === 'number' ? rec : 1);
+                        console.log(`[Items] Adding: ${name} x${amt}`);
+                        curPlayer.invBlock.addItem(name, amt, false);
+                        const inst = curPlayer.invBlock.items[name];
+                        if (rec && typeof rec === 'object') {
+                            if (typeof rec.durability === 'number') inst.durability = rec.durability;
+                            if (typeof rec.maxDurability === 'number') inst.maxDurability = rec.maxDurability;
+                        }
+                    }
+                    
+                    console.log(`[Items] Current inventory after restore:`, Object.keys(curPlayer.invBlock.items))
+                    
+                    // Restore hotbar
+                    if (Array.isArray(inv.hotbar)) {
+                        curPlayer.invBlock.hotbar = inv.hotbar.slice(0, 5);
+                        for (let i = 0; i < curPlayer.invBlock.hotbar.length; i++) {
+                            const key = curPlayer.invBlock.hotbar[i];
+                            if (!key || !curPlayer.invBlock.items[key]) curPlayer.invBlock.hotbar[i] = "";
+                        }
+                    }
+                    
+                    if (typeof inv.selectedHotBar === 'number') {
+                        curPlayer.invBlock.selectedHotBar = Math.max(0, Math.min(4, inv.selectedHotBar));
+                    }
+                    
+                    // Restore equipped items
+                    if (inv.equiped && typeof inv.equiped === 'object') {
+                        const eq = inv.equiped;
+                        const slots = ["head","neck","chest","legs","feet"];
+                        for (let i = 0; i < slots.length; i++) {
+                            const s = slots[i];
+                            const itemName = eq[s] || "";
+                            curPlayer.invBlock.equiped[s] = (itemName && curPlayer.invBlock.items[itemName]) ? itemName : "";
+                        }
+                    }
+                }
+                
+                // Restore team
+                if (data.teamId) {
+                    curPlayer.teamId = data.teamId;
+                }
+                
+                console.log('[Items] ✓ Old inventory restored successfully');
+            } catch (e) {
+                console.error('[Items] Failed to restore old inventory:', e);
+                // Fallback to starter kit on error
+                if (typeof giveDefaultItems === 'function') {
+                    giveDefaultItems();
+                }
+            }
+        } else {
+            // New player - give starter kit
+            console.log('[Items] You are a NEW player - giving starter kit');
+            if (typeof giveDefaultItems === 'function') {
+                giveDefaultItems();
+            }
+        }
+    });
+
     // Apply saved snapshot (inventory/statBlock/pos) when provided by server
     socket.on('PLAYER_SNAPSHOT', (data) => {
         if (!curPlayer) return;
         try {
+            let hasOldKit = false;
+            
             if (data.pos && typeof data.pos.x === 'number' && typeof data.pos.y === 'number') {
                 curPlayer.pos.x = data.pos.x;
                 curPlayer.pos.y = data.pos.y;
@@ -122,10 +233,16 @@ function socketSetup(){
                 }
             }
             if (data.invBlock) {
+                hasOldKit = true;
                 const inv = data.invBlock;
+                // Clear default items since we're restoring old kit
+                curPlayer.invBlock.items = {};
+                curPlayer.invBlock.hotbar = ["", "", "", "", ""];
+                curPlayer.invBlock.selectedHotBar = 0;
+                curPlayer.invBlock.equiped = { head: "", neck: "", chest: "", legs: "", feet: "" };
+                
                 // Hydrate plain item records into item instances
                 const itemsIn = inv.items || {};
-                curPlayer.invBlock.items = {};
                 const names = Object.keys(itemsIn);
                 for (let i = 0; i < names.length; i++) {
                     const name = names[i];
@@ -155,7 +272,6 @@ function socketSetup(){
                 // Apply equiped slots, validating presence
                 if (inv.equiped && typeof inv.equiped === 'object') {
                     const eq = inv.equiped;
-                    curPlayer.invBlock.equiped = curPlayer.invBlock.equiped || { head: "", neck: "", chest: "", legs: "", feet: "" };
                     const slots = ["head","neck","chest","legs","feet"];
                     for (let i = 0; i < slots.length; i++) {
                         const s = slots[i];
@@ -167,6 +283,14 @@ function socketSetup(){
             // Optionally update team
             if (data.teamId) {
                 curPlayer.teamId = data.teamId;
+            }
+            
+            // If no old kit was restored, give default items now
+            if (!hasOldKit && typeof giveDefaultItems === 'function') {
+                console.log('[Persistence] No old kit found for player - giving default items');
+                giveDefaultItems();
+            } else if (hasOldKit) {
+                console.log('[Persistence] Old kit restored for player');
             }
         } catch (e) {
             console.warn('Failed to apply PLAYER_SNAPSHOT', e);

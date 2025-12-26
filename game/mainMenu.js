@@ -956,10 +956,14 @@ function startGame() {
         }
     }
 
-    giveDefaultItems();
+    // DON'T give default items yet - wait for server to check if we need them
+    // Server will respond with old kit OR tell us to give starter kit
 
     document.getElementById("canvas-container").style.display = "block";
     socket.emit("new_player", curPlayer);
+
+    // Request items from server - it will restore old kit or tell us to give starter kit
+    socket.emit("request_my_items", { name: nameVal });
 
     // Request current teams list
     socket.emit("get_teams");
