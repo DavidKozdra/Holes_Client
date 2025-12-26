@@ -142,10 +142,6 @@ function updatePlayerRegen(player) {
     // Increase timer based on deltaTime (deltaTime is in ms, so divide by 1000 for seconds)
     player.regenTimer += deltaTime / 1000;
     
-    // Debug every 60 frames (about once per second)
-    if (frameCount % 60 === 0) {
-        console.log(`[REGEN DEBUG] Timer: ${player.regenTimer.toFixed(2)}/${player.regenInterval} | HP: ${player.statBlock.stats.hp}/${player.statBlock.stats.mhp} | healthRegen: ${player.statBlock.stats.healthRegen}`);
-    }
     
     // Only tick on interval (regenInterval is in seconds)
     if (player.regenTimer >= player.regenInterval) {
