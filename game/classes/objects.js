@@ -21,6 +21,29 @@ Obj Dic is a full dictanary of every object that can exist, falling into one of 
 
 var objDic = {};
 
+// Drop tables for AI entities (server-calculated on death)
+// chance: 0-1 probability, min/max inclusive amounts
+const ENTITY_DROP_TABLE = {
+    "Hostile Gnome": [
+        { item: "Rock", min: 2, max: 5, chance: 0.9 },
+        { item: "Tech", min: 1, max: 2, chance: 0.25 },
+        { item: "Gem", min: 1, max: 2, chance: 0.15 },
+        { item: "Black Gem", min: 1, max: 1, chance: 0.03 }
+    ],
+    "Wild Aylah": [
+        { item: "Gem", min: 1, max: 2, chance: 0.35 },
+        { item: "Tech", min: 1, max: 1, chance: 0.2 },
+        { item: "Philosopher's Stone", min: 1, max: 1, chance: 0.05 },
+        { item: "Fire Staff", min: 1, max: 1, chance: 0.02 }
+    ],
+    "Feral Skizzard": [
+        { item: "Mushroom", min: 2, max: 4, chance: 0.7 },
+        { item: "Bomb", min: 1, max: 2, chance: 0.15 },
+        { item: "Black Gem", min: 1, max: 1, chance: 0.05 },
+        { item: "Tech", min: 1, max: 1, chance: 0.1 }
+    ]
+};
+
 // ═══════════════════════════════════════════════════════════
 // CLASS DEFINITIONS - Must be defined before any usage below
 // ═══════════════════════════════════════════════════════════
@@ -455,12 +478,12 @@ function signUpdate() {
 }
 defineCustomObj("Sign", [[398, 111, 15, 18]], [["Log", 3]], 64, 64, 3, 100, signUpdate, false, true);
 
-defineEntity("Ant", [[141, 224, 17, 13], [159, 224, 17, 13]], [["Tech", 1]], 17 * 2, 13 * 2, 100, 10, 50, 60, 90, 5, 0, false);
+defineEntity("Ant", [[141, 224, 17, 13], [159, 224, 17, 13]], [["Tech", 1]], 17 * 2, 13 * 2, 100, 10, 50, 60, 90, 5, 0, false, "swarm");
 
 // Race-based AI Entities with ranged attacks
-defineEntity("Hostile Gnome", [[201, 161, 29, 29]], [], 66, 88, 120, 15, 200, 180, 90, 8, 0, true);
-defineEntity("Wild Aylah", [[201, 161, 29, 29]], [], 66, 88, 100, 20, 250, 220, 100, 5, 1, true);
-defineEntity("Feral Skizzard", [[201, 161, 29, 29]], [], 66, 88, 100, 12, 180, 150, 95, 6, 2, true);
+defineEntity("Hostile Gnome", [[201, 161, 29, 29]], [], 66, 88, 120, 15, 200, 180, 90, 8, 0, true, "aggressive");
+defineEntity("Wild Aylah", [[201, 161, 29, 29]], [], 66, 88, 100, 20, 250, 220, 100, 5, 1, true, "cautious");
+defineEntity("Feral Skizzard", [[201, 161, 29, 29]], [], 66, 88, 100, 12, 180, 150, 95, 6, 2, true, "territorial");
 
 // Validate entity definitions
 console.log('[Objects] Entity definitions loaded:');
@@ -1063,6 +1086,9 @@ class Entity extends Placeable {
         super(objName, x, y, w, h, rot, z, color, health, imgNum, id, ownerName, false);
         this.projName = projName;
 
+        this.personality = objDic[objName]?.personality || "default";
+        this.vision = objDic[objName]?.vision || 200;
+
         this.animationFrame = 0;
         this.currentFrame = 0;
         this.direction = 'down'; // Default direction: up, down, left, right
@@ -1078,24 +1104,32 @@ class Entity extends Placeable {
             this.statBlock.xp = xp;
         }
 
+        const attachBrain = (existingBrain) => {
+            existingBrain.giveBody(this);
+            existingBrain.vision = this.vision;
+            existingBrain.personality = this.personality;
+        };
+
         if (brainID == -1) {
-            testMap.brains.push(new Brain(200));
-            testMap.brains[testMap.brains.length - 1].giveBody(this);
+            const b = new Brain(this.vision, this.personality);
+            b.giveBody(this);
+            testMap.brains.push(b);
         }
         else {
             this.brainID = brainID;
             let found = false;
             for (let i = 0; i < testMap.brains.length; i++) {
                 if (brainID == testMap.brains[i].id) {
-                    testMap.brains[i].obj = this;
+                    attachBrain(testMap.brains[i]);
                     found = true;
                 }
             }
 
             if (!found) {
-                testMap.brains.push(new Brain(200));
-                testMap.brains[testMap.brains.length - 1].id = brainID;
-                testMap.brains[testMap.brains.length - 1].obj = this;
+                const b = new Brain(this.vision, this.personality);
+                b.id = brainID;
+                attachBrain(b);
+                testMap.brains.push(b);
             }
         }
     }
@@ -1333,6 +1367,20 @@ function createObject(name, x, y, rot, color, id, ownerName, brainID, level, xp)
     }
 }
 
+function rollEntityDrops(name){
+    const table = ENTITY_DROP_TABLE[name];
+    if(!table) return [];
+    const drops = [];
+    for(let i=0;i<table.length;i++){
+        const e = table[i];
+        if(Math.random() <= e.chance){
+            const amt = e.min === e.max ? e.min : Math.floor(Math.random() * (e.max - e.min + 1)) + e.min;
+            if(amt > 0) drops.push([e.item, amt]);
+        }
+    }
+    return drops;
+}
+
 //the most common parts of a define, so we don't have to keep editing all the defines
 function defineObjSuper(type, name, imgSrc, cost, width, height, zLevel, health, canRotate, inBuildList) {
     checkParams(arguments, getParamNames(defineObjSuper), ["string", "string", "object", "object", "int", "int", "int", "int", "boolean", "boolean"]);
@@ -1472,7 +1520,7 @@ function definePlant(name, imgNames, cost, width, height, health, growthRate, it
     objDic[name].itemDrop = itemDrop;
 }
 
-function defineEntity(name, imgNames, cost, width, height, health, damage, range, safeRange, angle, knockback, race, useRaceImages) {
+function defineEntity(name, imgNames, cost, width, height, health, damage, range, safeRange, angle, knockback, race, useRaceImages, personality) {
     defineObjSuper("Entity", name, imgNames, cost, width, height, 2, health, false, false);
 
     let paramNames = getParamNames(defineEntity);
@@ -1484,6 +1532,8 @@ function defineEntity(name, imgNames, cost, width, height, health, damage, range
 
     objDic[name].race = race !== undefined ? race : 0; // Default to gnome
     objDic[name].useRaceImages = !!useRaceImages;
+    objDic[name].personality = personality || "aggressive";
+    objDic[name].vision = Math.max(range * 1.5, 180);
     
     // Determine projectile type based on entity name
     if (name === "Hostile Gnome") {

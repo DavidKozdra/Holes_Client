@@ -340,6 +340,13 @@ function sendChatMessage() {
     chatInput.value("");
 }
 
+function formatChatTimestamp(rawTime) {
+    const pad = (n) => (n < 10 ? '0' + n : '' + n);
+    let d = rawTime ? new Date(rawTime) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Helper function to add a chat message to the messages box
 function addChatMessage(chatMsg) {
     if (!chatContainer) return
@@ -349,8 +356,7 @@ function addChatMessage(chatMsg) {
     if (!chatMsg.user) {
         chatMsg.user = "SERVER"
     }
-    // If your 'chatMsg' object doesn't have a time property, you can generate one:
-    const timeString = chatMsg.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeString = formatChatTimestamp(chatMsg.time);
 
     // Create a container for the entire message (text + time)
     let msgContainer = createDiv();

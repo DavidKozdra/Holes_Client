@@ -1,13 +1,24 @@
+const PERSONALITY_BEHAVIORS = {
+    aggressive: { visionMultiplier: 1.2, attackPlayers: true, attackEntities: true, taunts: ["Charge!", "For the clan!", "You're mine!"], cooldownMs: 6000 },
+    territorial: { visionMultiplier: 1.0, attackPlayers: false, attackEntities: true, taunts: ["Leave now!", "Trespasser!"], cooldownMs: 8000 },
+    cautious: { visionMultiplier: 0.9, attackPlayers: true, attackEntities: true, taunts: ["Keeping distance...", "I'll strike first."], cooldownMs: 9000 },
+    swarm: { visionMultiplier: 1.1, attackPlayers: true, attackEntities: true, taunts: ["Swarm!", "Bite bite bite!"], cooldownMs: 7000 },
+    default: { visionMultiplier: 1.0, attackPlayers: true, attackEntities: true, taunts: ["Spotted you."], cooldownMs: 8000 }
+};
+
 class Brain {
-    constructor(vision){
+    constructor(vision, personality){
         this.state = "Wander";
         this.target = null; //pos to chase
         this.targetEntity = null;
         this.stateTimer = 0;
         this.obj = null; //obj to move and stuff
         this.id = random(10000);
-        this.vision = vision;
+        this.personality = personality || "default";
+        const behavior = PERSONALITY_BEHAVIORS[this.personality] || PERSONALITY_BEHAVIORS.default;
+        this.vision = (vision || 200) * behavior.visionMultiplier;
         this.deleteTag = false;
+        this.lastChat = 0;
     }
 
     update(){
@@ -111,28 +122,57 @@ class Brain {
     findTarget(){
         if(this.obj == null) return;
         this.targetEntity = null;
-        
-        //sort players from closest to furthest
+        const behavior = PERSONALITY_BEHAVIORS[this.personality] || PERSONALITY_BEHAVIORS.default;
+
+        // Collect candidates: players and nearby entities
+        const candidates = [];
+
+        // Players
         let playerArray = Object.values(players);
-        playerArray.push(curPlayer);
+        if(curPlayer) playerArray.push(curPlayer);
+        for(let i = 0; i < playerArray.length; i++){
+            const p = playerArray[i];
+            if(!p || !p.pos || p.statBlock?.stats?.hp <= 0) continue;
+            candidates.push({ entity: p, isPlayer: true });
+        }
 
-        playerArray.sort((a, b) => {
-            let distA = this.obj.pos.dist(a.pos);
-            let distB = this.obj.pos.dist(b.pos);
-            return distA - distB;
-        });
-
-        playerArray.filter(player => {
-            return this.obj.pos.dist(player.pos) < this.vision;
-        });
-
-        for(let i=0; i<playerArray.length; i++){
-            if(this.canSee(playerArray[i].pos.x, playerArray[i].pos.y)){
-                if(this.targetEntity == null){
-                    this.targetEntity = playerArray[i];
-                    this.target = playerArray[i].pos;
-                    i = playerArray.length;
+        // Nearby entities (same and adjacent chunks)
+        const cPos = testMap.globalToChunk(this.obj.pos.x, this.obj.pos.y);
+        for(let dx = -1; dx <= 1; dx++){
+            for(let dy = -1; dy <= 1; dy++){
+                const key = (cPos.x + dx) + "," + (cPos.y + dy);
+                const chunk = testMap.chunks[key];
+                if(!chunk) continue;
+                for(let j = 0; j < chunk.objects.length; j++){
+                    const o = chunk.objects[j];
+                    if(!o || o === this.obj || o.deleteTag) continue;
+                    if(o.type === "Entity" && o.hp > 0){
+                        candidates.push({ entity: o, isPlayer: false });
+                    }
                 }
+            }
+        }
+
+        // Sort by distance to prefer closer targets
+        candidates.sort((a, b) => {
+            return this.obj.pos.dist(a.entity.pos) - this.obj.pos.dist(b.entity.pos);
+        });
+
+        for(let i = 0; i < candidates.length; i++){
+            const candidate = candidates[i];
+            const target = candidate.entity;
+            if(!target || !target.pos) continue;
+
+            // Personality rules
+            if(candidate.isPlayer && !behavior.attackPlayers) continue;
+            if(!candidate.isPlayer && !behavior.attackEntities) continue;
+            if(!candidate.isPlayer && !this.isHostileEntity(target)) continue;
+
+            if(this.canSee(target.pos.x, target.pos.y)){
+                this.targetEntity = target;
+                this.target = target.pos;
+                this.maybeTaunt(target, candidate.isPlayer);
+                break;
             }
         }
 
@@ -143,6 +183,32 @@ class Brain {
         if(this.obj == null) return false;
         //check if there are any objects imbetween this.obj and x,y
         return createVector(x,y).dist(this.obj.pos) < this.vision;
+    }
+
+    isHostileEntity(target){
+        if(!target || target === this.obj) return false;
+        if(target.type !== "Entity") return false;
+        if(target.objName && this.obj.objName && target.objName === this.obj.objName && target.race === this.obj.race) return false;
+        return true;
+    }
+
+    maybeTaunt(target, isPlayer){
+        if(!this.obj) return;
+        const behavior = PERSONALITY_BEHAVIORS[this.personality] || PERSONALITY_BEHAVIORS.default;
+        const now = Date.now();
+        if(now - this.lastChat < (behavior.cooldownMs || 8000)) return;
+
+        const lines = behavior.taunts || PERSONALITY_BEHAVIORS.default.taunts;
+        const line = lines[floor(random(lines.length))];
+        if(!line) return;
+
+        this.lastChat = now;
+        socket.emit("entity_chat", {
+            user: this.obj.objName || "Entity",
+            message: line,
+            pos: { x: this.obj.pos.x, y: this.obj.pos.y },
+            speakingRange: isPlayer ? 1.2 : 1
+        });
     }
 
     moveObjTowards(x,y,speed){
@@ -199,7 +265,19 @@ class Brain {
                 brainID: this.id
             });
 
-            let temp = createObject("Ant", this.obj.pos.x, this.obj.pos.y, 0, this.obj.color, this.obj.id, this.obj.ownerName, this.id);
+            // Preserve entity type/race when moving across chunks to avoid morphing into Ant
+            let temp = createObject(
+                this.obj.objName,
+                this.obj.pos.x,
+                this.obj.pos.y,
+                this.obj.rot,
+                this.obj.color,
+                this.obj.id,
+                this.obj.ownerName,
+                this.id,
+                this.obj.statBlock?.level,
+                this.obj.statBlock?.xp
+            );
             temp.hp = oldHp;
 
             let newChunk = testMap.chunks[newChunkPos.x+","+newChunkPos.y];
