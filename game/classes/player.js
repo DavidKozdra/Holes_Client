@@ -253,36 +253,109 @@ class Player {
 
         let oldPos = this.pos.copy();
 
-        this.pos.add(this.vel.mult(deltaTime/33));
-
-        // Handle collisions
-        let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
-        for (let j = 0; j < chunk.objects.length; j++) {
-            if (chunk.objects[j].z == 2) {
-
-                let d = chunk.objects[j].pos.dist(this.pos);
-                if (d * 2 < (chunk.objects[j].size.w + chunk.objects[j].size.h) / 2 + 29) {
-                    if (chunk.objects[j].objName == "Door") {
-                        if (chunk.objects[j].alpha == 255) {
+        // Apply movement with continuous collision detection
+        // Break large movements into smaller steps to prevent tunneling
+        let movement = this.vel.copy().mult(deltaTime/33);
+        const maxStepSize = TILESIZE * 0.25; // Maximum step size per iteration (smaller for dash/high stats)
+        const movementMag = movement.mag();
+        
+        if (movementMag > maxStepSize) {
+            // Break into smaller steps for fast movement
+            const steps = Math.ceil(movementMag / maxStepSize);
+            const stepVec = movement.copy().div(steps);
+            
+            for (let step = 0; step < steps; step++) {
+                let testPos = this.pos.copy().add(stepVec);
+                let collision = false;
+                
+                // Check collisions at test position
+                let testChunkPos = testMap.globalToChunk(testPos.x, testPos.y);
+                let testChunk = testMap.chunks[testChunkPos.x + "," + testChunkPos.y];
+                
+                if (testChunk) {
+                    // Check object collisions
+                    for (let j = 0; j < testChunk.objects.length; j++) {
+                        if (testChunk.objects[j].z == 2) {
+                            let d = testChunk.objects[j].pos.dist(testPos);
+                            if (d * 2 < (testChunk.objects[j].size.w + testChunk.objects[j].size.h) / 2 + 29) {
+                                if (testChunk.objects[j].objName == "Door") {
+                                    if (testChunk.objects[j].alpha == 255) {
+                                        collision = true;
+                                        break;
+                                    }
+                                } else {
+                                    collision = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Check wall collisions at test position
+                    if (!collision) {
+                        for (let i = 0; i < collisionChecks.length; i++) {
+                            let check = collisionChecks[i];
+                            if (check.val == -1) {
+                                collision = true;
+                                break;
+                            }
+                            if (check.val2 > 0 || check.iron_val2 > 0) {
+                                if (check.dir == "up" || check.dir == "down") {
+                                    if (createVector(check.x, testPos.y).dist(createVector(check.x, check.y)) < TILESIZE) {
+                                        collision = true;
+                                        break;
+                                    }
+                                }
+                                if (check.dir == "left" || check.dir == "right") {
+                                    if (createVector(testPos.x, check.y).dist(createVector(check.x, check.y)) < TILESIZE) {
+                                        collision = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Only apply movement if no collision
+                if (!collision) {
+                    this.pos = testPos;
+                } else {
+                    // Stop movement on collision
+                    break;
+                }
+            }
+        } else {
+            // Small movement - use original single-step logic
+            this.pos.add(movement);
+            
+            // Handle collisions
+            let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+            for (let j = 0; j < chunk.objects.length; j++) {
+                if (chunk.objects[j].z == 2) {
+                    let d = chunk.objects[j].pos.dist(this.pos);
+                    if (d * 2 < (chunk.objects[j].size.w + chunk.objects[j].size.h) / 2 + 29) {
+                        if (chunk.objects[j].objName == "Door") {
+                            if (chunk.objects[j].alpha == 255) {
+                                this.pos = oldPos;
+                            }
+                        } else {
                             this.pos = oldPos;
                         }
                     }
-                    else {
-                        this.pos = oldPos;
-                    }
                 }
             }
-        }
 
-        for (let i = 0; i < collisionChecks.length; i++) {
-            let check = collisionChecks[i];
-            if (check.val == -1) this.pos = oldPos;
-            if (check.val2 > 0 || check.iron_val2 > 0) {
-                if (check.dir == "up" || check.dir == "down") {
-                    if (createVector(check.x, this.pos.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.y = oldPos.y;
-                }
-                if (check.dir == "left" || check.dir == "right") {
-                    if (createVector(this.pos.x, check.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.x = oldPos.x;
+            for (let i = 0; i < collisionChecks.length; i++) {
+                let check = collisionChecks[i];
+                if (check.val == -1) this.pos = oldPos;
+                if (check.val2 > 0 || check.iron_val2 > 0) {
+                    if (check.dir == "up" || check.dir == "down") {
+                        if (createVector(check.x, this.pos.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.y = oldPos.y;
+                    }
+                    if (check.dir == "left" || check.dir == "right") {
+                        if (createVector(this.pos.x, check.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.x = oldPos.x;
+                    }
                 }
             }
         }
