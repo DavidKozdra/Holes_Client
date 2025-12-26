@@ -143,6 +143,7 @@ class StatBlock{
     }
 
     heal(amount) {
+        const oldHP = this.stats.hp;
         this.stats.hp = this.stats.hp + amount;
 
         if(this.stats.hp > this.stats.mhp) {
@@ -154,6 +155,13 @@ class StatBlock{
             spawnFloatingText(amount, curPlayer.pos.x, curPlayer.pos.y, "heal", false);
         }
 
+        // Dispatch health change event
+        if (typeof window !== 'undefined' && this.stats.hp !== oldHP) {
+            window.dispatchEvent(new CustomEvent('playerHealthChange', {
+                detail: { hp: this.stats.hp, mhp: this.stats.mhp, change: this.stats.hp - oldHP }
+            }));
+        }
+
         socket.emit("update_player", {
             id: curPlayer.id,
             pos: curPlayer.pos,
@@ -163,6 +171,28 @@ class StatBlock{
         });
     }
 
+    // Centralized method for taking damage
+    takeDamage(amount, isMagic = false) {
+        const oldHP = this.stats.hp;
+        let actualDamage = amount;
+        
+        // Apply magic resistance if this is magic damage
+        if (isMagic && this.stats.magicResistance) {
+            actualDamage = Math.max(1, amount - this.stats.magicResistance);
+        }
+        
+        this.stats.hp -= actualDamage;
+        
+        // Dispatch health change event
+        if (typeof window !== 'undefined' && this.stats.hp !== oldHP) {
+            window.dispatchEvent(new CustomEvent('playerHealthChange', {
+                detail: { hp: this.stats.hp, mhp: this.stats.mhp, change: -(actualDamage) }
+            }));
+        }
+        
+        return actualDamage;
+    }
+
     // Regenerate mana over time
     regenMana(amount) {
         this.stats.mp = Math.min(this.stats.mp + amount, this.stats.mmp);
@@ -170,6 +200,14 @@ class StatBlock{
 
     // Regenerate health over time
     regenHealth(amount) {
+        const oldHP = this.stats.hp;
         this.stats.hp = Math.min(this.stats.hp + amount, this.stats.mhp);
+        
+        // Dispatch health change event
+        if (typeof window !== 'undefined' && this.stats.hp !== oldHP) {
+            window.dispatchEvent(new CustomEvent('playerHealthChange', {
+                detail: { hp: this.stats.hp, mhp: this.stats.mhp, change: this.stats.hp - oldHP }
+            }));
+        }
     }
 }

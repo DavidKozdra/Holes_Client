@@ -159,7 +159,7 @@ function updatePlayerRegen(player) {
         console.log(`[HP CHECK] currentHP: ${currentHP}, mhp: ${mhp}, regenAmount: ${regenAmount}, needsHeal: ${currentHP < mhp}, hasRegen: ${regenAmount > 0}`);
         
         if (currentHP < mhp && regenAmount > 0) {
-            player.statBlock.stats.hp = Math.min(currentHP + regenAmount, mhp);
+            player.statBlock.regenHealth(regenAmount);
             console.log(`✅ Regenerated ${regenAmount} HP. Current HP: ${player.statBlock.stats.hp}/${mhp}`);
             // Sync with server
             socket.emit("update_player", {

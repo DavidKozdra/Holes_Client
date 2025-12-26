@@ -1185,6 +1185,16 @@ function defineRacePortrait() {
         }
     });
     
+    // Setup health event listener (once)
+    if (!window.healthEventListenerSetup) {
+        window.addEventListener('playerHealthChange', (event) => {
+            if (curPlayer && curPlayer.statBlock) {
+                updateHealthDisplay(event.detail.hp, event.detail.mhp);
+            }
+        });
+        window.healthEventListenerSetup = true;
+    }
+    
     racePortraitDiv.hide(); // Initially hidden until game starts
 }
 
@@ -1234,9 +1244,9 @@ function updateStatsPanel() {
         </div>
         <div style="margin-bottom: 10px; padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 5px;">
             <div style="margin: 5px 0;">
-                <strong style="color: #27f50e;">HP:</strong> ${Math.floor(stats.hp)} / ${Math.floor(stats.mhp)}
+                <strong style="color: #27f50e;">HP:</strong> <span id="hp-text">${Math.floor(stats.hp)} / ${Math.floor(stats.mhp)}</span>
                 <div style="width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 3px; overflow: hidden;">
-                    <div style="width: ${(stats.hp / stats.mhp) * 100}%; height: 100%; background: linear-gradient(90deg, #27f50e, #1a9e0a); transition: width 0.3s;"></div>
+                    <div id="hp-bar" style="width: ${(stats.hp / stats.mhp) * 100}%; height: 100%; background: linear-gradient(90deg, #27f50e, #1a9e0a); transition: width 0.3s;"></div>
                 </div>
             </div>
             <div style="margin: 5px 0;">
@@ -1261,6 +1271,19 @@ function updateStatsPanel() {
     `;
     
     statsPanel.html(html);
+}
+
+// Event-driven health update for stats panel
+function updateHealthDisplay(hp, mhp) {
+    const hpText = document.getElementById('hp-text');
+    const hpBar = document.getElementById('hp-bar');
+    
+    if (hpText) {
+        hpText.textContent = `${Math.floor(hp)} / ${Math.floor(mhp)}`;
+    }
+    if (hpBar) {
+        hpBar.style.width = `${(hp / mhp) * 100}%`;
+    }
 }
 
 

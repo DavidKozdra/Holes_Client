@@ -159,13 +159,9 @@ class SimpleProjectile{
                 tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
                 curPlayer.vel.add(tempV);
                 
-                // Apply magic resistance if this is magic damage
-                let actualDamage = this.damage;
-                if (this.isMagic && curPlayer.statBlock.stats.magicResistance) {
-                    actualDamage = Math.max(1, this.damage - curPlayer.statBlock.stats.magicResistance);
-                }
+                // Use centralized damage method
+                let actualDamage = curPlayer.statBlock.takeDamage(this.damage, this.isMagic);
                 
-                curPlayer.statBlock.stats.hp -= actualDamage;
                 // floating combat text for player damage
                 spawnFloatingText(actualDamage, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
                 camera.shake = {intensity: actualDamage, length: 5};
@@ -200,6 +196,7 @@ class MeleeProjectile extends SimpleProjectile{
             this.ringAngles.push([this.flightPath.a+ringOffset-(ringLength/2), this.flightPath.a+ringOffset+(ringLength/2)]);
         }
 
+        this.hitTargets = new Set(); // Track entities already hit
         this.type = "Melee";
     }
 
@@ -292,18 +289,64 @@ class MeleeProjectile extends SimpleProjectile{
         this.checkCollision();
     }
 
+    // Helper method to check if a point is inside the swing arc collision box
+    isPointInSwingArc(targetPos, targetRadius) {
+        // Calculate current sweep to match visual arc position
+        let tBase = 1 - (this.lifespan / this.initialLifespan);
+        let t = Math.min(1, tBase * 2);
+        let sweep = t * (this.angleWidth * 0.8);
+        
+        // Distance from swing origin to target
+        let d = targetPos.dist(this.pos);
+        
+        // Angle from swing origin to target
+        let targetAngle = targetPos.copy().sub(this.pos).heading();
+        
+        // Normalize angle to -PI to PI range
+        let normalizeAngle = (angle) => {
+            while (angle > PI) angle -= TWO_PI;
+            while (angle < -PI) angle += TWO_PI;
+            return angle;
+        };
+        
+        // Calculate the swept arc angles
+        let arcStartAngle = normalizeAngle((this.flightPath.a - (this.angleWidth / 2)) + sweep);
+        let arcEndAngle = normalizeAngle((this.flightPath.a + (this.angleWidth / 2)) + sweep);
+        targetAngle = normalizeAngle(targetAngle);
+        
+        // Check if angle is within the arc (handle wrap-around)
+        let angleInArc;
+        if (arcStartAngle <= arcEndAngle) {
+            angleInArc = targetAngle >= arcStartAngle && targetAngle <= arcEndAngle;
+        } else {
+            // Arc wraps around -PI/PI boundary
+            angleInArc = targetAngle >= arcStartAngle || targetAngle <= arcEndAngle;
+        }
+        
+        // Check radial bounds (inner safe range to outer max range)
+        let innerRadius = this.safeRange;
+        let outerRadius = this.safeRange + this.range;
+        
+        // Account for target radius in collision
+        let distanceInRange = (d + targetRadius >= innerRadius) && (d - targetRadius <= outerRadius);
+        
+        return angleInArc && distanceInRange;
+    }
+
     checkCollision(){
         let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
 
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2 || chunk.objects[j].z == 0){
+                // Create unique identifier for this object
+                let objId = chunk.cx + "," + chunk.cy + "," + j;
+                if(this.hitTargets.has(objId)) continue; // Already hit this target
                 
-                let d = chunk.objects[j].pos.dist(this.pos);
-                if(d-29 < (this.range)+this.safeRange && d+29 > this.safeRange && 
-                    chunk.objects[j].pos.copy().sub(this.pos).heading() > this.flightPath.a-(this.angleWidth/2) &&
-                    chunk.objects[j].pos.copy().sub(this.pos).heading() < this.flightPath.a+(this.angleWidth/2)
-                ){
+                // Use proper collision box detection
+                let objRadius = (chunk.objects[j].size.w + chunk.objects[j].size.h) / 4;
+                if(this.isPointInSwingArc(chunk.objects[j].pos, objRadius)){
+                    this.hitTargets.add(objId); // Mark as hit
                     //play hit noise and tell server
                     let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                     testMap.chunks[chunk.cx+","+chunk.cy].soundObjs.push(temp);
@@ -311,51 +354,42 @@ class MeleeProjectile extends SimpleProjectile{
                     damageObj(chunk, chunk.objects[j], this.damage);
                     
                     scareBrain(chunk.objects[j].brainID, this);
-
-                    this.deleteTag = true;
-                    socket.emit("delete_proj", this);
                 }
             }
         }
 
         //check collision with curPlayer
         if((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color){
-            let d = curPlayer.pos.dist(this.pos);
-            if(d-5 < (this.range)+this.safeRange && d+64 > this.safeRange && 
-                curPlayer.pos.copy().sub(this.pos).heading() > this.flightPath.a-(this.angleWidth/2) &&
-                curPlayer.pos.copy().sub(this.pos).heading() < this.flightPath.a+(this.angleWidth/2)
-            ){
-                let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-                //play hit noise and tell server
-                let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
-                socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
-                let tempV = createVector(this.knockback,0);
-                tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
-                curPlayer.vel.add(tempV);
-                curPlayer.attackingOBJ = this;
-                
-                // Apply magic resistance if this is magic damage
-                let actualDamage = this.damage;
-                if (this.isMagic && curPlayer.statBlock.stats.magicResistance) {
-                    actualDamage = Math.max(1, this.damage - curPlayer.statBlock.stats.magicResistance);
+            if(!this.hitTargets.has("player")){ // Check if player already hit
+                // Use proper collision box detection with player hitbox radius
+                let playerRadius = 30; // Standard player hitbox size
+                if(this.isPointInSwingArc(curPlayer.pos, playerRadius)){
+                    this.hitTargets.add("player"); // Mark player as hit
+                    let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
+                    //play hit noise and tell server
+                    let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
+                    testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                    socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
+                    let tempV = createVector(this.knockback,0);
+                    tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
+                    curPlayer.vel.add(tempV);
+                    curPlayer.attackingOBJ = this;
+                    
+                    // Use centralized damage method
+                    let actualDamage = curPlayer.statBlock.takeDamage(this.damage, this.isMagic);
+                    
+                    // floating combat text for player damage
+                    spawnFloatingText(actualDamage, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
+                    camera.shake = {intensity: actualDamage, length: 5};
+                    camera.edgeBlood = 5;
+                    socket.emit("update_player", {
+                        id: curPlayer.id,
+                        pos: curPlayer.pos,
+                        holding: curPlayer.holding,
+                        update_names: ["stats.hp"],
+                        update_values: [curPlayer.statBlock.stats.hp]
+                    });
                 }
-                
-                curPlayer.statBlock.stats.hp -= actualDamage;
-                // floating combat text for player damage
-                spawnFloatingText(actualDamage, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
-                camera.shake = {intensity: actualDamage, length: 5};
-                camera.edgeBlood = 5;
-                socket.emit("update_player", {
-                    id: curPlayer.id,
-                    pos: curPlayer.pos,
-                    holding: curPlayer.holding,
-                    update_names: ["stats.hp"],
-                    update_values: [curPlayer.statBlock.stats.hp]
-                });
-                
-                this.deleteTag = true;
-                socket.emit("delete_proj", this);
             }
         }
     }

@@ -918,9 +918,14 @@ update() {
 
             // apply damage
             if (t.statBlock && t.statBlock.stats) {
-                t.statBlock.stats.hp -= this.damage;
-                // floating combat text for entity/player damage from trap
-                spawnFloatingText(this.damage, t.pos.x, t.pos.y, "damage", false);
+                // Use centralized damage method for players
+                if (t === curPlayer) {
+                    let actualDamage = t.statBlock.takeDamage(this.damage, false);
+                    spawnFloatingText(actualDamage, t.pos.x, t.pos.y, "damage", false);
+                } else {
+                    t.statBlock.stats.hp -= this.damage;
+                    spawnFloatingText(this.damage, t.pos.x, t.pos.y, "damage", false);
+                }
             } else {
                 t.hp -= this.damage;
                 // floating combat text for object damage from trap
