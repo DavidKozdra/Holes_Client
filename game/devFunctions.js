@@ -143,3 +143,46 @@ function spawnObj(name, x, y, rot = 0, color = 0, id = "", ownerName = ""){
         obj: temp
     });
 }
+
+// Test function to spawn all race entities at origin
+function spawnRaceEntities() {
+    console.log("Spawning race entities at origin...");
+    
+    // Spawn Hostile Gnome at 0,0
+    let gnomeEntity = createObject("Hostile Gnome", 0, 0, 0, 0, "", "", -1, 1, 0);
+    let gnomeChunk = testMap.globalToChunk(0, 0);
+    testMap.chunks[gnomeChunk.x + "," + gnomeChunk.y].objects.push(gnomeEntity);
+    testMap.chunks[gnomeChunk.x + "," + gnomeChunk.y].objects.sort((a,b) => a.z - b.z);
+    socket.emit("new_object", { cx: gnomeChunk.x, cy: gnomeChunk.y, obj: gnomeEntity });
+    
+    // Spawn Wild Aylah at 100,0
+    let aylahEntity = createObject("Wild Aylah", 100, 0, 0, 0, "", "", -1, 1, 0);
+    let aylahChunk = testMap.globalToChunk(100, 0);
+    testMap.chunks[aylahChunk.x + "," + aylahChunk.y].objects.push(aylahEntity);
+    testMap.chunks[aylahChunk.x + "," + aylahChunk.y].objects.sort((a,b) => a.z - b.z);
+    socket.emit("new_object", { cx: aylahChunk.x, cy: aylahChunk.y, obj: aylahEntity });
+    
+    // Spawn Feral Skizzard at 200,0
+    let skizzardEntity = createObject("Feral Skizzard", 200, 0, 0, 0, "", "", -1, 1, 0);
+    let skizzardChunk = testMap.globalToChunk(200, 0);
+    testMap.chunks[skizzardChunk.x + "," + skizzardChunk.y].objects.push(skizzardEntity);
+    testMap.chunks[skizzardChunk.x + "," + skizzardChunk.y].objects.sort((a,b) => a.z - b.z);
+    socket.emit("new_object", { cx: skizzardChunk.x, cy: skizzardChunk.y, obj: skizzardEntity });
+    
+    console.log("Race entities spawned! Use teleportToChunk(0,0) to see them.");
+}
+
+// Helper function to go see the race entities
+function goToRaceEntities() {
+    console.log("Teleporting to race entities near spawn...");
+    curPlayer.pos.x = 200;
+    curPlayer.pos.y = 200;
+    camera.pos.x = 200;
+    camera.pos.y = 200;
+    socket.emit("update_pos", {
+        id: curPlayer.id,
+        pos: curPlayer.pos,
+        holding: curPlayer.holding
+    });
+    console.log("✅ At spawn area! Look around for Hostile Gnome, Wild Aylah, Feral Skizzard, and Ant.");
+}

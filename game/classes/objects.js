@@ -455,7 +455,19 @@ function signUpdate() {
 }
 defineCustomObj("Sign", [[398, 111, 15, 18]], [["Log", 3]], 64, 64, 3, 100, signUpdate, false, true);
 
-defineEntity("Ant", [[141, 224, 17, 13], [159, 224, 17, 13]], [["Tech", 1]], 17 * 2, 13 * 2, 100, 10, 50, 60, 90, 5);
+defineEntity("Ant", [[141, 224, 17, 13], [159, 224, 17, 13]], [["Tech", 1]], 17 * 2, 13 * 2, 100, 10, 50, 60, 90, 5, 0, false);
+
+// Race-based AI Entities with ranged attacks
+defineEntity("Hostile Gnome", [[201, 161, 29, 29]], [], 66, 88, 120, 15, 200, 180, 90, 8, 0, true);
+defineEntity("Wild Aylah", [[201, 161, 29, 29]], [], 66, 88, 100, 20, 250, 220, 100, 5, 1, true);
+defineEntity("Feral Skizzard", [[201, 161, 29, 29]], [], 66, 88, 100, 12, 180, 150, 95, 6, 2, true);
+
+// Validate entity definitions
+console.log('[Objects] Entity definitions loaded:');
+console.log('  - Ant:', objDic["Ant"] !== undefined, 'race:', objDic["Ant"]?.race);
+console.log('  - Hostile Gnome:', objDic["Hostile Gnome"] !== undefined, 'race:', objDic["Hostile Gnome"]?.race);
+console.log('  - Wild Aylah:', objDic["Wild Aylah"] !== undefined, 'race:', objDic["Wild Aylah"]?.race);
+console.log('  - Feral Skizzard:', objDic["Feral Skizzard"] !== undefined, 'race:', objDic["Feral Skizzard"]?.race);
 
 var teamColors = [
     { r: 128, g: 128, b: 128 }, //Gray - No Team
@@ -1047,15 +1059,18 @@ class InvObj extends Placeable {
 }
 
 class Entity extends Placeable {
-    constructor(objName, x, y, w, h, rot, z, color, health, imgNum, id, ownerName, projName, brainID, level, xp) {
+    constructor(objName, x, y, w, h, rot, z, color, health, imgNum, id, ownerName, projName, brainID, level, xp, race) {
         super(objName, x, y, w, h, rot, z, color, health, imgNum, id, ownerName, false);
         this.projName = projName;
 
         this.animationFrame = 0;
         this.currentFrame = 0;
+        this.direction = 'down'; // Default direction: up, down, left, right
+        this.race = race !== undefined ? race : 0; // Default to gnome
+        this.useRaceImages = objDic[objName]?.useRaceImages || false;
         
-        // Add stat block for AI entities - use race 0 (gnome) as default
-        this.statBlock = new StatBlock(0, health);
+        // Add stat block for AI entities - use race parameter
+        this.statBlock = new StatBlock(this.race, health);
         if (level !== undefined) {
             this.statBlock.level = level;
         }
@@ -1150,23 +1165,93 @@ class Entity extends Placeable {
         }
         this.offset.add(this.offVel);
 
-        translate(-camera.pos.x + (width / 2) + this.pos.x + this.offset.x, -camera.pos.y + (height / 2) + this.pos.y + this.offset.y);
-        rotate(this.rot);
-        if (t == "green") tint(100, 200, 100, 100);
-        if (t == "red") tint(200, 100, 100, 100);
-        if (this.alpha < 255) tint(255, this.alpha);
-        image(objImgs[this.imgNum][floor(this.currentFrame)], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
+        // Convert rotation to direction for animation
+        let angle = (this.rot * 180 / PI + 360) % 360;
+        if (angle >= 315 || angle < 45) {
+            this.direction = 'right';
+        } else if (angle >= 45 && angle < 135) {
+            this.direction = 'down';
+        } else if (angle >= 135 && angle < 225) {
+            this.direction = 'left';
+        } else {
+            this.direction = 'up';
+        }
+
+        // Ensure animation frame index is finite
+        if (!isFinite(this.currentFrame)) this.currentFrame = 0;
+
+        // Use race images if flagged, otherwise fall back to objImgs
+        let raceName = races[this.race];
+        if (this.useRaceImages && raceImages[raceName]) {
+            translate(-camera.pos.x + (width / 2) + this.pos.x + this.offset.x, -camera.pos.y + (height / 2) + this.pos.y + this.offset.y);
+            if (t == "green") tint(100, 200, 100, 100);
+            if (t == "red") tint(200, 100, 100, 100);
+            if (this.alpha < 255) tint(255, this.alpha);
+            
+            // Select the correct image based on direction and frame
+            let imageToRender;
+            if (this.direction === 'up') {
+                imageToRender = raceImages[raceName]?.back?.[floor(this.currentFrame)];
+            } else if (this.direction === 'down') {
+                imageToRender = raceImages[raceName]?.front?.[floor(this.currentFrame)];
+            } else if (this.direction === 'left') {
+                imageToRender = raceImages[raceName]?.left?.[floor(this.currentFrame)];
+            } else if (this.direction === 'right') {
+                imageToRender = raceImages[raceName]?.right?.[floor(this.currentFrame)];
+            }
+            // Fallback: if missing frames, revert to objImgs
+            if (!imageToRender) {
+                console.warn('[Entity render] Missing race image for', raceName, 'dir', this.direction, 'frame', floor(this.currentFrame), 'fallback to objImgs');
+                const frames = objImgs[this.imgNum];
+                if (!frames || frames.length === 0) {
+                    console.error('[Entity render] No objImgs frames for', this.objName, 'imgNum', this.imgNum);
+                    pop();
+                    this.finishRenderBars(t);
+                    return;
+                }
+                const fIdx = floor(this.currentFrame) % frames.length;
+                image(frames[fIdx], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
+                pop();
+                this.finishRenderBars(t);
+                return;
+            }
+            
+            // Draw the entity's image (same size as player)
+            image(imageToRender, -33.2, -44.2, 66.2, 88.3, 0, 0, 29, 29);
+        } else {
+            // Fallback to old rendering method if race images not available
+            translate(-camera.pos.x + (width / 2) + this.pos.x + this.offset.x, -camera.pos.y + (height / 2) + this.pos.y + this.offset.y);
+            rotate(this.rot);
+            if (t == "green") tint(100, 200, 100, 100);
+            if (t == "red") tint(200, 100, 100, 100);
+            if (this.alpha < 255) tint(255, this.alpha);
+            const frames = objImgs[this.imgNum];
+            if (!frames || frames.length === 0) {
+                console.error('[Entity render] No objImgs frames for', this.objName, 'imgNum', this.imgNum);
+                pop();
+                this.finishRenderBars(t);
+                return;
+            }
+            const fIdx = floor(this.currentFrame) % frames.length;
+            image(frames[fIdx], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
+        }
         pop();
 
+        this.finishRenderBars(t);
+
+        // Update animation frame (use 4 frames like player instead of 2)
+        this.animationFrame += (1 / 7);
+        this.currentFrame = 1 + (this.animationFrame) % 4;
+        if (this.currentFrame >= 4) this.currentFrame = 2;
+    }
+
+    finishRenderBars(t){
         // Render name tag
         this.renderNameTag();
 
         if (this.hp < this.mhp) {
             this.renderHealthBar();
         }
-
-        this.animationFrame += (1 / 7);
-        this.currentFrame = (this.animationFrame) % 2;
     }
 
     renderNameTag() {
@@ -1240,7 +1325,7 @@ function createObject(name, x, y, rot, color, id, ownerName, brainID, level, xp)
             return new CustomObj(name, x, y, objDic[name].w, objDic[name].h, rot, objDic[name].z, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].update, objDic[name].canRotate);
         }
         else if (objDic[name].type == "Entity") {
-            return new Entity(name, x, y, objDic[name].w, objDic[name].h, rot, objDic[name].z, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].projName, brainID, level, xp);
+            return new Entity(name, x, y, objDic[name].w, objDic[name].h, rot, objDic[name].z, color, objDic[name].hp, objDic[name].img, id, ownerName, objDic[name].projName, brainID, level, xp, objDic[name].race);
         }
         else {
             throw new Error(`Object type: ${objDic[name].type}, does not exist.`);
@@ -1387,7 +1472,7 @@ function definePlant(name, imgNames, cost, width, height, health, growthRate, it
     objDic[name].itemDrop = itemDrop;
 }
 
-function defineEntity(name, imgNames, cost, width, height, health, damage, range, safeRange, angle, knockback) {
+function defineEntity(name, imgNames, cost, width, height, health, damage, range, safeRange, angle, knockback, race, useRaceImages) {
     defineObjSuper("Entity", name, imgNames, cost, width, height, 2, health, false, false);
 
     let paramNames = getParamNames(defineEntity);
@@ -1397,9 +1482,21 @@ function defineEntity(name, imgNames, cost, width, height, health, damage, range
         ["number", "number", "number", "number", "number"]
     );
 
-    objDic[name].projName = name + " Slash"
-
-    defineMeleeProjectile(name + " Slash", 0, range, safeRange, angle, damage, knockback, 0.5, false);
+    objDic[name].race = race !== undefined ? race : 0; // Default to gnome
+    objDic[name].useRaceImages = !!useRaceImages;
+    
+    // Determine projectile type based on entity name
+    if (name === "Hostile Gnome") {
+        objDic[name].projName = "Gnome Shot";
+    } else if (name === "Wild Aylah") {
+        objDic[name].projName = "Aylah Blast";
+    } else if (name === "Feral Skizzard") {
+        objDic[name].projName = "Skizzard Bolt";
+    } else {
+        // Default to melee attack for other entities like Ant
+        objDic[name].projName = name + " Slash";
+        defineMeleeProjectile(name + " Slash", 0, range, safeRange, angle, damage, knockback, 0.5, false);
+    }
 }
 
 /**

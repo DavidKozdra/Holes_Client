@@ -10,6 +10,12 @@ defineSimpleProjectile("Dirt", 1, 20, 0, 30, "Straight", 5, 10, false);
 defineSimpleProjectile("Fire Ball", 2, 20, 30, 30, "Screw", 5, 10, true);
 defineSimpleProjectile("Laser", 3, 20, 25, 10, "Straight", 10, 10, true);
 defineSimpleProjectile("Arrow", 4, 20, 20, 20, "Straight", 7, 10, false);
+
+// Race entity projectiles
+defineSimpleProjectile("Gnome Shot", 0, 18, 15, 15, "Straight", 6, 8, false);
+defineSimpleProjectile("Aylah Blast", 2, 20, 20, 10, "Screw", 7, 10, true);
+defineSimpleProjectile("Skizzard Bolt", 4, 15, 12, 18, "Straight", 8, 9, false);
+
 defineObjProjectile("Bomb", "PlacedBomb", 40, 5, 2);
 defineObjProjectile("Dirt Bomb", "dirt", 40, 5, 2);
 

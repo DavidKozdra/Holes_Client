@@ -602,6 +602,10 @@ function socketSetup(){
     });
 
     socket.on("NEW_OBJECT", (data) => {
+        // Only log entities
+        if(data.obj.brainID !== undefined) {
+            console.log('[Client] NEW_OBJECT received:', data.obj.objName, 'at chunk', data.cx + ',' + data.cy, 'race:', data.obj.race, 'brainID:', data.obj.brainID);
+        }
         let chunk = testMap.chunks[data.cx+","+data.cy];
         if(chunk != undefined){
             let temp = createObject(data.obj.objName, data.obj.pos.x, data.obj.pos.y, data.obj.rot, data.obj.color, data.obj.id, data.obj.ownerName, data.obj.brainID);
@@ -618,6 +622,9 @@ function socketSetup(){
             }
             if(temp.objName == "Sign"){
                 temp.txt = data.obj.txt;
+            }
+            if(temp.brainID !== undefined) {
+                console.log('[Client] ✅ Created ENTITY:', temp.objName, 'with race:', temp.race, 'direction:', temp.direction, 'brainID:', temp.brainID);
             }
             chunk.objects.push(temp);
             chunk.objects.sort((a,b) => a.z - b.z);
@@ -724,6 +731,7 @@ function socketSetup(){
     });
 
     socket.on("GIVE_CHUNK", (data) => {
+        console.log('[Client] GIVE_CHUNK received for chunk', data.x + ',' + data.y, 'with', data.objects.length, 'objects');
         testMap.chunks[data.x+","+data.y] = new Chunk(data.x, data.y);
         let keys = Object.keys(data.data);
         for(let i=0; i<keys.length; i++) testMap.chunks[data.x+","+data.y].data[keys[i]] = data.data[keys[i]];
@@ -731,6 +739,10 @@ function socketSetup(){
         for(let i=0; i<keys.length; i++) testMap.chunks[data.x+","+data.y].iron_data[keys[i]] = data.iron_data[keys[i]];
         testMap.chunkBools[data.x+","+data.y] = true;
         for(let i=0; i<data.objects.length; i++){
+            // Only log entities with brainID
+            if(data.objects[i].brainID !== undefined) {
+                console.log('[Client] Processing ENTITY from chunk:', data.objects[i].objName, 'race:', data.objects[i].race, 'brainID:', data.objects[i].brainID, 'at', data.objects[i].pos.x, data.objects[i].pos.y);
+            }
             let temp = createObject(
                 data.objects[i].objName, 
                 data.objects[i].pos.x, 
@@ -774,6 +786,11 @@ function socketSetup(){
                 temp.txt = data.objects[i].txt;
             }
             temp.hp = data.objects[i].hp;
+            
+            // Only log entities
+            if(temp.brainID !== undefined) {
+                console.log('[Client] ✅ Created ENTITY from server data:', temp.objName, 'race:', temp.race, 'brainID:', temp.brainID, 'at', temp.pos.x, temp.pos.y);
+            }
 
             testMap.chunks[data.x+","+data.y].objects.push(temp);
             testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.pos.y - b.pos.y);

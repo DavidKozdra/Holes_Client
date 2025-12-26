@@ -48,28 +48,40 @@ class Brain {
 
     chase(){
         //Move towards target
-        if(this.obj.pos.dist(this.target) > projDic[this.obj.projName].sr){
-            this.moveObjTowards(this.target.x,this.target.y,6);
+        let projType = projDic[this.obj.projName];
+        let isRanged = projType && projType.type === "SimpleProj";
+        let attackRange = isRanged ? projType.r * 6 : projType.sr; // Ranged entities attack from 6x projectile radius
+        
+        if(this.obj.pos.dist(this.target) > attackRange){
+            this.moveObjTowards(this.target.x,this.target.y, isRanged ? 4 : 6); // Ranged moves slower
         }
-        else{ //if close enough spawn melee projectile and switch to space
+        else{ //if close enough spawn projectile and switch to space
             let chunkPos = testMap.globalToChunk(this.obj.pos.x, this.obj.pos.y);
-            let toTarget = createVector(this.target.x,this.target.y).sub(this.obj.pos).setMag(50);
-            let proj = createProjectile(this.obj.projName, this.obj.objName, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading());
-            if(testMap.chunks[chunkPos.x+','+chunkPos.y] != undefined){
-                testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(
-                    proj
-                );
-                //tell the server you made a projectile
-                socket.emit("new_proj", proj);
-    
-                let temp = new SoundObj("swing.wav", this.obj.pos.x, this.obj.pos.y);
-                testMap.chunks[chunkPos.x+','+chunkPos.y].soundObjs.push(temp);
-                socket.emit("new_sound", {sound: "swing.wav", cPos: chunkPos, pos: {x: this.obj.pos.x, y: this.obj.pos.y}, id: temp.id});
+            let toTarget = createVector(this.target.x,this.target.y).sub(this.obj.pos);
+            
+            if(isRanged) {
+                // Ranged projectile - fire straight at target
+                let proj = createProjectile(this.obj.projName, this.obj.objName, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading());
+                if(testMap.chunks[chunkPos.x+','+chunkPos.y] != undefined){
+                    testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(proj);
+                    socket.emit("new_proj", proj);
+                }
+            } else {
+                // Melee projectile - swing attack
+                toTarget.setMag(50);
+                let proj = createProjectile(this.obj.projName, this.obj.objName, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading());
+                if(testMap.chunks[chunkPos.x+','+chunkPos.y] != undefined){
+                    testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(proj);
+                    socket.emit("new_proj", proj);
+        
+                    let temp = new SoundObj("swing.wav", this.obj.pos.x, this.obj.pos.y);
+                    testMap.chunks[chunkPos.x+','+chunkPos.y].soundObjs.push(temp);
+                    socket.emit("new_sound", {sound: "swing.wav", cPos: chunkPos, pos: {x: this.obj.pos.x, y: this.obj.pos.y}, id: temp.id});
+                }
             }
 
             this.stateTimer = 0;
             this.state = "Space";
-
         }
     }
 
@@ -141,7 +153,26 @@ class Brain {
         if(testMap.chunks[oldChunkPos.x+","+oldChunkPos.y].data[xTile + yTile * CHUNKSIZE] > 0){
             speed = speed/2;
         }
-        this.obj.pos.add(createVector(x,y).sub(this.obj.pos).setMag(speed*(deltaTime/30)));
+        
+        // Calculate movement vector and update rotation
+        let moveVec = createVector(x,y).sub(this.obj.pos);
+        this.obj.rot = moveVec.heading();
+        
+        // Update direction for entities with race (for animation)
+        if (this.obj.direction !== undefined) {
+            let angle = (this.obj.rot * 180 / PI + 360) % 360;
+            if (angle >= 315 || angle < 45) {
+                this.obj.direction = 'right';
+            } else if (angle >= 45 && angle < 135) {
+                this.obj.direction = 'down';
+            } else if (angle >= 135 && angle < 225) {
+                this.obj.direction = 'left';
+            } else {
+                this.obj.direction = 'up';
+            }
+        }
+        
+        this.obj.pos.add(moveVec.setMag(speed*(deltaTime/30)));
 
         socket.emit("update_obj", {
             cx: oldChunkPos.x, cy: oldChunkPos.y,

@@ -526,12 +526,12 @@ class Player {
         this.animationType = anim;
     }
 
-    // Activate dash ability
+    // Activate dash ability`
     // Dash mechanic: Hold Shift while moving to dash
     // - Costs: 20 mana
     // - Speed: 2.5x normal movement speed
     // - Duration: 0.5 seconds (15 frames)
-    // - Cooldown: 2 seconds (60 frames)
+    // - Cooldown: 2 seconds (60 frames)`
     // - Requirements: Must be moving and have enough mana
     activateDash() {
         // Check if can dash (not on cooldown, has mana, is moving)
