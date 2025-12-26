@@ -740,8 +740,22 @@ function setupRaceSelectionUI() {
         // Retrieve stats from BASE_STATS (assumes the same order as races)
         let raceStats = BASE_STATS[i];
         // Build a text string for only the allowed stats
+     
+        // Color mapping for stats (matching stats panel colors)
+        const statColors = {
+            "hp": "#27f50e",
+            "mhp": "#27f50e",
+            "healthRegen": "#99ff99",
+            "attack": "#ff6666",
+            "magic": "#9966ff",
+            "magicResistance": "#66ccff",
+            "hearing": "#ffaa00",
+            "runningSpeed": "#66ffcc"
+        };
+        
+        // Build color-coded stats HTML
         let statsText = allowedStats
-            .map(stat => `${stat}: ${raceStats[stat]}`)
+            .map(stat => `<span style="color: ${statColors[stat] || '#fff'};">${stat}: ${raceStats[stat]}</span>`)
             .join(" <br/><br/> ");
 
         // Create a label for the stats
