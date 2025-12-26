@@ -132,10 +132,17 @@ function dig(x, y, amt, playerDiging, rayStart) {
         const dx = targetX - startX;
         const dy = targetY - startY;
         const len = sqrt(dx * dx + dy * dy);
+        const dirX = len !== 0 ? dx / len : 0;
+        const dirY = len !== 0 ? dy / len : 0;
+        const offset = 20;
         const shorten = 30; // shorten further so the tool sprite is clear
-        const endX = len > shorten ? startX + (dx / len) * (len - shorten) : targetX;
-        const endY = len > shorten ? startY + (dy / len) * (len - shorten) : targetY;
-        line(startX, startY, endX, endY);
+        const usableLen = max(0, len - offset);
+        const drawnLen = usableLen > shorten ? usableLen - shorten : usableLen;
+        const startXOffset = startX + dirX * offset;
+        const startYOffset = startY + dirY * offset;
+        const endX = startXOffset + dirX * drawnLen;
+        const endY = startYOffset + dirY * drawnLen;
+        line(startXOffset, startYOffset, endX, endY);
         pop();
 
         // Shovel swing arc near the player
@@ -388,10 +395,17 @@ function mine(x, y, amt, playerDiging, rayStart) {
         const dx = targetX - startX;
         const dy = targetY - startY;
         const len = sqrt(dx * dx + dy * dy);
+        const dirX = len !== 0 ? dx / len : 0;
+        const dirY = len !== 0 ? dy / len : 0;
+        const offset = 20;
         const shorten = 30; // shorten further so the tool sprite is clear
-        const endX = len > shorten ? startX + (dx / len) * (len - shorten) : targetX;
-        const endY = len > shorten ? startY + (dy / len) * (len - shorten) : targetY;
-        line(startX, startY, endX, endY);
+        const usableLen = max(0, len - offset);
+        const drawnLen = usableLen > shorten ? usableLen - shorten : usableLen;
+        const startXOffset = startX + dirX * offset;
+        const startYOffset = startY + dirY * offset;
+        const endX = startXOffset + dirX * drawnLen;
+        const endY = startYOffset + dirY * drawnLen;
+        line(startXOffset, startYOffset, endX, endY);
         pop();
 
         // Impact clarity: sparks + shards (no circles)

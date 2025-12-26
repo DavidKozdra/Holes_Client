@@ -149,15 +149,11 @@ function updatePlayerRegen(player) {
     
     // Only tick on interval (regenInterval is in seconds)
     if (player.regenTimer >= player.regenInterval) {
-        console.log(`[REGEN TICK] Timer reached! Checking conditions...`);
-        
-        // --- HP Regen ---
+
         let mhp = player.statBlock.stats.mhp || 100;
         let currentHP = player.statBlock.stats.hp;
         let regenAmount = player.statBlock.stats.healthRegen || 0;
-        
-        console.log(`[HP CHECK] currentHP: ${currentHP}, mhp: ${mhp}, regenAmount: ${regenAmount}, needsHeal: ${currentHP < mhp}, hasRegen: ${regenAmount > 0}`);
-        
+
         if (currentHP < mhp && regenAmount > 0) {
             player.statBlock.regenHealth(regenAmount);
             console.log(`✅ Regenerated ${regenAmount} HP. Current HP: ${player.statBlock.stats.hp}/${mhp}`);
@@ -169,10 +165,7 @@ function updatePlayerRegen(player) {
                 update_names: ["stats.hp"],
                 update_values: [player.statBlock.stats.hp]
             });
-        } else {
-            console.log(`❌ HP regen skipped - Full health or no regen stat`);
-        }
-
+        } 
         // --- MP Regen ---
         let mmp = player.statBlock.stats.mmp || 100;
         if (player.statBlock.stats.mp < mmp) {
@@ -192,7 +185,6 @@ function updatePlayerRegen(player) {
 
         // Reset timer
         player.regenTimer = 0;
-        console.log(`[REGEN] Timer reset`);
     }
 }
 
