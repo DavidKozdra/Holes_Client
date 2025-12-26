@@ -139,7 +139,7 @@ function updatePlayerRegen(player) {
         // --- HP Regen ---
         let mhp = player.statBlock.stats.mhp || 100;
         if (player.statBlock.stats.hp < mhp) {
-            let regenAmount = (player.statBlock.stats.regen || 0) ;
+            let regenAmount = (player.statBlock.stats.healthRegen || 0) ;
             player.statBlock.stats.hp = Math.min(player.statBlock.stats.hp + regenAmount, mhp);
         }
 
@@ -219,7 +219,7 @@ function draw() {
 
             curPlayer.render();
             curPlayer.update();
-            if(renderGhost){
+            if(renderGhost && ghostBuild){
                 ghostBuild.pos.x = mouseX + camera.pos.x - width / 2;
                 ghostBuild.pos.y = mouseY + camera.pos.y - height / 2;
                 

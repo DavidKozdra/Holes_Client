@@ -21,6 +21,31 @@ Obj Dic is a full dictanary of every object that can exist, falling into one of 
 
 var objDic = {};
 
+// ═══════════════════════════════════════════════════════════
+// CLASS DEFINITIONS - Must be defined before any usage below
+// ═══════════════════════════════════════════════════════════
+
+var teamColors = [
+    { r: 128, g: 128, b: 128 }, //Gray - No Team
+    { r: 255, g: 0, b: 0 }, //Red
+    { r: 0, g: 0, b: 255 }, //Blue
+    { r: 0, g: 255, b: 0 }, //Green
+    { r: 0, g: 255, b: 255 }, //Cyan
+    { r: 255, g: 255, b: 0 }, //Yellow
+    { r: 255, g: 0, b: 255 }, //Magenta
+    { r: 0, g: 128, b: 0 }, //Dark-Green
+    { r: 255, g: 128, b: 0 }, //Orange
+    { r: 128, g: 0, b: 255 }, //Purple
+    { r: 255, g: 128, b: 225 }, //Pink
+    { r: 127, g: 63, b: 0 }, //Brown
+]
+
+// Classes will be inserted here by search/replace
+
+// ═══════════════════════════════════════════════════════════
+// OBJECT DEFINITIONS - Uses classes defined above
+// ═══════════════════════════════════════════════════════════
+
 definePlaceable("Campfire", ['campfire.gif'], [["Log", 2]], 16 * 4, 16 * 4, 1, 100, false, true);
 definePlaceable("Portal", ['portal.gif'], [["Philosopher's Stone", 1], ["Tech", 2], ["Metal", 3]], 128 + 64, 128 + 64, 3, 100, false, true);
 
@@ -1374,7 +1399,7 @@ function defineEntity(name, imgNames, cost, width, height, health, damage, range
 
     objDic[name].projName = name + " Slash"
 
-    defineMeleeProjectile(name + " Slash", 0, range, safeRange, angle, damage, knockback, 0.5);
+    defineMeleeProjectile(name + " Slash", 0, range, safeRange, angle, damage, knockback, 0.5, false);
 }
 
 /**

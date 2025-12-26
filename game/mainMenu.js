@@ -383,7 +383,8 @@ function renderServerBrowser() {
                 socket = io.connect(getServerUrl(selectedServer));
                 socketSetup();
                 testMap = new Map();
-                ghostBuild = createObject("Wall", 0, 0, 0, 0, " ", " ");
+                // ghostBuild will be created later when needed in input.js
+                ghostBuild = null;
                 hideServerBrowser();
                 gameState = "race_selection";
                 renderedserverBrowserContainer = false;
@@ -697,7 +698,7 @@ function setupRaceSelectionUI() {
     // ---------------------------------------------------
     //  Create cards for each race (with responsive sizing)
     // Allowed stats to display
-    const allowedStats = ["hp", "mhp", "regen", "attack", "magic", "magicResistance", "hearing"];
+    const allowedStats = ["hp", "mhp", "healthRegen", "attack", "magic", "magicResistance", "hearing", "runningSpeed"];
 
     // Iterate over each race in the races array
     races.forEach((raceName, i) => {

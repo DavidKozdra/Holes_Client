@@ -444,7 +444,7 @@ class Seed extends SimpleItem{
 
     use(x,y,mouseButton){
         //doesnt wait for useTimer, because it needs space to be placed
-        if(ghostBuild.openBool && renderGhost){
+        if(ghostBuild && ghostBuild.openBool && renderGhost){
             let chunkPos = testMap.globalToChunk(x,y);
             let temp = createObject(this.plantName, ghostBuild.pos.x, ghostBuild.pos.y, ghostBuild.rot, curPlayer.color, curPlayer.id, curPlayer.name);
             testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(temp);
@@ -637,7 +637,7 @@ function defineMelee(name,imgPaths, cost, weight, durability, damage, knockback,
     itemDic[name].swingSpeed = swingSpeed;
     itemDic[name].magicBool = magicBool;
 
-    defineMeleeProjectile(name+" Slash", 0, range, safeRange, angle, damage, knockback, 0.5);
+    defineMeleeProjectile(name+" Slash", 0, range, safeRange, angle, damage, knockback, 0.5, magicBool);
 }
 
 /**

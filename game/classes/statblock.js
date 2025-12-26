@@ -3,7 +3,7 @@ const BASE_STATS = [
         "name": "gnome",
         "hp": 100,
         "mhp": 100,
-        "regen": 0.2,
+        "healthRegen": 0.2,
         "attack": 2,
         "magic": 1,
         "mp": 100,
@@ -16,13 +16,13 @@ const BASE_STATS = [
         "Fear": 1,
         "powerLevel": 1,
         "handDigSpeed": 0.05,
-        "runningSpeed": 1,
+        "runningSpeed": 1.3,
         "growth": {
             "hp": 10,
             "mhp": 10,
             "attack": 2,
             "magic": 0.5,
-            "regen": 0.05,
+            "healthRegen": 0.05,
             "mp": 1,
             "mmp": 1,
             "magicResistance": 0.2,
@@ -34,15 +34,15 @@ const BASE_STATS = [
         "name": "aylah",
         "hp": 100,
         "mhp": 100,
-        "regen": 0.1,
+        "healthRegen": 0.1,
         "attack": 1,
         "magic": 5,
         "mp": 150,
         "mmp": 150,
-        "magicResistance": 10,
+        "magicResistance": 5,
         "luck": 1,
         "credit": 1,
-        "hearing": 10,
+        "hearing": 5,
         "speakingRange": 1,
         "Fear": 1,
         "powerLevel": 1,
@@ -53,10 +53,10 @@ const BASE_STATS = [
             "mhp": 5,
             "attack": 0.5,
             "magic": 2,
-            "regen": 0.02,
+            "healthRegen": 0.02,
             "mp": 20,
             "mmp": 20,
-            "magicResistance": 0.5,
+            "magicResistance": 0.25,
             "luck": 0.5,
             "runningSpeed":.2
         }
@@ -65,7 +65,7 @@ const BASE_STATS = [
         "name": "skizzard",
         "hp": 100,
         "mhp": 100,
-        "regen": 0.5,
+        "healthRegen": 0.5,
         "attack": 1,
         "magic": 1,
         "mp": 100,
@@ -78,13 +78,13 @@ const BASE_STATS = [
         "Fear": 2,
         "powerLevel": 1,
         "handDigSpeed": 0.08,
-        "runningSpeed": 1,
+        "runningSpeed": 1.2,
         "growth": {
             "hp": 8,
             "mhp": 8,
             "attack": 0.5,
             "magic": 0.5,
-            "regen": 0.05,
+            "healthRegen": 0.05,
             "mp": 10,
             "mmp": 10,
             "magicResistance": 0.1,
@@ -156,5 +156,10 @@ class StatBlock{
             update_names: ["stats.hp"],
             update_values: [this.stats.hp]
         });
+    }
+
+    // Regenerate mana over time
+    regenMana(amount) {
+        this.stats.mp = Math.min(this.stats.mp + amount, this.stats.mmp);
     }
 }

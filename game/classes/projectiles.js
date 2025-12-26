@@ -5,19 +5,20 @@ Proj Dic is a full dictanary of every projectile that can exist, falling into on
 */
 var projDic = {};
 
-defineSimpleProjectile("Rock", 0, 20, 18, 20, "Straight", 5, 10);
-defineSimpleProjectile("Dirt", 1, 20, 0, 30, "Straight", 5, 10);
-defineSimpleProjectile("Fire Ball", 2, 20, 30, 30, "Screw", 5, 10);
-defineSimpleProjectile("Laser", 3, 20, 25, 10, "Straight", 10, 10);
-defineSimpleProjectile("Arrow", 4, 20, 20, 20, "Straight", 7, 10);
+defineSimpleProjectile("Rock", 0, 20, 18, 20, "Straight", 5, 10, false);
+defineSimpleProjectile("Dirt", 1, 20, 0, 30, "Straight", 5, 10, false);
+defineSimpleProjectile("Fire Ball", 2, 20, 30, 30, "Screw", 5, 10, true);
+defineSimpleProjectile("Laser", 3, 20, 25, 10, "Straight", 10, 10, true);
+defineSimpleProjectile("Arrow", 4, 20, 20, 20, "Straight", 7, 10, false);
 defineObjProjectile("Bomb", "PlacedBomb", 40, 5, 2);
 defineObjProjectile("Dirt Bomb", "dirt", 40, 5, 2);
 
 class SimpleProjectile{
-    constructor(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum){
+    constructor(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic){
         this.name = name;
         this.damage = damage;
         this.knockback = knockback;
+        this.isMagic = isMagic || false; // Is this magic damage?
         this.flightPath = flightPath;
         //this.flightPath.l = 1;
         this.pos = this.flightPath.calc(0);
@@ -142,8 +143,15 @@ class SimpleProjectile{
                 let tempV = createVector(this.knockback,0);
                 tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
                 curPlayer.vel.add(tempV);
-                curPlayer.statBlock.stats.hp -= this.damage;
-                camera.shake = {intensity: this.damage, length: 5};
+                
+                // Apply magic resistance if this is magic damage
+                let actualDamage = this.damage;
+                if (this.isMagic && curPlayer.statBlock.stats.magicResistance) {
+                    actualDamage = Math.max(1, this.damage - curPlayer.statBlock.stats.magicResistance);
+                }
+                
+                curPlayer.statBlock.stats.hp -= actualDamage;
+                camera.shake = {intensity: actualDamage, length: 5};
                 camera.edgeBlood = 5;
                 curPlayer.attackingOBJ = this;
                 socket.emit("update_player", {
@@ -159,8 +167,8 @@ class SimpleProjectile{
 }
 
 class MeleeProjectile extends SimpleProjectile{
-    constructor(name, damage, knockback, x,y,a, lifespan, range, safeRange, angleWidth, ownerName, color, imgNum){
-        super(name, damage, knockback, createFlightPath("Stay", x,y,a), 0, lifespan, ownerName, color, imgNum);
+    constructor(name, damage, knockback, x,y,a, lifespan, range, safeRange, angleWidth, ownerName, color, imgNum, isMagic){
+        super(name, damage, knockback, createFlightPath("Stay", x,y,a), 0, lifespan, ownerName, color, imgNum, isMagic);
         
         this.range = range;
         this.safeRange = safeRange;
@@ -264,8 +272,15 @@ class MeleeProjectile extends SimpleProjectile{
                 tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
                 curPlayer.vel.add(tempV);
                 curPlayer.attackingOBJ = this;
-                curPlayer.statBlock.stats.hp -= this.damage;
-                camera.shake = {intensity: this.damage, length: 5};
+                
+                // Apply magic resistance if this is magic damage
+                let actualDamage = this.damage;
+                if (this.isMagic && curPlayer.statBlock.stats.magicResistance) {
+                    actualDamage = Math.max(1, this.damage - curPlayer.statBlock.stats.magicResistance);
+                }
+                
+                curPlayer.statBlock.stats.hp -= actualDamage;
+                camera.shake = {intensity: actualDamage, length: 5};
                 camera.edgeBlood = 5;
                 socket.emit("update_player", {
                     id: curPlayer.id,
@@ -418,10 +433,10 @@ function createProjectile(name,owner,color, x,y,a){
         throw new Error(`Projectile with name: ${name}, does not exist`);
     }
     if(projDic[name].type == "SimpleProj"){
-        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x,y,a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum);
+        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x,y,a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic);
     }
     if(projDic[name].type == "MeleeProj"){
-        return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x,y,a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum);
+        return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x,y,a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum, projDic[name].isMagic);
     }
     if(projDic[name].type == "ObjProj"){
         return new ObjProj(name, x,y,a, projDic[name].speed, projDic[name].lifespan, projDic[name].objName, projDic[name].r, owner, color);
@@ -429,8 +444,8 @@ function createProjectile(name,owner,color, x,y,a){
 }
 
 
-function defineSimpleProjectile(name,imgNum,radius,damage,knockback,flightPathName,speed,lifespan){
-    checkParams(arguments, getParamNames(defineSimpleProjectile), ["string","int","int","int","int","string","int","number"]);
+function defineSimpleProjectile(name,imgNum,radius,damage,knockback,flightPathName,speed,lifespan,isMagic){
+    checkParams(arguments, getParamNames(defineSimpleProjectile), ["string","int","int","int","int","string","int","number","boolean"]);
     projDic[name] = {
         type: "SimpleProj",
         name: name,
@@ -440,12 +455,13 @@ function defineSimpleProjectile(name,imgNum,radius,damage,knockback,flightPathNa
         knockback: knockback,
         fpn: flightPathName,
         speed: speed,
-        lifespan: lifespan
+        lifespan: lifespan,
+        isMagic: isMagic || false
     };
 }
 
-function defineMeleeProjectile(name,imgNum,range,safeRange,angleWidth,damage,knockback,lifespan){
-    checkParams(arguments, getParamNames(defineMeleeProjectile), ["string","int","int","int","int","int","int","number"]);
+function defineMeleeProjectile(name,imgNum,range,safeRange,angleWidth,damage,knockback,lifespan,isMagic){
+    checkParams(arguments, getParamNames(defineMeleeProjectile), ["string","int","int","int","int","int","int","number","boolean"]);
     projDic[name] = {
         type: "MeleeProj",
         name: name,
@@ -455,7 +471,8 @@ function defineMeleeProjectile(name,imgNum,range,safeRange,angleWidth,damage,kno
         aw: angleWidth,
         damage: damage,
         knockback: knockback,
-        lifespan: lifespan
+        lifespan: lifespan,
+        isMagic: isMagic || false
     };
 }
 

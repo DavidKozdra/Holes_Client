@@ -342,7 +342,7 @@ input:focus {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.3s ease;
   font-size: 1em;
-
+  min-width: 300px;
   border: #222 2px solid;
 }
 

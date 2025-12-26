@@ -40,6 +40,15 @@ class Player {
         this.regenInterval = 3 
 
         this.attackingOBJ = {}
+
+        // Dash mechanic properties
+        this.isDashing = false;
+        this.dashTimer = 0;
+        this.dashDuration = 15; // frames (0.5 seconds at 30fps)
+        this.dashCooldown = 0;
+        this.dashCooldownMax = 60; // frames (2 seconds at 30fps)
+        this.dashSpeedMultiplier = 2.5; // How much faster during dash
+        this.dashManaCost = 20; // Mana cost per dash
     }
 
     newCollisionPoint(xOffset, yOffset, direction) {
@@ -181,20 +190,34 @@ class Player {
 
         this.moving = (this.holding.w || this.holding.a || this.holding.s || this.holding.d);
 
+        // Update dash state
+        if (this.isDashing) {
+            this.dashTimer--;
+            if (this.dashTimer <= 0) {
+                this.isDashing = false;
+            }
+        }
+        if (this.dashCooldown > 0) {
+            this.dashCooldown--;
+        }
+
+        // Calculate speed multiplier based on dash state
+        let speedMultiplier = this.isDashing ? this.dashSpeedMultiplier : 1;
+
         if (this.holding.w) {
-            this.vel.y += -BASE_SPEED * this.statBlock.stats.runningSpeed*(deltaTime/30); //*(2*deltaTime/frameRate()) removed while frameRate() is low
+            this.vel.y += -BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
             this.direction = 'up';
         }
         if (this.holding.a) {
-            this.vel.x += -BASE_SPEED * this.statBlock.stats.runningSpeed*(deltaTime/30); //*(2*deltaTime/frameRate()) removed while frameRate() is low
+            this.vel.x += -BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
             this.direction = 'left';
         }
         if (this.holding.s) {
-            this.vel.y += BASE_SPEED * this.statBlock.stats.runningSpeed*(deltaTime/30); //*(2*deltaTime/frameRate()) removed while frameRate() is low
+            this.vel.y += BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
             this.direction = 'down';
         }
         if (this.holding.d) {
-            this.vel.x += BASE_SPEED * this.statBlock.stats.runningSpeed*(deltaTime/30); //*(2*deltaTime/frameRate()) removed while frameRate() is low
+            this.vel.x += BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
             this.direction = 'right';
         }
 
@@ -295,6 +318,43 @@ class Player {
         // Move relative to the camera
         translate(-camera.pos.x + width / 2, -camera.pos.y + height / 2);
 
+        // Draw dash effect if dashing
+        if (this.isDashing) {
+            push();
+            // Pulsing glow effect
+            let glowSize = 80 + Math.sin(frameCount * 0.5) * 10;
+            fill(100, 200, 255, 50);
+            noStroke();
+            ellipse(this.pos.x, this.pos.y, glowSize, glowSize);
+            
+            // Speed lines in direction of movement
+            stroke(100, 200, 255, 150);
+            strokeWeight(2);
+            let lineLength = 30;
+            if (this.direction === 'right') {
+                for (let i = 0; i < 3; i++) {
+                    line(this.pos.x - lineLength - i*10, this.pos.y + (i-1)*8, 
+                         this.pos.x - 10 - i*10, this.pos.y + (i-1)*8);
+                }
+            } else if (this.direction === 'left') {
+                for (let i = 0; i < 3; i++) {
+                    line(this.pos.x + 10 + i*10, this.pos.y + (i-1)*8, 
+                         this.pos.x + lineLength + i*10, this.pos.y + (i-1)*8);
+                }
+            } else if (this.direction === 'up') {
+                for (let i = 0; i < 3; i++) {
+                    line(this.pos.x + (i-1)*8, this.pos.y + lineLength + i*10, 
+                         this.pos.x + (i-1)*8, this.pos.y + 10 + i*10);
+                }
+            } else if (this.direction === 'down') {
+                for (let i = 0; i < 3; i++) {
+                    line(this.pos.x + (i-1)*8, this.pos.y - 10 - i*10, 
+                         this.pos.x + (i-1)*8, this.pos.y - lineLength - i*10);
+                }
+            }
+            pop();
+        }
+
         // Decide how far above the character we want the label
         // For a "larger z" effect, increase this from 40 to e.g. 60 or 80
         const yOffset = 60;
@@ -391,5 +451,42 @@ class Player {
             case "put": { this.animationFrame = 4; } break;
         }
         this.animationType = anim;
+    }
+
+    // Activate dash ability
+    // Dash mechanic: Hold Shift while moving to dash
+    // - Costs: 20 mana
+    // - Speed: 2.5x normal movement speed
+    // - Duration: 0.5 seconds (15 frames)
+    // - Cooldown: 2 seconds (60 frames)
+    // - Requirements: Must be moving and have enough mana
+    activateDash() {
+        // Check if can dash (not on cooldown, has mana, is moving)
+        if (this.dashCooldown <= 0 && 
+            !this.isDashing && 
+            this.statBlock.stats.mp >= this.dashManaCost &&
+            this.moving) {
+            
+            // Consume mana
+            this.statBlock.stats.mp -= this.dashManaCost;
+            
+            // Activate dash
+            this.isDashing = true;
+            this.dashTimer = this.dashDuration;
+            this.dashCooldown = this.dashCooldownMax;
+            
+            // Emit to server
+            socket.emit("update_player", {
+                id: this.id,
+                pos: this.pos,
+                holding: this.holding,
+                update_names: ["stats.mp"],
+                update_values: [this.statBlock.stats.mp]
+            });
+            
+            console.log('[Dash] Activated! MP:', this.statBlock.stats.mp);
+            return true;
+        }
+        return false;
     }
 }

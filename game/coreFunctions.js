@@ -31,6 +31,11 @@ function checkParams(inputs, inputNames, checks){
                 throw new TypeError(`${inputNames[i]} is not of type int, ${inputs[i]} was passed as ${inputNames[i]}`);
             }
         }
+        else if(checks[i] == "boolean"){
+            if(typeof inputs[i] !== "boolean" && inputs[i] !== undefined){
+                throw new TypeError(`${inputNames[i]} is not of type boolean, ${inputs[i]} was passed as ${inputNames[i]}`);
+            }
+        }
         else{
             if(typeof inputs[i] != checks[i]){
                 throw new TypeError(`${inputNames[i]} is not of type ${checks[i]}, ${inputs[i]} was passed as ${inputNames[i]}`);

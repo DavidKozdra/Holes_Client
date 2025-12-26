@@ -688,6 +688,11 @@ function continousKeyBoardInput() {
         if (keyIsDown(Controls_move_Down_code)) curPlayer.holding.s = true; // S
         if (keyIsDown(Controls_move_Right_code)) curPlayer.holding.d = true; // D
 
+        // Dash key (Shift = 16)
+        if (keyIsDown(16)) {
+            curPlayer.activateDash();
+        }
+
         if (
             lastHolding.w !== curPlayer.holding.w ||
             lastHolding.a !== curPlayer.holding.a ||

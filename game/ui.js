@@ -1236,6 +1236,54 @@ function renderPlayerCardUI() {
         stroke(0, 255, 255);
         text("Mana:", width - 530 + 6 + 30, 100);
     }
+    
+    // Dash cooldown indicator - Boot icon
+    push();
+    let bootX = width - 530 + 6 + 30;
+    let bootY = 125; // Moved lower
+    
+    if (curPlayer.dashCooldown > 0) {
+        // Cooldown - show grayed out boot with cooldown overlay
+        let cooldownPercent = curPlayer.dashCooldown / curPlayer.dashCooldownMax;
+        
+        // Boot icon placeholder (replace with sprite: bootIcon)
+        fill(80, 80, 80);
+        stroke(60, 60, 60);
+        strokeWeight(2);
+        rect(bootX, bootY - 8, 16, 16, 2);
+        
+        // Cooldown overlay
+        fill(255, 100, 100, 150);
+        noStroke();
+        rect(bootX, bootY - 8, 16, 16 * cooldownPercent, 2);
+        
+    } else if (curPlayer.isDashing) {
+        // Dashing - bright glowing boot
+        fill(100, 255, 100);
+        stroke(200, 255, 200);
+        strokeWeight(3);
+        rect(bootX, bootY - 8, 16, 16, 2);
+    } else if (curPlayer.statBlock.stats.mp < curPlayer.dashManaCost) {
+        // Not enough mana - red/dark boot
+        fill(100, 30, 30);
+        stroke(150, 50, 50);
+        strokeWeight(2);
+        rect(bootX, bootY - 8, 16, 16, 2);
+        
+        // X mark or low mana indicator
+        stroke(200, 50, 50);
+        strokeWeight(2);
+        line(bootX + 4, bootY - 4, bootX + 12, bootY + 4);
+        line(bootX + 12, bootY - 4, bootX + 4, bootY + 4);
+    } else {
+        // Ready - normal boot icon
+        fill(150, 255, 150);
+        stroke(100, 200, 100);
+        strokeWeight(2);
+        rect(bootX, bootY - 8, 16, 16, 2);
+    }
+    pop();
+    
     //fill with team color
     let displayColor = teamColors[curPlayer.color];
     if (curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {
