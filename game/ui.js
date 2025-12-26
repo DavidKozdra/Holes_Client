@@ -143,6 +143,9 @@ let chatRendered = false;
 let toggleChatButton; // Button to collapse/expand chat
 let inputContainer;   // Reference to hide/show input container
 let isChatOpen = true; // Track whether the chat is currently open or collapsed
+let unreadChatCount = 0; // Track number of unread messages
+let chatNotificationBadge; // Badge element for unread count
+let lastReadTimestamp = Date.now(); // Track when user last viewed chat
 
 function renderChatUI() {
     if (chatRendered) return;
@@ -180,7 +183,29 @@ function renderChatUI() {
     toggleChatButton.style("cursor", "pointer");
     toggleChatButton.style("margin-bottom", "5px");
     toggleChatButton.style("padding", "6px");
+    toggleChatButton.style("position", "relative");
     toggleChatButton.mousePressed(toggleChatDropdown);
+
+    // Create notification badge for unread messages
+    chatNotificationBadge = createDiv("0");
+    chatNotificationBadge.parent(toggleChatButton);
+    chatNotificationBadge.style("position", "absolute");
+    chatNotificationBadge.style("top", "-8px");
+    chatNotificationBadge.style("right", "-8px");
+    chatNotificationBadge.style("background", "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)");
+    chatNotificationBadge.style("color", "#fff");
+    chatNotificationBadge.style("border-radius", "50%");
+    chatNotificationBadge.style("min-width", "22px");
+    chatNotificationBadge.style("height", "22px");
+    chatNotificationBadge.style("display", "none");
+    chatNotificationBadge.style("align-items", "center");
+    chatNotificationBadge.style("justify-content", "center");
+    chatNotificationBadge.style("font-size", "11px");
+    chatNotificationBadge.style("font-weight", "bold");
+    chatNotificationBadge.style("box-shadow", "0 2px 8px rgba(255, 68, 68, 0.6)");
+    chatNotificationBadge.style("border", "2px solid #fff");
+    chatNotificationBadge.style("pointer-events", "none");
+    chatNotificationBadge.style("animation", "badgePulse 2s ease-in-out infinite");
 
     // Update the button text immediately on creation
     updateToggleChatButtonText();
@@ -267,6 +292,8 @@ function toggleChatDropdown() {
         // Show the messages box and input
         chatMessagesBox.show();
         inputContainer.show();
+        // Mark all messages as read when opening chat
+        markChatAsRead();
     }
     isChatOpen = !isChatOpen;
     // Update the button text after toggling
@@ -286,16 +313,26 @@ function updateToggleChatButtonText() {
     // Set arrow and text depending on state
     const arrow = isChatOpen ? "▼" : "▲";
     toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
+    
+    // Re-append the badge after updating HTML
+    if (chatNotificationBadge) {
+        chatNotificationBadge.parent(toggleChatButton);
+    }
+    updateChatNotificationBadge();
 }
 
 // Function to update the player count display when players change
 function updatePlayerCount() {
-
     const playerCount = Object.keys(players).length + 1;
-
     const arrow = isChatOpen ? "▼" : "▲";
-    if (toggleChatButton != undefined) toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
-
+    if (toggleChatButton != undefined) {
+        toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
+        // Re-append the badge after updating HTML
+        if (chatNotificationBadge) {
+            chatNotificationBadge.parent(toggleChatButton);
+        }
+        updateChatNotificationBadge();
+    }
 }
 
 // Function to send a chat message via socket
@@ -317,27 +354,15 @@ function sendChatMessage() {
 
     // Clear the input after sending
     chatInput.value("");
-}
-
-
-// Function to send a chat message via socket
-function sendChatMessage() {
-    let message = chatInput.value();
-    if (message.trim() === "") return; // Avoid sending empty messages
-
-    // Retrieve player position (adjust if you store the player's position differently)
-    let x = curPlayer && curPlayer.pos ? curPlayer.pos.x : 0;
-    let y = curPlayer && curPlayer.pos ? curPlayer.pos.y : 0;
-
-    // Format data: "x,y,message"
-    let data = `${x},${y},${message}`;
-
-    // Emit the chat message to the server
-    if (socket) {
-        socket.emit("send_message", data);
+    
+    // Mark messages as read when user sends a message (they're obviously viewing chat)
+    if (!isChatOpen) {
+        // If chat was closed, just clear the counter without opening
+        unreadChatCount = 0;
+        updateChatNotificationBadge();
+    } else {
+        markChatAsRead();
     }
-    // Clear the input after sending
-    chatInput.value("");
 }
 
 function formatChatTimestamp(rawTime) {
@@ -357,25 +382,46 @@ function addChatMessage(chatMsg) {
         chatMsg.user = "SERVER"
     }
     const timeString = formatChatTimestamp(chatMsg.time);
+    const isNewMessage = !isChatOpen; // Message is unread if chat is collapsed
+
+    // Increment unread count if chat is closed
+    if (!isChatOpen) {
+        unreadChatCount++;
+        updateChatNotificationBadge();
+    }
 
     // Create a container for the entire message (text + time)
     let msgContainer = createDiv();
     msgContainer.style("display", "flex");
     msgContainer.style("align-items", "center");
     msgContainer.style("margin-bottom", "6px");
+    msgContainer.class(isNewMessage ? "chat-message-unread" : "chat-message-read");
+    
+    // Add unread indicator
+    if (isNewMessage) {
+        let unreadIndicator = createDiv("●");
+        unreadIndicator.style("color", "#ff4444");
+        unreadIndicator.style("font-size", "12px");
+        unreadIndicator.style("margin-right", "6px");
+        unreadIndicator.style("animation", "pulse 1.5s ease-in-out infinite");
+        msgContainer.child(unreadIndicator);
+    }
 
     // Create a text container with the user & message
     let textContainer = createDiv(`<strong>${chatMsg.user}:</strong> ${chatMsg.message}`);
     textContainer.style("color", "#fff");
-    textContainer.style("background-color", "#333");
+    textContainer.style("background-color", isNewMessage ? "rgba(255, 68, 68, 0.15)" : "#333");
     textContainer.style("padding", "6px 8px");
     textContainer.style("border-radius", "5px 0 0 5px"); // Rounded left corners
     textContainer.style("flex", "1"); // Let this container expand
     textContainer.style("font-size", "0.9em");
+    if (isNewMessage) {
+        textContainer.style("border-left", "3px solid #ff4444");
+    }
 
     // Create a time container in a smaller box
     let timeDiv = createDiv(timeString);
-    timeDiv.style("background-color", "#555");
+    timeDiv.style("background-color", isNewMessage ? "rgba(255, 68, 68, 0.3)" : "#555");
     timeDiv.style("color", "#ccc");
     timeDiv.style("padding", "6px 8px");
     timeDiv.style("border-radius", "0 5px 5px 0"); // Rounded right corners
@@ -392,6 +438,53 @@ function addChatMessage(chatMsg) {
 
     // Scroll to the bottom of the messages box
     chatMessagesBox.elt.scrollTop = chatMessagesBox.elt.scrollHeight;
+}
+
+/**
+ * Update the chat notification badge visibility and count
+ */
+function updateChatNotificationBadge() {
+    if (!chatNotificationBadge) return;
+    
+    if (unreadChatCount > 0) {
+        chatNotificationBadge.html(unreadChatCount > 99 ? "99+" : String(unreadChatCount));
+        chatNotificationBadge.style("display", "flex");
+    } else {
+        chatNotificationBadge.style("display", "none");
+    }
+}
+
+/**
+ * Mark all chat messages as read and clear notification
+ */
+function markChatAsRead() {
+    unreadChatCount = 0;
+    lastReadTimestamp = Date.now();
+    updateChatNotificationBadge();
+    
+    // Remove unread styling from all messages
+    if (chatMessagesBox && chatMessagesBox.elt) {
+        const messages = chatMessagesBox.elt.querySelectorAll('.chat-message-unread');
+        messages.forEach(msg => {
+            msg.classList.remove('chat-message-unread');
+            msg.classList.add('chat-message-read');
+            // Remove the unread indicator dot
+            const indicator = msg.querySelector('div');
+            if (indicator && indicator.innerHTML === '●') {
+                indicator.remove();
+            }
+            // Update styling
+            const textContainer = msg.querySelectorAll('div')[0];
+            if (textContainer) {
+                textContainer.style.backgroundColor = '#333';
+                textContainer.style.borderLeft = '';
+            }
+            const timeDiv = msg.querySelectorAll('div')[1];
+            if (timeDiv) {
+                timeDiv.style.backgroundColor = '#555';
+            }
+        });
+    }
 }
 
 var spaceBarDiv;
