@@ -1063,45 +1063,64 @@ var buildDiv;
 // 1) Set up the container DIV
 function defineBuildUI() {
     buildDiv = createDiv();
-    buildDiv.class("container");
+    buildDiv.class("build-ui-container");
     buildDiv.style("position", "absolute");
     buildDiv.style("bottom", "28%");
     buildDiv.style("left", "90%");
     buildDiv.style("transform", "translate(-50%, -50%)");
     buildDiv.style("display", "none");
-    buildDiv.style("width", "10%");
-    buildDiv.style("height", "10%");
-    buildDiv.style("border", "2px solid black");
-    buildDiv.style("border-radius", "10px");
-    buildDiv.style("padding", "20px");
-
-    // If you wanted smaller text, use font-size instead of text-size-adjusted
-    buildDiv.style("font-size", "80%");
-
-    // Enable scrolling when content overflows
-    buildDiv.style("overflow-y", "scroll");
+    buildDiv.style("min-width", "200px");
+    buildDiv.style("max-width", "280px");
+    buildDiv.style("background", "linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(34, 34, 34, 0.98) 100%)");
+    buildDiv.style("border", "2px solid #5a3a1a");
+    buildDiv.style("border-radius", "12px");
+    buildDiv.style("padding", "16px");
+    buildDiv.style("box-shadow", "0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset");
+    buildDiv.style("font-family", "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif");
+    buildDiv.style("backdrop-filter", "blur(8px)");
+    buildDiv.style("overflow-y", "auto");
+    buildDiv.style("max-height", "60vh");
 }
 
 function renderBuildOptions() {
     buildDiv.html('');
 
-    //console.log(buildOptions[curPlayer.invBlock.selectedHotBar].objName);
     let option = buildOptions[curPlayer.invBlock.selectedHotBar];
     if (!option) return;
 
+    // Header section
+    const headerDiv = createDiv();
+    headerDiv.style('padding', '8px 12px');
+    headerDiv.style('background', 'rgba(255, 193, 7, 0.12)');
+    headerDiv.style('border-radius', '8px');
+    headerDiv.style('margin-bottom', '12px');
+    headerDiv.style('border-left', '4px solid #ffc107');
+    headerDiv.parent(buildDiv);
 
     // Option name
     const nameDiv = createDiv(`Build: ${option.objName}`);
-    nameDiv.style('font-size', '1rem');
+    nameDiv.style('font-size', '1.1rem');
     nameDiv.style('font-weight', 'bold');
-    nameDiv.style('color', '#ccc');
-    nameDiv.style('margin-bottom', '0.3rem');
-    nameDiv.parent(buildDiv);
+    nameDiv.style('color', '#ffc107');
+    nameDiv.style('text-shadow', '0 2px 4px rgba(0, 0, 0, 0.6)');
+    nameDiv.style('letter-spacing', '0.3px');
+    nameDiv.parent(headerDiv);
 
-    // Cost details
+    // Cost section label
+    const costLabelDiv = createDiv('Required Materials:');
+    costLabelDiv.style('font-size', '0.75rem');
+    costLabelDiv.style('color', '#999');
+    costLabelDiv.style('margin-bottom', '8px');
+    costLabelDiv.style('text-transform', 'uppercase');
+    costLabelDiv.style('letter-spacing', '0.5px');
+    costLabelDiv.style('font-weight', 'bold');
+    costLabelDiv.parent(buildDiv);
+
+    // Cost details container
     const costsDetailsDiv = createDiv();
-    costsDetailsDiv.style('font-size', '0.85rem');
-    costsDetailsDiv.style('margin-bottom', '0.25rem');
+    costsDetailsDiv.style('display', 'flex');
+    costsDetailsDiv.style('flex-direction', 'column');
+    costsDetailsDiv.style('gap', '6px');
     costsDetailsDiv.parent(buildDiv);
 
     let canAfford = true;
@@ -1113,24 +1132,70 @@ function renderBuildOptions() {
         } else if (curPlayer.invBlock.items[material]) {
             playerHas = curPlayer.invBlock.items[material].amount;
         }
-        // Make only the number colored
+        
         const enough = playerHas >= requiredAmount;
-        const line = createDiv(`${material}: <span style="color:${enough ? '#27f50e' : '#ff4444'};font-weight:bold">${playerHas}</span> / ${requiredAmount}`);
-        line.style('color', '#ddd');
-        line.style('margin-bottom', '0.1rem');
         if (!enough) canAfford = false;
-        line.parent(costsDetailsDiv);
+
+        // Material row
+        const materialRow = createDiv();
+        materialRow.style('padding', '8px 10px');
+        materialRow.style('background', enough ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 68, 68, 0.15)');
+        materialRow.style('border-radius', '6px');
+        materialRow.style('border-left', `3px solid ${enough ? '#4caf50' : '#ff4444'}`);
+        materialRow.style('display', 'flex');
+        materialRow.style('justify-content', 'space-between');
+        materialRow.style('align-items', 'center');
+        materialRow.style('transition', 'transform 0.15s ease');
+        materialRow.parent(costsDetailsDiv);
+
+        // Material name
+        const matName = createSpan(material);
+        matName.style('color', '#ddd');
+        matName.style('font-size', '0.9rem');
+        matName.style('font-weight', '500');
+        matName.parent(materialRow);
+
+        // Material count
+        const countText = createSpan(`${playerHas} / ${requiredAmount}`);
+        countText.style('color', enough ? '#4caf50' : '#ff4444');
+        countText.style('font-weight', 'bold');
+        countText.style('font-size', '0.9rem');
+        countText.parent(materialRow);
+
+        // Add checkmark or X icon
+        const icon = createSpan(enough ? ' ✓' : ' ✗');
+        icon.style('color', enough ? '#4caf50' : '#ff4444');
+        icon.style('font-size', '1rem');
+        icon.style('margin-left', '6px');
+        icon.parent(materialRow);
     });
 
     // Result message
-    const affordMsg = createDiv(
-        canAfford ? '' : 'Not enough resources!'
-    );
-    affordMsg.style('font-size', '0.9rem');
-    affordMsg.style('font-weight', 'bold');
-    affordMsg.style('margin-top', '0.2rem');
-    affordMsg.style('color', canAfford ? '#27f50e' : '#ff4444');
-    affordMsg.parent(buildDiv);
+    if (!canAfford) {
+        const affordMsg = createDiv('⚠ Not enough resources!');
+        affordMsg.style('font-size', '0.85rem');
+        affordMsg.style('font-weight', 'bold');
+        affordMsg.style('margin-top', '12px');
+        affordMsg.style('padding', '8px 12px');
+        affordMsg.style('background', 'rgba(255, 68, 68, 0.2)');
+        affordMsg.style('border-radius', '6px');
+        affordMsg.style('color', '#ff4444');
+        affordMsg.style('text-align', 'center');
+        affordMsg.style('border', '1px solid rgba(255, 68, 68, 0.4)');
+        affordMsg.parent(buildDiv);
+    } else {
+        const readyMsg = createDiv('✓ Ready to build!');
+        readyMsg.style('font-size', '0.85rem');
+        readyMsg.style('font-weight', 'bold');
+        readyMsg.style('margin-top', '12px');
+        readyMsg.style('padding', '8px 12px');
+        readyMsg.style('background', 'rgba(76, 175, 80, 0.2)');
+        readyMsg.style('border-radius', '6px');
+        readyMsg.style('color', '#4caf50');
+        readyMsg.style('text-align', 'center');
+        readyMsg.style('border', '1px solid rgba(76, 175, 80, 0.4)');
+        readyMsg.parent(buildDiv);
+    }
 }
 
 
