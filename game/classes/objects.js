@@ -164,9 +164,12 @@ function bombUpdate() {
 
         // Bomb hurts everyone nearby
         if (this.pos.dist(curPlayer.pos) < 33 + (6 * (this.size.w + this.size.h) / 4)) {
-            curPlayer.statBlock.stats.hp -= ((33 + (6 * (this.size.w + this.size.h) / 4)) - this.pos.dist(curPlayer.pos)) / 2;
+            const dmg = ((33 + (6 * (this.size.w + this.size.h) / 4)) - this.pos.dist(curPlayer.pos)) / 2;
+            curPlayer.statBlock.stats.hp -= dmg;
+            // floating combat text for player damage from bomb
+            spawnFloatingText(dmg, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
             curPlayer.attackingOBJ = this;
-            camera.shake = { intensity: ((33 + (6 * (this.size.w + this.size.h) / 4)) - this.pos.dist(curPlayer.pos)) / 2, length: 5 };
+            camera.shake = { intensity: dmg, length: 5 };
             camera.edgeBlood = 5;
             socket.emit("update_player", {
                 id: curPlayer.id,
@@ -914,7 +917,15 @@ update() {
             });
 
             // apply damage
-            t.statBlock ? t.statBlock.stats.hp -= this.damage : t.hp -= this.damage;
+            if (t.statBlock && t.statBlock.stats) {
+                t.statBlock.stats.hp -= this.damage;
+                // floating combat text for entity/player damage from trap
+                spawnFloatingText(this.damage, t.pos.x, t.pos.y, "damage", false);
+            } else {
+                t.hp -= this.damage;
+                // floating combat text for object damage from trap
+                spawnFloatingText(this.damage, t.pos.x, t.pos.y, "damage", false);
+            }
 
             // screen shake only for local player
             if (t === curPlayer) {
@@ -991,10 +1002,14 @@ function createExplosion(origin) {
         for (let i = 0; i < chunk.objects.length; i++) {
             if (chunk.objects[i].pos.dist(origin.pos) < 33 + (6 * (origin.size.w + origin.size.h) / 4)) {
                 if (chunk.objects[i].hp != undefined) {
-                    chunk.objects[i].hp -= ((33 + (6 * (origin.size.w + origin.size.h) / 4)) - chunk.objects[i].pos.dist(origin.pos)) / 2;
+                    const dmg = ((33 + (6 * (origin.size.w + origin.size.h) / 4)) - chunk.objects[i].pos.dist(origin.pos)) / 2;
+                    chunk.objects[i].hp -= dmg;
                     chunk.objects[i].shake = { intensity: 10, length: 5 };
 
                     scareBrain(chunk.objects[i].brainID, origin);
+
+                    // floating combat text for object damage from explosion
+                    spawnFloatingText(dmg, chunk.objects[i].pos.x, chunk.objects[i].pos.y, "damage", false);
 
                     //tell the server to update the object
                     socket.emit("update_obj", {

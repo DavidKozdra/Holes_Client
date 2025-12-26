@@ -149,6 +149,11 @@ class StatBlock{
             this.stats.hp = this.stats.mhp;
         }
 
+        // floating combat text for player heals
+        if (curPlayer && curPlayer.pos) {
+            spawnFloatingText(amount, curPlayer.pos.x, curPlayer.pos.y, "heal", false);
+        }
+
         socket.emit("update_player", {
             id: curPlayer.id,
             pos: curPlayer.pos,

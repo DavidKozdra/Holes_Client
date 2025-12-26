@@ -108,6 +108,7 @@ class Chunk{
         this.objects = []; // list of objects (might need sorting if we make chunks bigger or have tons of objects in a chunk)
         this.projectiles = [];
         this.soundObjs = [];
+        this.floatingTexts = [];
     }
 
     cordToScreen(x,y){
@@ -137,6 +138,12 @@ class Chunk{
                 this.soundObjs.splice(i, 1);
             }
         }
+        for(let i = this.floatingTexts.length-1; i >= 0; i--){
+            this.floatingTexts[i].update();
+            if(this.floatingTexts[i].deleteTag){
+                this.floatingTexts.splice(i, 1);
+            }
+        }
     }
   
     DebugDraw(){
@@ -161,6 +168,10 @@ class Chunk{
         //rendered under other stuff to help hide collishion problems
         for(let i = 0; i < this.projectiles.length; i++){
             this.projectiles[i].render();
+        }
+        // floating combat text
+        for(let i = 0; i < this.floatingTexts.length; i++){
+            this.floatingTexts[i].render();
         }
         
         push();

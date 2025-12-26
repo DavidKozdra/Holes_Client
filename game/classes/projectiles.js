@@ -166,6 +166,8 @@ class SimpleProjectile{
                 }
                 
                 curPlayer.statBlock.stats.hp -= actualDamage;
+                // floating combat text for player damage
+                spawnFloatingText(actualDamage, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
                 camera.shake = {intensity: actualDamage, length: 5};
                 camera.edgeBlood = 5;
                 curPlayer.attackingOBJ = this;
@@ -340,6 +342,8 @@ class MeleeProjectile extends SimpleProjectile{
                 }
                 
                 curPlayer.statBlock.stats.hp -= actualDamage;
+                // floating combat text for player damage
+                spawnFloatingText(actualDamage, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
                 camera.shake = {intensity: actualDamage, length: 5};
                 camera.edgeBlood = 5;
                 socket.emit("update_player", {
@@ -583,4 +587,70 @@ function damageObj(chunk, obj, damage){
         update_name: "shake", 
         update_value: obj.shake
     });
+
+    // floating combat text for object damage
+    spawnFloatingText(damage, obj.pos.x, obj.pos.y, "damage", false);
+}
+
+// Floating combat text class and helpers
+class FloatingText {
+    constructor(value, x, y, kind, isCrit) {
+        this.value = value;
+        this.kind = kind; // 'damage' | 'heal' | 'crit'
+        this.isCrit = !!isCrit;
+        this.pos = createVector(x, y);
+        this.vel = createVector(random(-0.6, 0.6), random(-1.6, -0.9));
+        this.life = 0.9; // seconds
+        this.age = 0;
+        this.deleteTag = false;
+    }
+    update(){
+        this.age += 1/60;
+        // ease upward and slow drift
+        this.pos.x += this.vel.x;
+        this.pos.y += this.vel.y;
+        // apply gentle damping
+        this.vel.mult(0.98);
+        // expire
+        if(this.age >= this.life){
+            this.deleteTag = true;
+        }
+    }
+    render(){
+        const t = constrain(this.age / this.life, 0, 1);
+        const alpha = 255 * (1 - t);
+        let col;
+        let size;
+        if(this.kind === "heal"){
+            col = color(40, 220, 100, alpha);
+            size = 16;
+        }
+        else if(this.isCrit || this.kind === "crit"){
+            col = color(255, 165, 0, alpha);
+            size = 22;
+        }
+        else{ // damage
+            col = color(255, 60, 60, alpha);
+            size = 18;
+        }
+
+        push();
+        translate(-camera.pos.x+(width/2), -camera.pos.y+(height/2));
+        textAlign(CENTER, CENTER);
+        textSize(size);
+        // outline
+        stroke(0, alpha);
+        strokeWeight(3);
+        fill(col);
+        const txt = (this.kind === "heal" ? "+" : "-") + Math.round(this.value);
+        text(txt, this.pos.x, this.pos.y);
+        pop();
+    }
+}
+
+function spawnFloatingText(value, x, y, kind, isCrit){
+    const cpos = testMap.globalToChunk(x, y);
+    const chunk = testMap.chunks[cpos.x+","+cpos.y];
+    if(!chunk) return;
+    chunk.floatingTexts.push(new FloatingText(value, x, y, kind, isCrit));
 }
