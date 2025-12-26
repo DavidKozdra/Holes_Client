@@ -490,6 +490,10 @@ function keyPressed() { //prevents normal key related actions
     if (keyCode == 9) { //TAB
         return false;
     }
+    // Prevent space bar from scrolling when in inventory or crafting
+    if (keyCode === 32 && (gameState == "inventory" || gameState == "crafting")) { // 32 = Space
+        return false;
+    }
     // Block most keys if in search mode (allow only basic input/control keys)
     if (gameState == "search") {
         const allowedKeyCodes = [8, 13, 16, 17, 18, 27, 37, 38, 39, 40]; // Backspace, Enter, Shift, Ctrl, Alt, ESC, arrows

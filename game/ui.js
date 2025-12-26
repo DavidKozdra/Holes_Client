@@ -1254,7 +1254,7 @@ function renderBuildOptions() {
         countText.style('font-weight', 'bold');
         countText.style('font-size', '0.9rem');
         countText.parent(materialRow);
-
+        
     });
 
     // Result message
