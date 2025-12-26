@@ -1249,18 +1249,12 @@ function renderBuildOptions() {
         matName.parent(materialRow);
 
         // Material count
-        const countText = createSpan(`${playerHas} / ${requiredAmount}`);
+        const countText = createSpan(`${Math.floor(playerHas)} / ${Math.floor(requiredAmount)}`);
         countText.style('color', enough ? '#4caf50' : '#ff4444');
         countText.style('font-weight', 'bold');
         countText.style('font-size', '0.9rem');
         countText.parent(materialRow);
 
-        // Add checkmark or X icon
-        const icon = createSpan(enough ? ' ✓' : ' ✗');
-        icon.style('color', enough ? '#4caf50' : '#ff4444');
-        icon.style('font-size', '1rem');
-        icon.style('margin-left', '6px');
-        icon.parent(materialRow);
     });
 
     // Result message

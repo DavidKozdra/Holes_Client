@@ -58,8 +58,9 @@ function keyReleased() {
                 if (curPlayer.invBlock.selectedHotBar > 4) {
                     curPlayer.invBlock.selectedHotBar = 4;
                 }
-                if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed") {
-                    ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
+                const hotbarItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]];
+                if (hotbarItem && hotbarItem.type == "Seed") {
+                    ghostBuild = createObject(hotbarItem.plantName, 0, 0, 0, curPlayer.color, " ", " ");
                     renderGhost = true;
                 }
             }
