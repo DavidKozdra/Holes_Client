@@ -17,6 +17,8 @@ class InvBlock{
         this.animationTimer = 0; //for hotbar animations
         this.invId = random(100000);
         this.itemLabelDiv = null; // Will be initialized later
+        this.itemLabelTimer = 0; // Timer for auto-hiding label
+        this.lastLabelItem = ""; // Track last displayed item
     }
 
     addItem(item,amount,toPlayer){
@@ -330,17 +332,21 @@ class InvBlock{
         if(!this.itemLabelDiv){
             this.itemLabelDiv = createDiv();
             this.itemLabelDiv.style("position", "fixed");
-            this.itemLabelDiv.style("bottom", "134px");
-            this.itemLabelDiv.style("right", "200px");
+            this.itemLabelDiv.style("bottom", "calc(10px + 124px + 8px)"); // 10px (dirt bag margin) + 124px (dirt bag height) + 8px spacing
+            this.itemLabelDiv.style("right", "calc(10px + 220px + 12px)"); // 10px (dirt bag margin) + 120px (dirt bag width) + 12px spacing
+            this.itemLabelDiv.style("transform", "translateY(-100%)"); // Position above, not overlapping
             this.itemLabelDiv.style("background", "rgba(20, 20, 20, 0.86)");
             this.itemLabelDiv.style("padding", "8px 12px");
             this.itemLabelDiv.style("border-radius", "4px");
             this.itemLabelDiv.style("font-family", "Arial, sans-serif");
-            this.itemLabelDiv.style("font-size", "16px");
+            this.itemLabelDiv.style("font-size", "1em");
             this.itemLabelDiv.style("pointer-events", "none");
             this.itemLabelDiv.style("z-index", "1000");
             this.itemLabelDiv.style("display", "none");
             this.itemLabelDiv.style("text-align", "right");
+            this.itemLabelDiv.style("white-space", "nowrap");
+            this.itemLabelDiv.style("transition", "opacity 0.5s ease-out");
+            this.itemLabelDiv.style("opacity", "1");
         }
         
         let selectedItemName = "";
@@ -359,6 +365,21 @@ class InvBlock{
         }
         
         if (selectedItemName && selectedItemName !== "") {
+            // Reset timer if item changed
+            if(selectedItemName !== this.lastLabelItem){
+                this.itemLabelTimer = 0;
+                this.lastLabelItem = selectedItemName;
+                this.itemLabelDiv.style("opacity", "1");
+            } else {
+                // Increment timer (assuming ~30fps)
+                this.itemLabelTimer++;
+            }
+            
+            // Fade out after 3 seconds (90 frames at 30fps)
+            if(this.itemLabelTimer > 90){
+                this.itemLabelDiv.style("opacity", "0");
+            }
+            
             // Get rarity color if available
             let itemColor = "rgb(235, 235, 235)"; // default off-white
             if(!buildMode && typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function'){
@@ -377,6 +398,8 @@ class InvBlock{
             this.itemLabelDiv.style("display", "block");
         } else {
             this.itemLabelDiv.style("display", "none");
+            this.itemLabelTimer = 0;
+            this.lastLabelItem = "";
         }
     }
     
