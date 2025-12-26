@@ -360,6 +360,7 @@ function keyReleased() {
             Controls_MoveHotBarRight_button.style("background-color", "var(--color-dirt-dark)");
             Controls_MoveHotBarLeft_button.style("background-color", "var(--color-dirt-dark)");
             Controls_Build_button.style("background-color", "var(--color-dirt-dark)");
+            Controls_Dash_button.style("background-color", "var(--color-dirt-dark)");
             return;
         }
 
@@ -458,6 +459,14 @@ function keyReleased() {
             control_set = 0;
             Controls_Space_button.html(Controls_Space_key);
             Controls_Space_button.style("background-color", "var(--color-dirt-dark)");
+            //saveOptions();
+        }
+        else if (control_set == 13 && key != lastKey) {
+            Controls_Dash_code = keyCode;
+            Controls_Dash_key = key;
+            control_set = 0;
+            Controls_Dash_button.html(Controls_Dash_key);
+            Controls_Dash_button.style("background-color", "var(--color-dirt-dark)");
             //saveOptions();
         }
     }
@@ -688,8 +697,8 @@ function continousKeyBoardInput() {
         if (keyIsDown(Controls_move_Down_code)) curPlayer.holding.s = true; // S
         if (keyIsDown(Controls_move_Right_code)) curPlayer.holding.d = true; // D
 
-        // Dash key (Shift = 16)
-        if (keyIsDown(16)) {
+        // Dash key
+        if (keyIsDown(Controls_Dash_code)) {
             curPlayer.activateDash();
         }
 
@@ -797,6 +806,7 @@ var Controls_MoveHotBarRight_key = 'e';
 var Controls_MoveHotBarLeft_key = 'q';
 var Controls_Build_key = 'r';
 var Controls_Space_key = ' ';
+var Controls_Dash_key = 'Shift';
 
 var Controls_move_Up_code = 87;       //w
 var Controls_move_Left_code = 65;     //a
@@ -810,6 +820,7 @@ var Controls_MoveHotBarRight_code = 69;  //e
 var Controls_MoveHotBarLeft_code = 81;   //q
 var Controls_Build_code = 82;           //r
 var Controls_Space_code = 32;           //space
+var Controls_Dash_code = 16;            //shift
 const default_keys = {
     upCode: 87,
     upKey: 'w',
@@ -842,7 +853,10 @@ const default_keys = {
     buildKey: 'r',
 
     spaceCode: 32,
-    spaceKey: ' '
+    spaceKey: ' ',
+
+    dashCode: 16,
+    dashKey: 'Shift'
 };
 
 var control_set = 0;

@@ -73,6 +73,10 @@ function setup() {
         Controls_Build_key = keyBindings.buildKey;
         Controls_Space_code = keyBindings.spaceCode;
         Controls_Space_key = keyBindings.spaceKey;
+        if (keyBindings.dashCode !== undefined) {
+            Controls_Dash_code = keyBindings.dashCode;
+            Controls_Dash_key = keyBindings.dashKey;
+        }
     }
 
     seperateAtlas();

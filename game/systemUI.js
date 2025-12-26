@@ -22,11 +22,11 @@ var keysDiv;
 // Key binding button references
 var Controls_Up, Controls_Left, Controls_Down, Controls_Right;
 var Controls_Interact, Controls_Inventory, Controls_Crafting, Controls_Pause;
-var Controls_MoveHotBarRight, Controls_MoveHotBarLeft, Controls_Build, Controls_Space;
+var Controls_MoveHotBarRight, Controls_MoveHotBarLeft, Controls_Build, Controls_Space, Controls_Dash;
 
 var Controls_Up_button, Controls_Left_button, Controls_Down_button, Controls_Right_button;
 var Controls_Interact_button, Controls_Inventory_button, Controls_Crafting_button, Controls_Pause_button;
-var Controls_MoveHotBarRight_button, Controls_MoveHotBarLeft_button, Controls_Build_button, Controls_Space_button;
+var Controls_MoveHotBarRight_button, Controls_MoveHotBarLeft_button, Controls_Build_button, Controls_Space_button, Controls_Dash_button;
 
 // ─────────────────────────────────────────────────────────
 // Helper Functions
@@ -163,6 +163,9 @@ function definePauseUI() {
         Controls_Space_code = default_keys.spaceCode;
         Controls_Space_key = default_keys.spaceKey;
 
+        Controls_Dash_code = default_keys.dashCode;
+        Controls_Dash_key = default_keys.dashKey;
+
         console.log("Key bindings reset to defaults:", default_keys);
     });
 
@@ -203,7 +206,9 @@ function definePauseUI() {
             buildCode: Controls_Build_code,
             buildKey: Controls_Build_key,
             spaceCode: Controls_Space_code,
-            spaceKey: Controls_Space_key
+            spaceKey: Controls_Space_key,
+            dashCode: Controls_Dash_code,
+            dashKey: Controls_Dash_key
         };
         localStorage.setItem("keyBindings", JSON.stringify(keyBindings));
         toggleSettings();
@@ -447,6 +452,10 @@ function defineKeyBindingUI() {
     Controls_Space.class("control-label");
     Controls_Space.parent(namesDiv);
 
+    Controls_Dash = createP("Dash:");
+    Controls_Dash.class("control-label");
+    Controls_Dash.parent(namesDiv);
+
     keysDiv = createDiv();
     keysDiv.class("binding-keys");
     keysDiv.parent(contentDiv);
@@ -595,4 +604,16 @@ function defineKeyBindingUI() {
         }
     });
     Controls_Space_button.parent(keysDiv);
+
+    Controls_Dash_button = createButton(keyToVisualKey(Controls_Dash_key));
+    Controls_Dash_button.class("control-button");
+    Controls_Dash_button.mousePressed(() => {
+        if (control_set == 0) {
+            control_set = 13;
+            key = Controls_Dash_key;
+            lastKey = key;
+            Controls_Dash_button.style("background-color", "var(--color-gold)");
+        }
+    });
+    Controls_Dash_button.parent(keysDiv);
 }

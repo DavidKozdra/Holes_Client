@@ -15,6 +15,97 @@ var itemImgCords = [];
 var itemDic = {};
 var craftOptions = [];
 
+// Rarity labeling and colors (central enum + palette)
+// white - basic wood, mushrooms, rocks
+// blue  - easy to craft but time-gated (e.g., apple, basic sword/shovel)
+// green - gems and hard-to-find resources
+// gold  - philosopher's stone and super-rares (e.g., wizard staff)
+const ItemRarity = Object.freeze({
+    WHITE: 'white',
+    BLUE: 'blue',
+    GREEN: 'green',
+    GOLD: 'gold'
+});
+
+const RARITY_RGB = {
+    'white': [235, 235, 235],
+    'blue':  [110, 180, 255],
+    'green': [90, 220, 140],
+    'gold':  [255, 205, 80]
+};
+
+function getItemRarity(name){
+    return ITEM_RARITY[name] || ItemRarity.WHITE;
+}
+function getItemRarityRGB(rarity){
+    return RARITY_RGB[rarity] || RARITY_RGB[ItemRarity.WHITE];
+}
+function rarityToCSS(rarity){
+    const rgb = getItemRarityRGB(rarity);
+    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+}
+function getItemRarityCSSByName(name){
+    return rarityToCSS(getItemRarity(name));
+}
+// Expose for UI usage
+if (typeof window !== 'undefined') {
+    window.ItemRarity = ItemRarity;
+    window.getItemRarity = getItemRarity;
+    window.getItemRarityRGB = getItemRarityRGB;
+    window.getItemRarityCSSByName = getItemRarityCSSByName;
+}
+
+// Explicit item → rarity overrides (defaults to white if not listed)
+const ITEM_RARITY = {
+    // Common basics
+    "Rock": ItemRarity.WHITE,
+    "Raw Metal": ItemRarity.WHITE,
+    "Metal": ItemRarity.WHITE,
+    "Log": ItemRarity.WHITE,
+    "Arrow": ItemRarity.WHITE,
+    "Mushroom": ItemRarity.WHITE,
+    "Mushroom Fiber": ItemRarity.WHITE,
+    "Acorn": ItemRarity.WHITE,
+    "Mushroom Seed": ItemRarity.WHITE,
+    "Dirt Ball": ItemRarity.WHITE,
+    "Skizzard Tail": ItemRarity.WHITE,
+
+    // Time-gated / early craftables
+    "Apple": ItemRarity.BLUE,
+    "Salad": ItemRarity.BLUE,
+    "Roasted Tail": ItemRarity.BLUE,
+    "Red Acorn": ItemRarity.BLUE,
+    "Basic Shovel": ItemRarity.BLUE,
+    "Better Shovel": ItemRarity.BLUE,
+    "Pickaxe": ItemRarity.BLUE,
+    "Basic Sword": ItemRarity.BLUE,
+    "Bow": ItemRarity.BLUE,
+    "CrossBow": ItemRarity.BLUE,
+    "TriSling": ItemRarity.BLUE,
+    "DirtBomb": ItemRarity.BLUE,
+    "Map": ItemRarity.BLUE,
+
+    // Hard to find
+    "Gem": ItemRarity.GREEN,
+    "Black Gem": ItemRarity.GREEN,
+    "Tech": ItemRarity.GREEN,
+    "Better Sword": ItemRarity.GREEN,
+    "Scythe": ItemRarity.GREEN,
+    "Laser Gun": ItemRarity.GREEN,
+    "Compass": ItemRarity.GREEN,
+    "Bomb": ItemRarity.GREEN,
+
+    // Super rare / legendary
+    "Philosopher's Stone": ItemRarity.GOLD,
+    "Fire Staff": ItemRarity.GOLD,
+    "Gem Sword": ItemRarity.GOLD,
+    "Teleport Receiver": ItemRarity.GOLD,
+    "Dirt Bag Upgrade": ItemRarity.GOLD,
+    "God Shovel": ItemRarity.GOLD,
+    "God's Scythe": ItemRarity.GOLD,
+    "Evil Apple on Stick": ItemRarity.GOLD
+};
+
 defineShovel("Basic Shovel", [[4,4]], [1,["Log",1],["Rock",1]], 1, 100, 0.12, 3, 1, "A basic shovel for digging dirt",true);
 defineShovel("Better Shovel", [[5,4]], [1,["Log",1],["Gem",2]], 1, 100, 0.18, 3, 1, "A better shovel for digging dirt",true);
 defineShovel("God Shovel", [[6,4]], [1,["Rock",2],["Philosopher's Stone",2]], 1, 100, 0.3, 3, 1, "A godly shovel for digging dirt",true);
@@ -98,6 +189,8 @@ class SimpleItem{
         this.maxDurability = durability;
         this.imgNum = imgNum;
         this.desc = desc;
+        this.rarity = (itemDic[this.itemName] && itemDic[this.itemName].rarity) ? itemDic[this.itemName].rarity : ItemRarity.WHITE;
+        this.rarityRGB = (itemDic[this.itemName] && itemDic[this.itemName].rarityRGB) ? itemDic[this.itemName].rarityRGB : getItemRarityRGB(this.rarity);
 
         this.offset = createVector(0,0);
         this.offVel = createVector(0,0); //offset velocity
@@ -113,11 +206,17 @@ class SimpleItem{
         push();
         translate(x,y);
         image(itemImgs[this.imgNum], 0,0);
+        let rgb = this.rarityRGB || getItemRarityRGB(this.rarity);
+        fill(rgb[0], rgb[1], rgb[2]);
+        noStroke();
         text(this.amount + " " + this.itemName + "   " + this.amount*this.weight, 64, 0);
         pop();
     }
 
     renderName(x,y){
+        let rgb = this.rarityRGB || getItemRarityRGB(this.rarity);
+        fill(rgb[0], rgb[1], rgb[2]);
+        noStroke();
         text(this.itemName + " x" + this.amount, x,y);
     }
 
@@ -571,6 +670,7 @@ function defineItemSuper(type,name,imgSrc,cost,weight,durability,desc,inCraftLis
     }
     
     
+    const rarity = getItemRarity(name);
     itemDic[name] = {
         type: type,
         name: name,
@@ -578,7 +678,10 @@ function defineItemSuper(type,name,imgSrc,cost,weight,durability,desc,inCraftLis
         weight: weight,
         durability: durability,
         desc: desc,
-        cost: cost
+        cost: cost,
+        rarity: rarity,
+        rarityRGB: getItemRarityRGB(rarity),
+        rarityCSS: rarityToCSS(rarity)
     };
 
     if(inCraftList){

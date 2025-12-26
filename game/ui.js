@@ -653,6 +653,30 @@ function resolveItemImgURL(itemName, entry) {
     return undefined;
 }
 
+// Get CSS color string for an item's rarity (uses centralized helper from items.js)
+function rarityColorCSS(itemName){
+    try{
+        // Prefer centralized global helper when available
+        if (typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function') {
+            const color = window.getItemRarityCSSByName(itemName);
+            return color;
+        }
+        // Fallback to local lookup if global not ready
+        if (itemDic && itemDic[itemName]) {
+            const rarity = itemDic[itemName].rarity || 'white';
+            if (typeof RARITY_RGB !== 'undefined' && RARITY_RGB[rarity]) {
+                const rgb = RARITY_RGB[rarity];
+                return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+            }
+        }
+        // Default white
+        return 'rgb(235,235,235)';
+    }catch(e){
+        console.warn(`[rarityColorCSS] Error for item "${itemName}":`, e);
+        return 'rgb(235,235,235)';
+    }
+}
+
 // Batch highlight updates for inventory item list
 function highlightItemList() {
     if (!itemListDiv || !itemListDiv.elt) return;
@@ -794,7 +818,7 @@ function updateItemList() {
         }
         let itemNameP = createP(itemName).parent(itemInfoDiv);
         itemNameP.style("font-size", "20px");
-        itemNameP.style("color", "white");
+        itemNameP.style("color", rarityColorCSS(itemName));
         let itemAmountP = createP(curPlayer.invBlock.items[itemName].amount).parent(itemInfoDiv);
         itemAmountP.style("font-size", "20px");
         itemAmountP.style("color", "white");
@@ -878,7 +902,7 @@ function updatecurItemDiv() {
 
     let itemNameP = createP(curPlayer.invBlock.curItem);
     itemNameP.style("font-size", "20px");
-    itemNameP.style("color", "white");
+    itemNameP.style("color", rarityColorCSS(curPlayer.invBlock.curItem));
     itemNameP.style("margin", "5px");
     itemNameP.parent(itemNameDiv);
 
@@ -2160,7 +2184,7 @@ function updateSwapItemLists_DEPRECATED_FROZEN(otherInv) {
 
         const itemNameP = createP((itemName === curPlayer.invBlock.curItem ? "* " : "") + itemName);
         itemNameP.style("font-size", "20px");
-        itemNameP.style("color", "white");
+        itemNameP.style("color", rarityColorCSS(itemName));
         itemNameP.parent(itemInfoDiv);
 
         const itemAmount = createP(String(entry.amount ?? 0));
@@ -2238,7 +2262,7 @@ function updateSwapItemLists_DEPRECATED_FROZEN(otherInv) {
 
         const itemNameP = createP((itemName === safeOther.curItem ? "* " : "") + itemName);
         itemNameP.style("font-size", "20px");
-        itemNameP.style("color", "white");
+        itemNameP.style("color", rarityColorCSS(itemName));
         itemNameP.parent(itemInfoDiv);
 
         const itemAmount = createP(String(entry.amount ?? 0));
@@ -2352,7 +2376,7 @@ function updatecurSwapItemDiv(otherInv) {
 
     const itemNameP = createP(String(curSwapItem.itemName || "Unknown Item"));
     itemNameP.style("font-size", "20px");
-    itemNameP.style("color", "white");
+    itemNameP.style("color", rarityColorCSS(curSwapItem.itemName));
     itemNameP.style("margin", "5px");
     itemNameP.parent(itemNameDiv);
 
@@ -2801,7 +2825,7 @@ function updateCraftList() {
         }
         let itemNameP = createP(itemName).parent(itemInfoDiv);
         itemNameP.style("font-size", "20px");
-        itemNameP.style("color", "white");
+        itemNameP.style("color", rarityColorCSS(itemName));
         const canCraft = curPlayer.invBlock.craftCheck(itemName);
         let craftIndicator;
         if (canCraft) {
@@ -2893,9 +2917,9 @@ function updatecurCraftItemDiv() {
     let itemNameP = createP(curItem).parent(itemNameDiv);
     applyStyle(itemNameP, {
         fontSize: "20px",
-        color: "white",
         margin: "5px"
     });
+    itemNameP.style("color", rarityColorCSS(curItem));
 
     let itemDescDiv = createDiv().parent(itemNameDescDiv);
     applyStyle(itemDescDiv, {
@@ -3316,6 +3340,7 @@ function setupTutorialPages(pageHolder) {
     //console.log(Controls_Up_key, Controls_Left_key)
     addControlStep(page2, "" + Controls_Up_key + Controls_Left_key + Controls_Down_key + Controls_Right_key, "Move around");
     addControlStep(page2, "Left/Right Click", "Use item");
+    addControlStep(page2, Controls_Dash_key, "Dash");
     addControlStep(page2, Controls_Interact_key, "Interact");
     addControlStep(page2, Controls_MoveHotBarLeft_key + "&" + Controls_MoveHotBarRight_key + " / Mouse Wheel", "Switch Hotbar slot");
     addControlStep(page2, Controls_Build_key, "Build menu");

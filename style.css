@@ -610,7 +610,7 @@ input.fmt-italic-apply {
 .control-button {
     min-width: 90px;
     cursor: pointer;
-    padding: 8px 12px;
+    padding: 10px 10px;
 }
 
 /* Binding UI Container */

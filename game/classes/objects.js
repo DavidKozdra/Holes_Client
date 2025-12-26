@@ -1328,9 +1328,9 @@ class Entity extends Placeable {
             4
         ); // last param 4 = corner radius
 
-        // Now draw text with a stroke
-        stroke(0);       // black stroke around letters
-        strokeWeight(2);
+        // Now draw text with a white outline for readability
+        stroke(255);
+        strokeWeight(3);
         fill(teamColors[this.color].r, teamColors[this.color].g, teamColors[this.color].b);
         text(
             nameText, 

@@ -447,9 +447,9 @@ class Player {
         noStroke();
         rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4); // last param 4 = corner radius
 
-        // Now draw text with a stroke
-        stroke(0);       // black stroke around letters
-        strokeWeight(2);
+        // Now draw text with a white outline for readability
+        stroke(255);
+        strokeWeight(3);
         
         // Use custom team color if player is in a team
         let displayColor = teamColors[this.color];

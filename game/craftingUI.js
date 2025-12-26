@@ -86,6 +86,20 @@ function defineCraftingUI() {
     updateCraftList();
 }
 
+// Use centralized rarity color helper from items.js
+function rarityColorCSS(itemName){
+    try{
+        if (typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function') {
+            return window.getItemRarityCSSByName(itemName);
+        }
+        const key = (itemDic && itemDic[itemName] && itemDic[itemName].rarity) ? itemDic[itemName].rarity : 'white';
+        const rgb = (typeof RARITY_RGB !== 'undefined' && RARITY_RGB[key]) ? RARITY_RGB[key] : [235,235,235];
+        return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }catch(e){
+        return 'rgb(235,235,235)';
+    }
+}
+
 /**
  * Switch between inventory and crafting tabs
  * @param {string} tab - "inventory" or "crafting"
@@ -199,6 +213,7 @@ function updateCraftList() {
         // Recipe name
         let nameP = createP((isSelected ? "→ " : "") + recipe.itemName).parent(recipeRow);
         nameP.class("craft-recipe-name");
+        nameP.style("color", rarityColorCSS(recipe.itemName));
     });
 }
 
@@ -326,6 +341,7 @@ function updatecurCraftItemDiv(recipe) {
     // Recipe name
     let nameP = createP(recipe.itemName).parent(curCraftItemDiv);
     nameP.class("craft-detail-name");
+    nameP.style("color", rarityColorCSS(recipe.itemName));
 
     // Recipe description
     const desc = itemDic?.[recipe.itemName]?.desc || "No description available";

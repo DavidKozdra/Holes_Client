@@ -204,6 +204,11 @@ function updateSwapColumn(side, items, selectedItem, onSelect) {
 
         let nameP = createP((isSelected ? "→ " : "") + itemName).parent(infoDiv);
         nameP.class("swap-inv-item-name");
+        try {
+            if (typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function') {
+                nameP.style("color", window.getItemRarityCSSByName(itemName));
+            }
+        } catch (e) {}
 
         let amountP = createP("×" + (entry.amount || 0)).parent(infoDiv);
         amountP.class("swap-inv-item-amount");
@@ -246,6 +251,11 @@ function updateSwapItemDetails(itemName, itemEntry) {
     // Item info
     let nameP = createP(itemName).parent(curSwapItemDiv);
     nameP.class("swap-inv-detail-name");
+    try {
+        if (typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function') {
+            nameP.style("color", window.getItemRarityCSSByName(itemName));
+        }
+    } catch (e) {}
 
     let amountP = createP("Amount: " + (itemEntry.amount || 0)).parent(curSwapItemDiv);
     amountP.class("swap-inv-detail-amount");
