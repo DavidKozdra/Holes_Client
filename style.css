@@ -510,3 +510,212 @@ input.fmt-underline-apply {
 input.fmt-italic-apply {
     font-style: italic;
 }
+
+/* ===== System UI Classes ===== */
+
+/* Settings/Pause Container */
+.settings-container {
+    position: absolute;
+    font-family: Arial, sans-serif;
+    margin: 0 auto;
+    width: 300px;
+    background-color: #222;
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Pause Menu Container */
+.pause-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    width: 30%;
+    height: 40%;
+    border: 2px solid black;
+    border-radius: 10px;
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 999;
+}
+
+/* System UI Button */
+.system-button {
+    width: 80%;
+    padding: 10px;
+    margin: 10px;
+    font-size: 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: white;
+    background-color: #333;
+    border: none;
+}
+
+.system-button:hover {
+    background-color: #555;
+}
+
+/* Settings Button */
+.settings-button {
+    padding: 10px;
+    margin-top: 20px;
+    background-color: #444;
+    border: none;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.settings-button:hover {
+    background-color: #666;
+}
+
+/* Slider Container Row */
+.slider-row {
+    display: flex;
+    align-items: center;
+}
+
+.slider-label {
+    font-size: 16px;
+    margin-right: 10px;
+    color: white;
+}
+
+.slider-input {
+    width: 150px;
+}
+
+/* Control Label */
+.control-label {
+    padding: 10px 5px;
+    margin: 0;
+    text-align: end;
+    font-size: 20px;
+    color: white;
+}
+
+/* Control Button */
+.control-button {
+    min-width: 90px;
+    cursor: pointer;
+    padding: 8px 12px;
+}
+
+/* Binding UI Container */
+.binding-container {
+    background-color: var(--color-ui-dark);
+    border: 2px solid var(--color-dirt-dark);
+    border-radius: 10px;
+    padding: 10px;
+    z-index: 1001;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Binding Title */
+.binding-title {
+    padding: 10px 5px;
+    margin: 0;
+    text-align: center;
+    font-size: 30px;
+    color: white;
+}
+
+/* Content Wrapper */
+.binding-content {
+    display: flex;
+    gap: 20px;
+}
+
+/* Names Column */
+.binding-names {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Keys Column */
+.binding-keys {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Done Button */
+.done-button {
+    font-size: 25px;
+    background-color: rgb(76, 175, 80);
+    border-radius: 10px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    margin-top: 20px;
+}
+
+/* Player Status Container */
+.player-status-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30%;
+    min-width: 400px;
+    height: 40%;
+    border: 2px solid black;
+    border-radius: 10px;
+    text-align: center;
+    padding: 20px;
+    overflow: hidden;
+    background-color: #222;
+    z-index: 999;
+    display: none;
+}
+
+.player-status-table {
+    width: 100%;
+    color: white;
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+
+.player-status-table thead {
+    background-color: #333;
+}
+
+.player-status-table tbody tr {
+    border-bottom: 1px solid #444;
+}
+
+.player-status-title {
+    font-size: 28px;
+    font-weight: bold;
+    color: white;
+    text-decoration: underline;
+}
+
+.player-status-age {
+    font-size: 16px;
+    color: #00ff00;
+    margin-bottom: 15px;
+}
+
+.player-status-wrapper {
+    overflow-y: auto;
+    max-height: 70%;
+    margin-top: 10px;
+}
