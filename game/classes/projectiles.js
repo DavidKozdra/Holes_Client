@@ -53,6 +53,9 @@ class SimpleProjectile{
             newProj.flightPath.p = this.flightPath.p;
             newProj.cPos.x = newCPos.x;
             newProj.cPos.y = newCPos.y;
+            // Preserve custom overlay fields if present
+            if (this.overlayImgIndex !== undefined) newProj.overlayImgIndex = this.overlayImgIndex;
+            if (this.overlaySize !== undefined) newProj.overlaySize = this.overlaySize;
 
             socket.emit("new_proj", newProj);
 
@@ -82,6 +85,7 @@ class SimpleProjectile{
         let alpha = 255 * (1 - t);
         tint(255, alpha);
         image(projImgs[this.imgNum][0], 0, 0, 40, 40);
+        noTint();
         pop();
     }
 
@@ -185,6 +189,7 @@ class MeleeProjectile extends SimpleProjectile{
         this.safeRange = safeRange;
         this.angleWidth = angleWidth;
         this.initialLifespan = lifespan;
+        this.overlayDrawn = false; // ensure weapon overlay renders only once per swing
 
         this.ringAngles = [];
         for(let i = 0; i < this.range/10; i++){
@@ -200,9 +205,9 @@ class MeleeProjectile extends SimpleProjectile{
         push();
         translate(-camera.pos.x+(width/2), -camera.pos.y+(height/2));
         noFill();
-        // Progress from 0 → 1 across the lifespan (accelerated 4x for snappier motion)
+        // Progress from 0 → 1 across the lifespan (2x speed; half of previous 4x)
         let tBase = 1 - (this.lifespan / this.initialLifespan);
-        let t = Math.min(1, tBase * 4);
+        let t = Math.min(1, tBase * 2);
         // Sweep amount across the arc to convey motion
         let sweep = t * (this.angleWidth * 0.8);
         // Small outward expansion to show movement
@@ -250,24 +255,25 @@ class MeleeProjectile extends SimpleProjectile{
                 );
             }
 
-            // Overlay the weapon PNG rotated along the sweep
-            const weaponName = (this.name.endsWith(" Slash")) ? this.name.substring(0, this.name.length - 6) : this.name;
-            const weaponInfo = itemDic[weaponName];
-            if (weaponInfo && itemImgs[weaponInfo.img] && itemImgs[weaponInfo.img][0]) {
-                // Place the weapon along the arc at a reasonable radius
-                const bladeRadius = this.safeRange + (this.range * 0.4) + radialBoost;
-                const currentAngle = (this.flightPath.a - (this.angleWidth/2)) + sweep;
-                const wx = this.pos.x + Math.cos(currentAngle) * bladeRadius;
-                const wy = this.pos.y + Math.sin(currentAngle) * bladeRadius;
+            // Overlay the locked weapon PNG provided at fire time
+            if (!this.overlayDrawn && this.overlayImgIndex !== undefined && itemImgs[this.overlayImgIndex] && itemImgs[this.overlayImgIndex][0]) {
+                let overlayImg = itemImgs[this.overlayImgIndex][0];
+                let overlaySize = this.overlaySize !== undefined ? this.overlaySize : 60;
+                    // Place the weapon just above the inner edge of the slash (no separate circle)
+                    const bladeRadius = this.safeRange + 6; // hug the slash, minimal radial offset
+                    const centerAngle = this.flightPath.a; // draw along the center of the swing
+                    const wx = this.pos.x + Math.cos(centerAngle) * bladeRadius;
+                    const wy = this.pos.y + Math.sin(centerAngle) * bladeRadius;
 
                 push();
-                translate(-camera.pos.x+(width/2), -camera.pos.y+(height/2));
                 // Fade weapon overlay in sync with slash
-                tint(255, 220 * (1 - t));
+                tint(255, 230 * (1 - t));
                 translate(wx, wy);
-                rotate(currentAngle + PI/2);
-                image(itemImgs[weaponInfo.img][0], -30, -30, 60, 60);
+                    rotate(centerAngle + PI/2);
+                image(overlayImg, -(overlaySize/2), -(overlaySize/2), overlaySize, overlaySize);
+                noTint();
                 pop();
+                this.overlayDrawn = true;
             }
         }
         
@@ -386,6 +392,7 @@ class ObjProj extends SimpleProjectile{
         let alpha = 255 * (1 - t);
         tint(255, alpha);
         image(objImgs[this.imgNum][0], this.pos.x, this.pos.y, 40, 40);
+        noTint();
         pop();
     }
 
@@ -401,6 +408,9 @@ class ObjProj extends SimpleProjectile{
             newProj.flightPath.p = this.flightPath.p;
             newProj.cPos.x = newCPos.x;
             newProj.cPos.y = newCPos.y;
+            // Preserve custom overlay fields if present
+            if (this.overlayImgIndex !== undefined) newProj.overlayImgIndex = this.overlayImgIndex;
+            if (this.overlaySize !== undefined) newProj.overlaySize = this.overlaySize;
 
             socket.emit("new_proj", newProj);
 

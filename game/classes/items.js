@@ -217,6 +217,15 @@ class Melee extends SimpleItem{
             let slashOriginX = curPlayer.pos.x + toMouse.x * 0.3;
             let slashOriginY = curPlayer.pos.y + toMouse.y * 0.3;
             let proj = createProjectile(this.itemName+" Slash", curPlayer.name, curPlayer.color, slashOriginX, slashOriginY, toMouse.heading());
+            // Lock weapon overlay image to the item used at fire time
+            if(itemDic[this.itemName]){
+                proj.overlayImgIndex = itemDic[this.itemName].img;
+                let overlaySize = 60;
+                const typeHint = this.itemName.toLowerCase();
+                if (typeHint.includes("sword") || typeHint.includes("scythe")) overlaySize = 70;
+                else if (typeHint.includes("knife")) overlaySize = 50;
+                proj.overlaySize = overlaySize;
+            }
             // Apply player attack modifier to damage
             if(curPlayer.statBlock && curPlayer.statBlock.stats.attack){
                 proj.damage += curPlayer.statBlock.stats.attack;
