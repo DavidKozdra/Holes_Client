@@ -556,7 +556,7 @@ class Player {
                 update_values: [this.statBlock.stats.mp]
             });
             
-            console.log('[Dash] Activated! MP:', this.statBlock.stats.mp);
+            //console.log('[Dash] Activated! MP:', this.statBlock.stats.mp);
             return true;
         }
         return false;

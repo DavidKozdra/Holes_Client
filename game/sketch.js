@@ -152,7 +152,6 @@ function updatePlayerRegen(player) {
 
         if (currentHP < mhp && regenAmount > 0) {
             player.statBlock.regenHealth(regenAmount);
-            console.log(`✅ Regenerated ${regenAmount} HP. Current HP: ${player.statBlock.stats.hp}/${mhp}`);
             // Sync with server
             socket.emit("update_player", {
                 id: player.id,
@@ -168,7 +167,7 @@ function updatePlayerRegen(player) {
 
             let mpRegen = (player.statBlock.stats.magic || 1) * 0.1; // Regen 10% of magic stat as MP
             player.statBlock.stats.mp = Math.min(player.statBlock.stats.mp + mpRegen, mmp);
-            console.log(`✅ Regenerated ${mpRegen.toFixed(1)} MP. Current MP: ${player.statBlock.stats.mp.toFixed(1)}/${mmp}`);  
+            //console.log(`✅ Regenerated ${mpRegen.toFixed(1)} MP. Current MP: ${player.statBlock.stats.mp.toFixed(1)}/${mmp}`);  
             // Sync with server
             socket.emit("update_player", {
                 id: player.id,
@@ -306,6 +305,11 @@ function draw() {
 
             //regen mana and health over time
             updatePlayerRegen(curPlayer)
+
+            // Draw real-time dig preview lines while playing
+            if (typeof renderDigPreviewLine === 'function') {
+                renderDigPreviewLine();
+            }
 
             // PERF FIX #3: cache chunk key string, use const for INTERACT_RANGE
             let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));

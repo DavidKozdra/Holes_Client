@@ -1,5 +1,51 @@
 var digSoundTimer = 0;
 
+function renderDigPreviewLine() {
+    // Real-time guide line preview based on current mouse position (for feedback while digging)
+    if (!curPlayer) return;
+    
+    // Only show preview if holding a shovel/digging tool
+    const slotName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+    if (!slotName) return;
+    const item = curPlayer.invBlock.items[slotName];
+    if (!item || item.type !== "Shovel") return;
+    
+    const mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
+    const ray = createVector(mouseVec.x - curPlayer.pos.x, mouseVec.y - curPlayer.pos.y);
+    const angle = ray.heading();
+    
+    const digSpot = cast(curPlayer.pos.x, curPlayer.pos.y, angle, false);
+    if (!digSpot) return;
+    
+    const digX = (digSpot.cx * CHUNKSIZE + digSpot.x) * TILESIZE;
+    const digY = (digSpot.cy * CHUNKSIZE + digSpot.y) * TILESIZE;
+    
+    // Draw preview guide line from player with offset
+    const startX = curPlayer.pos.x - camera.pos.x + (width / 2);
+    const startY = curPlayer.pos.y - camera.pos.y + (height / 2);
+    const targetX = digX - camera.pos.x + (width / 2);
+    const targetY = digY - camera.pos.y + (height / 2);
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+    const len = sqrt(dx * dx + dy * dy);
+    const dirX = len !== 0 ? dx / len : 0;
+    const dirY = len !== 0 ? dy / len : 0;
+    const offset = 40;
+    const shorten = 30;
+    const usableLen = max(0, len - offset);
+    const drawnLen = usableLen > shorten ? usableLen - shorten : usableLen;
+    const startXOffset = startX + dirX * offset;
+    const startYOffset = startY + dirY * offset;
+    const endX = startXOffset + dirX * drawnLen;
+    const endY = startYOffset + dirY * drawnLen;
+    
+    push();
+    stroke(245, 245, 245, 50);
+    strokeWeight(3);
+    line(startXOffset, startYOffset, endX, endY);
+    pop();
+}
+
 function getEquippedShovelImage() {
     if (!curPlayer || !curPlayer.invBlock) return null;
     const slotName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
@@ -134,7 +180,7 @@ function dig(x, y, amt, playerDiging, rayStart) {
         const len = sqrt(dx * dx + dy * dy);
         const dirX = len !== 0 ? dx / len : 0;
         const dirY = len !== 0 ? dy / len : 0;
-        const offset = 20;
+        const offset = 40;
         const shorten = 30; // shorten further so the tool sprite is clear
         const usableLen = max(0, len - offset);
         const drawnLen = usableLen > shorten ? usableLen - shorten : usableLen;
@@ -397,7 +443,7 @@ function mine(x, y, amt, playerDiging, rayStart) {
         const len = sqrt(dx * dx + dy * dy);
         const dirX = len !== 0 ? dx / len : 0;
         const dirY = len !== 0 ? dy / len : 0;
-        const offset = 20;
+        const offset = 40;
         const shorten = 30; // shorten further so the tool sprite is clear
         const usableLen = max(0, len - offset);
         const drawnLen = usableLen > shorten ? usableLen - shorten : usableLen;
@@ -414,6 +460,11 @@ function mine(x, y, amt, playerDiging, rayStart) {
 
         // Draw shovel/pick head from equipped tool to show action
         drawShovelHead(0, 0, angle + PI / 2, getEquippedShovelImage());
+
+        // Floating metal particles with text-style animation
+        for (let i = 0; i < 4; i++) {
+            spawnFloatingText(0, digX + random(-6, 6), digY + random(-6, 6), "metalParticle", false);
+        }
 
         // Sparks (amber for contrast)
         for (let i = 0; i < 12; i++) {

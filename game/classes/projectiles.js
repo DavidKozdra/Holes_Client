@@ -654,14 +654,16 @@ class FloatingText {
         const t = constrain(this.age / this.life, 0, 1);
         const alpha = 255 * (1 - t);
 
-        // Custom dirt particle render path (reuses floating text motion)
-        if (this.kind === "dirtParticle" && typeof dirtParticleImg !== 'undefined' && dirtParticleImg) {
+        // Custom particle render path for dirt/metal (reuses floating text motion)
+        if ((this.kind === "dirtParticle" || this.kind === "metalParticle") && (typeof dirtParticleImg !== 'undefined' || typeof metalParticleImg !== 'undefined')) {
+            const img = this.kind === "metalParticle" ? metalParticleImg : dirtParticleImg;
+            if (!img) return;
             push();
             translate(-camera.pos.x+(width/2), -camera.pos.y+(height/2));
             imageMode(CENTER);
             const size = 12 * (0.9 + (1 - t) * 0.6);
             tint(255, alpha);
-            image(dirtParticleImg, this.pos.x, this.pos.y, size, size);
+            image(img, this.pos.x, this.pos.y, size, size);
             noTint();
             pop();
             return;

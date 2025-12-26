@@ -17,6 +17,7 @@ var itemAtlas;
 var fullAtlas;
 var shovelHeadImg;
 var dirtParticleImg;
+var metalParticleImg;
 
 function preload() {
     // Load the default image
@@ -82,6 +83,7 @@ function preload() {
     itemAtlas = loadImage("images/items/item_atlas.png");
     shovelHeadImg = loadImage("images/items/shovel1.png");
     dirtParticleImg = loadImage("images/items/dirtball.png");
+    metalParticleImg = loadImage("images/items/metal_scrap.png");
     fullAtlas = loadImage("images/full_atlas.png");
 
     playerCardImg = loadImage('images/ui/playercard.png');
