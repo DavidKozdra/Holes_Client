@@ -214,6 +214,10 @@ class Melee extends SimpleItem{
             let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
             let toMouse = createVector(x,y).sub(curPlayer.pos).setMag(50);
             let proj = createProjectile(this.itemName+" Slash", curPlayer.name, curPlayer.color, curPlayer.pos.x, curPlayer.pos.y, toMouse.heading());
+            // Apply player attack modifier to damage
+            if(curPlayer.statBlock && curPlayer.statBlock.stats.attack){
+                proj.damage += curPlayer.statBlock.stats.attack;
+            }
             if(testMap.chunks[chunkPos.x+','+chunkPos.y] != undefined){
                 testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(
                     proj
@@ -277,6 +281,14 @@ class Ranged extends SimpleItem{
                             curPlayer.pos.y + toMouse.y,
                             toMouse.heading()
                         )
+                        // Apply player attack modifier to damage (use magic stat if magic weapon)
+                        if(curPlayer.statBlock){
+                            if(this.magicBool && curPlayer.statBlock.stats.magic){
+                                proj.damage += curPlayer.statBlock.stats.magic;
+                            } else if(!this.magicBool && curPlayer.statBlock.stats.attack){
+                                proj.damage += curPlayer.statBlock.stats.attack;
+                            }
+                        }
                         testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(
                             proj
                         );
