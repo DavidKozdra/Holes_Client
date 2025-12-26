@@ -306,11 +306,6 @@ function draw() {
             //regen mana and health over time
             updatePlayerRegen(curPlayer)
 
-            // Draw real-time dig preview lines while playing
-            if (typeof renderDigPreviewLine === 'function') {
-                renderDigPreviewLine();
-            }
-
             // PERF FIX #3: cache chunk key string, use const for INTERACT_RANGE
             let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
             let chunkPos = testMap.globalToChunk(mouseVec.x,mouseVec.y);

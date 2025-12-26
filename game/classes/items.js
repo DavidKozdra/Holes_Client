@@ -15,148 +15,96 @@ var itemImgCords = [];
 var itemDic = {};
 var craftOptions = [];
 
-// Rarity labeling and colors (central enum + palette)
-// white - basic wood, mushrooms, rocks
-// blue  - easy to craft but time-gated (e.g., apple, basic sword/shovel)
-// green - gems and hard-to-find resources
-// gold  - philosopher's stone and super-rares (e.g., wizard staff)
+// Rarity tiers and colors
 const ItemRarity = Object.freeze({
-    WHITE: 'white',
-    BLUE: 'blue',
-    GREEN: 'green',
-    GOLD: 'gold'
+    BASIC: 'basic',
+    GOOD: 'good',
+    GREAT: 'great',
+    LEGENDARY: 'legendary',
+    DEVIL: 'devil',
+    GOD: 'god'
 });
 
 const RARITY_RGB = {
-    'white': [235, 235, 235],
-    'blue':  [110, 180, 255],
-    'green': [90, 220, 140],
-    'gold':  [255, 205, 80]
+    'basic': [235, 235, 235],
+    'good':  [110, 180, 255],
+    'great': [90, 220, 140],
+    'legendary':  [255, 205, 80],
+    'devil': [255, 50, 50],
+    'god': [100, 200, 255]
 };
 
-function getItemRarity(name){
-    return ITEM_RARITY[name] || ItemRarity.WHITE;
-}
 function getItemRarityRGB(rarity){
-    return RARITY_RGB[rarity] || RARITY_RGB[ItemRarity.WHITE];
+    return RARITY_RGB[rarity] || RARITY_RGB[ItemRarity.BASIC];
 }
 function rarityToCSS(rarity){
     const rgb = getItemRarityRGB(rarity);
     return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
 function getItemRarityCSSByName(name){
-    return rarityToCSS(getItemRarity(name));
+    if(itemDic[name] && itemDic[name].rarity){
+        return rarityToCSS(itemDic[name].rarity);
+    }
+    return rarityToCSS(ItemRarity.BASIC);
 }
 // Expose for UI usage
 if (typeof window !== 'undefined') {
     window.ItemRarity = ItemRarity;
-    window.getItemRarity = getItemRarity;
     window.getItemRarityRGB = getItemRarityRGB;
     window.getItemRarityCSSByName = getItemRarityCSSByName;
 }
 
-// Explicit item → rarity overrides (defaults to white if not listed)
-const ITEM_RARITY = {
-    // Common basics
-    "Rock": ItemRarity.WHITE,
-    "Raw Metal": ItemRarity.WHITE,
-    "Metal": ItemRarity.WHITE,
-    "Log": ItemRarity.WHITE,
-    "Arrow": ItemRarity.WHITE,
-    "Mushroom": ItemRarity.WHITE,
-    "Mushroom Fiber": ItemRarity.WHITE,
-    "Acorn": ItemRarity.WHITE,
-    "Mushroom Seed": ItemRarity.WHITE,
-    "Dirt Ball": ItemRarity.WHITE,
-    "Skizzard Tail": ItemRarity.WHITE,
+defineShovel("Basic Shovel", [[4,4]], [1,["Log",1],["Rock",1]], 1, 100, 0.12, 3, 1, "A basic shovel for digging dirt", ItemRarity.GOOD, true);
+defineShovel("Better Shovel", [[5,4]], [1,["Log",1],["Gem",2]], 1, 100, 0.18, 3, 1, "A better shovel for digging dirt", ItemRarity.GOOD, true);
+defineShovel("God Shovel", [[6,4]], [1,["Rock",2],["Philosopher's Stone",2]], 1, 100, 0.3, 3, 1, "A godly shovel for digging dirt", ItemRarity.GOD, true);
+defineShovel("Pickaxe", [[1,4]], [1,["Log",2],["Rock",3]], 1, 100, 0.2, 3, 1, "A basic pickaxe for mining iron", ItemRarity.GOOD, true);
 
-    // Time-gated / early craftables
-    "Apple": ItemRarity.BLUE,
-    "Salad": ItemRarity.BLUE,
-    "Roasted Tail": ItemRarity.BLUE,
-    "Red Acorn": ItemRarity.BLUE,
-    "Basic Shovel": ItemRarity.BLUE,
-    "Better Shovel": ItemRarity.BLUE,
-    "Pickaxe": ItemRarity.BLUE,
-    "Basic Sword": ItemRarity.BLUE,
-    "Bow": ItemRarity.BLUE,
-    "CrossBow": ItemRarity.BLUE,
-    "TriSling": ItemRarity.BLUE,
-    "DirtBomb": ItemRarity.BLUE,
-    "Map": ItemRarity.BLUE,
+defineMelee("Mush Knife", [[4,3]], [1,["Mushroom",1],["Rock",1],["Mushroom Fiber",1]], 1, 60, 4, 3, 50, 60, 80, 35, false, "A basic knife", ItemRarity.GOOD, true);
+defineMelee("Basic Sword", [[1,5]], [1,["Log",1],["Rock",3],["Mushroom Fiber",2]], 1, 70, 5, 3, 45, 55, 75, 45, false, "A basic sword for slashing", ItemRarity.GOOD, true);
+defineMelee("Better Sword", [[2,5]], [1,["Log",2],["Rock",2],["Gem",5],["Mushroom Fiber", 3]], 1, 120, 12, 5, 55, 65, 95, 22, false, "A better sword for slashing", ItemRarity.GREAT, true);
+defineMelee("Gem Sword", [[2,2]], [1,["Gem",3],["Philosopher's Stone",1],["Black Gem",2],["Tech",4]], 1, 160, 18, 7, 65, 75, 105, 16, false, "A legendary sword for slashing, really really green", ItemRarity.LEGENDARY, true);
+defineMelee("Evil Apple on Stick", [[5,1]], [1,["Bad Apple",1],["Log",1]], 1, 80, 4, 4, 90, 50, 25, 12, false, "Now it'll bite your opponets", ItemRarity.GREAT, true);
+defineMelee("Scythe", [[3,4]], [1,["Log",2],["Rock",4],["Mushroom Fiber",1]], 1, 110, 8, 4, 60, 140, 140, 100, false, "Just gotta make sure they are on the blade", ItemRarity.GOOD, true);
+defineMelee("God's Scythe", [[3,4]], [], 1, 100, 200, 0, 100, 60, 150, 10, false, "Just gotta make sure they are on the blade", ItemRarity.GOD, false);
 
-    // Hard to find
-    "Gem": ItemRarity.GREEN,
-    "Black Gem": ItemRarity.GREEN,
-    "Tech": ItemRarity.GREEN,
-    "Better Sword": ItemRarity.GREEN,
-    "Scythe": ItemRarity.GREEN,
-    "Laser Gun": ItemRarity.GREEN,
-    "Compass": ItemRarity.GREEN,
-    "Bomb": ItemRarity.GREEN,
+defineRanged("Basic SlingShot", [[0,5]], [1,["Mushroom", 2]], 1, 100, 5, "Rock", "Rock", 10, 10, 60, false, "A basic slingshot for shooting", ItemRarity.GOOD, true);
+defineRanged("Better SlingShot", [[0,5]], [1,["Mushroom", 2], ["Gem", 1]], 1, 100, 5, "Rock", "Rock", 10, 10, 60, false, "A better slingshot for shooting", ItemRarity.GREAT, true);
+defineRanged("Dirt Ball", [[4,1]], [1,["Dirt", 5]], 1, 1, 5, "Dirt", "Dirt Ball", 10, 10, 60, false, "A ball of dirt to push people around", ItemRarity.BASIC, true);
+defineRanged("Bomb", [[451,66]], [1,["Rock", 2], ["Black Gem", 2]], 1, 1, 5, "Bomb", "Bomb", 10, 10, 60, false, "A bomb you can throw", ItemRarity.GREAT, true);
+defineRanged("DirtBomb", [[471,66]], [1,["Dirt", 5], ["Bomb", 1]], 1, 1, 5, "Dirt Bomb", "DirtBomb", 10, 10, 60, false, "A bomb that just makes dirt", ItemRarity.GOOD, true);
+defineRanged("Fire Staff", [[6,1]], [1,["Log", 3],["Black Gem", 1],["Philosopher's Stone",1]], 1, 100, 5, "Fire Ball", "mana25", 20, 10, 60, true, "A staff that shoots fire", ItemRarity.LEGENDARY, true);
+defineRanged("Laser Gun", [[5,2]], [1,["Metal",3],["Rock",2], ["Tech", 2]], 1, 100, 5, "Laser", "mana15", 10, 10, 60, false, "A gun that shoots lasers", ItemRarity.GREAT, true);
+defineRanged("Bow", [[6,0]], [1,["Log", 5],["Mushroom Fiber", 2]], 1, 100, 5, "Arrow", "Arrow", 3, 3, 30, false, "A bow", ItemRarity.GOOD, true);
+defineRanged("CrossBow", [[2,1]], [1,["Log", 5], ["Rock", 1],["Mushroom Fiber", 1]], 1, 100, 5, "Arrow", "Arrow", 15, 10, 60, false, "A Cross bow", ItemRarity.GOOD, true);
+defineRanged("TriSling", [[4,5]], [1,["Better SlingShot", 3]], 1, 100, 5, "Rock", "Rock", 3, 30, 60, false, "A handful of slingshots", ItemRarity.GREAT, true);
 
-    // Super rare / legendary
-    "Philosopher's Stone": ItemRarity.GOLD,
-    "Fire Staff": ItemRarity.GOLD,
-    "Gem Sword": ItemRarity.GOLD,
-    "Teleport Receiver": ItemRarity.GOLD,
-    "Dirt Bag Upgrade": ItemRarity.GOLD,
-    "God Shovel": ItemRarity.GOLD,
-    "God's Scythe": ItemRarity.GOLD,
-    "Evil Apple on Stick": ItemRarity.GOLD
-};
+defineSimpleItem("Rock", [[2,4]], [], 1, "A rock for your slingshot", ItemRarity.BASIC, false);
+defineSimpleItem("Raw Metal", [[1,3]], [], 1, "A cluster of metal, still needs to be heated", ItemRarity.BASIC, false);
+defineSimpleItem("Metal", [[2,3]], [1,["Raw Metal", 1]], 1, "Some metalic scraps, good enough for crafting", ItemRarity.BASIC, false);
+defineSimpleItem("Gem", [[1,2]], [], 1, "A pretty gem", ItemRarity.GREAT, false);
+defineSimpleItem("Black Gem", [[5,0]], [], 1, "An explosive gem", ItemRarity.GREAT, false);
+defineSimpleItem("Philosopher's Stone", [[0,4]], [], 1, "A gem with immense power flowing out of it", ItemRarity.LEGENDARY, false);
+defineSimpleItem("Log", [[6,2]], [], 1, "A wooden log", ItemRarity.BASIC, false);
+defineSimpleItem("Tech", [[0,1]], [1,["Metal",1],["Gem",1]], 1, "Some piece of technology", ItemRarity.GREAT, true);
+defineSimpleItem("Arrow", [[3,0]], [2,["Log", 1], ["Rock", 1]], 1, "An arrow", ItemRarity.BASIC, true);
 
-defineShovel("Basic Shovel", [[4,4]], [1,["Log",1],["Rock",1]], 1, 100, 0.12, 3, 1, "A basic shovel for digging dirt",true);
-defineShovel("Better Shovel", [[5,4]], [1,["Log",1],["Gem",2]], 1, 100, 0.18, 3, 1, "A better shovel for digging dirt",true);
-defineShovel("God Shovel", [[6,4]], [1,["Rock",2],["Philosopher's Stone",2]], 1, 100, 0.3, 3, 1, "A godly shovel for digging dirt",true);
-defineShovel("Pickaxe", [[1,4]], [1,["Log",2],["Rock",3]], 1, 100, 0.2, 3, 1, "A basic pickaxe for mining iron",true);
+defineFood("Apple", [[2,0]], [], 1, 100, 10, 0, "A juicy apple", ItemRarity.GOOD, false);
+defineFood("Bad Apple", [[4,0]], [], 1, 100, 5, 5, "Looks like this apple would bite back", ItemRarity.GREAT, false);
+defineFood("Mushroom", [[458,47]], [], 1, 100, 5, 10, "A tasty mushroom", ItemRarity.BASIC, false);
+defineFood("Salad", [[5,5]], [1,["Mushroom",1],["Apple",1],["Log",1]], 1, 100, 20, 10, "A salad", ItemRarity.GOOD, true);
+defineFood("Skizzard Tail", [[6,5]], [], 1, 100, 5, 5, "A raw tail", ItemRarity.BASIC, false);
+defineFood("Roasted Tail", [[7,5]], [1,["Skizzard Tail", 1]], 1, 100, 30, 15, "A roasted tail", ItemRarity.GOOD, false);
 
-defineMelee("Mush Knife", [[4,3]], [1,["Mushroom",1],["Rock",1],["Mushroom Fiber",1]], 1, 100, 25, 5, 50, 60, 90, 30, false, "A basic knife",true);
-defineMelee("Basic Sword", [[1,5]], [1,["Log",1],["Rock",3],["Mushroom Fiber",2]], 1, 100, 25, 5, 50, 60, 90, 30, false, "A basic sword for slashing",true);
-defineMelee("Better Sword", [[2,5]], [1,["Log",2],["Rock",2],["Gem",5],["Mushroom Fiber", 3]], 1, 100, 10, 5, 50, 60, 90, 10, false, "A better sword for slashing",true);
-defineMelee("Gem Sword", [[2,2]], [1,["Gem",3],["Philosopher's Stone",1],["Black Gem",2],["Tech",4]], 1, 100, 10, 5, 50, 60, 90, 10, false, "A Green sword for slashing, really really green",true);
-defineMelee("Evil Apple on Stick", [[5,1]], [1,["Bad Apple",1],["Log",1]], 1, 100, 10, 5, 100, 60, 20, 10, false, "Now it'll bite your opponets",true);
-defineMelee("Scythe", [[3,4]], [1,["Log",2],["Rock",4],["Mushroom Fiber",1]], 1, 100, 25, 5, 50, 150, 150, 120, false, "Just gotta make sure they are on the blade",true);
-defineMelee("God's Scythe", [[3,4]], [], 1, 100, 200, 0, 100, 60, 150, 10, false, "Just gotta make sure they are on the blade",false);
-
-defineRanged("Basic SlingShot", [[0,5]], [1,["Mushroom", 2]], 1, 100, 5, "Rock", "Rock", 10, 10, 60, false, "A basic slingshot for shooting",true);
-defineRanged("Better SlingShot", [[0,5]], [1,["Mushroom", 2], ["Gem", 1]], 1, 100, 5, "Rock", "Rock", 10, 10, 60, false, "A better slingshot for shooting",true);
-defineRanged("Dirt Ball", [[4,1]], [1,["Dirt", 5]], 1, 1, 5, "Dirt", "Dirt Ball", 10, 10, 60, false, "A ball of dirt to push people around",true);
-defineRanged("Bomb", [[451,66]], [1,["Rock", 2], ["Black Gem", 2]], 1, 1, 5, "Bomb", "Bomb", 10, 10, 60, false, "A bomb you can throw",true);
-defineRanged("DirtBomb", [[471,66]], [1,["Dirt", 5], ["Bomb", 1]], 1, 1, 5, "Dirt Bomb", "DirtBomb", 10, 10, 60, false, "A bomb that just makes dirt",true);
-defineRanged("Fire Staff", [[6,1]], [1,["Log", 3],["Black Gem", 1],["Philosopher's Stone",1]], 1, 100, 5, "Fire Ball", "mana25", 20, 10, 60, true, "A staff that shoots fire",true);
-defineRanged("Laser Gun", [[5,2]], [1,["Metal",3],["Rock",2], ["Tech", 2]], 1, 100, 5, "Laser", "mana15", 10, 10, 60, false, "A gun that shoots lasers",true);
-defineRanged("Bow", [[6,0]], [1,["Log", 5],["Mushroom Fiber", 2]], 1, 100, 5, "Arrow", "Arrow", 3, 3, 30, false, "A bow",true);
-defineRanged("CrossBow", [[2,1]], [1,["Log", 5], ["Rock", 1],["Mushroom Fiber", 1]], 1, 100, 5, "Arrow", "Arrow", 15, 10, 60, false, "A Cross bow",true);
-defineRanged("TriSling", [[4,5]], [1,["Better SlingShot", 3]], 1, 100, 5, "Rock", "Rock", 3, 30, 60, false, "A handful of slingshots",true);
-
-defineSimpleItem("Rock", [[2,4]], [], 1, "A rock for your slingshot",false);
-defineSimpleItem("Raw Metal", [[1,3]], [], 1, "A cluster of metal, still needs to be heated",false);
-defineSimpleItem("Metal", [[2,3]], [1,["Raw Metal", 1]], 1, "Some metalic scraps, good enough for crafting",false);
-defineSimpleItem("Gem", [[1,2]], [], 1, "A pretty gem",false);
-defineSimpleItem("Black Gem", [[5,0]], [], 1, "An explosive gem",false);
-defineSimpleItem("Philosopher's Stone", [[0,4]], [], 1, "A gem with immense power flowing out of it",false);
-defineSimpleItem("Log", [[6,2]], [], 1, "A wooden log",false);
-defineSimpleItem("Tech", [[0,1]], [1,["Metal",1],["Gem",1]], 1, "Some piece of technology",true);
-defineSimpleItem("Arrow", [[3,0]], [2,["Log", 1], ["Rock", 1]], 1, "An arrow",true);
-
-defineFood("Apple", [[2,0]], [], 1, 100, 10, 0, "A juicy apple",false);
-defineFood("Bad Apple", [[4,0]], [], 1, 100, 5, 5, "Looks like this apple would bite back",false);
-defineFood("Mushroom", [[458,47]], [], 1, 100, 5, 10, "A tasty mushroom",false);
-defineFood("Salad", [[5,5]], [1,["Mushroom",1],["Apple",1],["Log",1]], 1, 100, 20, 10, "A salad",true);
-defineFood("Skizzard Tail", [[6,5]], [], 1, 100, 5, 5, "A raw tail",false);
-defineFood("Roasted Tail", [[7,5]], [1,["Skizzard Tail", 1]], 1, 100, 30, 15, "A roasted tail",false);
-
-defineSeed("Red Acorn", [[1,0]], [1,["Apple", 1]], 1, "AppleTree", 0.5, "Will grow into an apple tree",true);
-defineSeed("Acorn", [[0,0]], [2,["Log", 1],["Mushroom Fiber",2]], 1, "Tree", 0.5, "Will grow into a tree",true);
-defineSeed("Mushroom Seed", [[5,3]], [1,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores",true);
-defineSimpleItem("Mushroom Fiber", [[3,3]], [3,["Mushroom",1]], 1, "A stringy component of many tools",true);
+defineSeed("Red Acorn", [[1,0]], [1,["Apple", 1]], 1, "AppleTree", 0.5, "Will grow into an apple tree", ItemRarity.GOOD, true);
+defineSeed("Acorn", [[0,0]], [2,["Log", 1],["Mushroom Fiber",2]], 1, "Tree", 0.5, "Will grow into a tree", ItemRarity.GOOD, true);
+defineSeed("Mushroom Seed", [[5,3]], [1,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores", ItemRarity.GOOD, true);
+defineSimpleItem("Mushroom Fiber", [[3,3]], [3,["Mushroom",1]], 1, "A stringy component of many tools", ItemRarity.BASIC, true);
 
 function compassUse(x,y,mouseButton){}
-defineCustomItem("Compass", [[1,1]], [1,["Metal", 1],["Tech", 1]], 1, 1, "A compass that points to the nearest player", compassUse, true);
+defineCustomItem("Compass", [[1,1]], [1,["Metal", 1],["Tech", 1]], 1, 1, "A compass that points to the nearest player", compassUse, ItemRarity.GOOD, true);
 
 function mapUse(x,y,mouseButton){}
-defineCustomItem("Map", [[0,3]], [1,["Mushroom Fiber", 3],["Gem", 1]], 1, 1, "A map that shows where you are in x y cords", mapUse, true);
+defineCustomItem("Map", [[0,3]], [1,["Mushroom Fiber", 3],["Gem", 1]], 1, 1, "A map that shows where you are in x y cords", mapUse, ItemRarity.GOOD, true);
 
 function teleportReceiverUse(x,y,mouseButton){
     if(gameState == "playing"){
@@ -169,7 +117,7 @@ function teleportReceiverUse(x,y,mouseButton){
         }
     }
 }
-defineCustomItem("Teleport Receiver", [[3,5]], [1,["Metal", 1],["Tech", 2],["Philosopher's Stone",1]], 1, 1, "A teleport receiver that teleports you to any portals with a range", teleportReceiverUse, true);
+defineCustomItem("Teleport Receiver", [[3,5]], [1,["Metal", 1],["Tech", 2],["Philosopher's Stone",1]], 1, 1, "A teleport receiver that teleports you to any portals with a range", teleportReceiverUse, ItemRarity.LEGENDARY, true);
 
 function dirtBagUpgradeUse(x,y,mouseButton){
     if(curPlayer.invBlock.useTimer <= 0){
@@ -178,7 +126,7 @@ function dirtBagUpgradeUse(x,y,mouseButton){
         curPlayer.invBlock.useTimer = 30;
     }
 }
-defineCustomItem("Dirt Bag Upgrade", [[3,1]], [1,["Mushroom Fiber", 7],["Philosopher's Stone", 1]], 1, 1, "+150 to dirt bag capacity", dirtBagUpgradeUse, true);
+defineCustomItem("Dirt Bag Upgrade", [[3,1]], [1,["Mushroom Fiber", 7],["Philosopher's Stone", 1]], 1, 1, "+150 to dirt bag capacity", dirtBagUpgradeUse, ItemRarity.LEGENDARY, true);
 
 
 class SimpleItem{
@@ -189,7 +137,7 @@ class SimpleItem{
         this.maxDurability = durability;
         this.imgNum = imgNum;
         this.desc = desc;
-        this.rarity = (itemDic[this.itemName] && itemDic[this.itemName].rarity) ? itemDic[this.itemName].rarity : ItemRarity.WHITE;
+        this.rarity = (itemDic[this.itemName] && itemDic[this.itemName].rarity) ? itemDic[this.itemName].rarity : ItemRarity.BASIC;
         this.rarityRGB = (itemDic[this.itemName] && itemDic[this.itemName].rarityRGB) ? itemDic[this.itemName].rarityRGB : getItemRarityRGB(this.rarity);
 
         this.offset = createVector(0,0);
@@ -644,8 +592,8 @@ function createItem(name){
 }
 
 //the most common parts of a define, so we don't have to keep editing all the defines
-function defineItemSuper(type,name,imgSrc,cost,weight,durability,desc,inCraftList){
-    checkParams(arguments, getParamNames(defineItemSuper), ["string","string","object","object","number","int","string","boolean"]);
+function defineItemSuper(type, name, imgSrc, cost, weight, durability, desc, rarity, inCraftList){
+    checkParams(arguments, getParamNames(defineItemSuper), ["string","string","object","object","number","int","string","string","boolean"]);
 
     let imgNum = 0;
     for(let i = 0; i < imgSrc.length; i++){
@@ -669,8 +617,7 @@ function defineItemSuper(type,name,imgSrc,cost,weight,durability,desc,inCraftLis
         imgNum = itemImgCords.length - 1;
     }
     
-    
-    const rarity = getItemRarity(name);
+    const itemRarity = rarity || ItemRarity.BASIC;
     itemDic[name] = {
         type: type,
         name: name,
@@ -679,9 +626,9 @@ function defineItemSuper(type,name,imgSrc,cost,weight,durability,desc,inCraftLis
         durability: durability,
         desc: desc,
         cost: cost,
-        rarity: rarity,
-        rarityRGB: getItemRarityRGB(rarity),
-        rarityCSS: rarityToCSS(rarity)
+        rarity: itemRarity,
+        rarityRGB: getItemRarityRGB(itemRarity),
+        rarityCSS: rarityToCSS(itemRarity)
     };
 
     if(inCraftList){
@@ -697,10 +644,11 @@ function defineItemSuper(type,name,imgSrc,cost,weight,durability,desc,inCraftLis
  * @param {Array} cost an array of things this item needs to be placed, can take in the names of items, or dirt, followed by how much ex. [["rock", 5],["dirt", 20]]
  * @param {number} weight how much the item weighs
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
  * @param {boolean} inCraftList is this item craftable?
 */
-function defineSimpleItem(name, imgPaths, cost, weight, desc, inCraftList){
-    defineItemSuper("SimpleItem", name,imgPaths,cost,weight,1,desc,inCraftList);
+function defineSimpleItem(name, imgPaths, cost, weight, desc, rarity, inCraftList){
+    defineItemSuper("SimpleItem", name, imgPaths, cost, weight, 1, desc, rarity, inCraftList);
 }
 
 /**
@@ -715,9 +663,11 @@ function defineSimpleItem(name, imgPaths, cost, weight, desc, inCraftList){
  * @param {number} digSize not sure how this will work, but bigger number here should mean more effected dirt nodes
  * @param {int} range how far from the character the shovel will be able to dig
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
+ * @param {boolean} inCraftList is this item craftable?
 */
-function defineShovel(name, imgPaths, cost, weight, durability, digSpeed, digSize, range, desc, inCraftList){
-    defineItemSuper("Shovel", name,imgPaths,cost,weight,durability,desc,inCraftList);
+function defineShovel(name, imgPaths, cost, weight, durability, digSpeed, digSize, range, desc, rarity, inCraftList){
+    defineItemSuper("Shovel", name, imgPaths, cost, weight, durability, desc, rarity, inCraftList);
 
     let paramNames = getParamNames(defineShovel);
     checkParams(
@@ -746,9 +696,11 @@ function defineShovel(name, imgPaths, cost, weight, durability, digSpeed, digSiz
  * @param {int} swingSpeed how many frames between each swing
  * @param {boolean} magicBool if the weapon does magic damage
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
+ * @param {boolean} inCraftList is this item craftable?
 */
-function defineMelee(name,imgPaths, cost, weight, durability, damage, knockback, range, safeRange, angle, swingSpeed, magicBool, desc, inCraftList){
-    defineItemSuper("Melee", name, imgPaths, cost, weight, durability, desc, inCraftList);
+function defineMelee(name, imgPaths, cost, weight, durability, damage, knockback, range, safeRange, angle, swingSpeed, magicBool, desc, rarity, inCraftList){
+    defineItemSuper("Melee", name, imgPaths, cost, weight, durability, desc, rarity, inCraftList);
 
     let paramNames = getParamNames(defineMelee);
     checkParams(
@@ -786,9 +738,11 @@ function defineMelee(name,imgPaths, cost, weight, durability, damage, knockback,
  * @param {number} reloadSpeed how many seconds it takes to reload
  * @param {boolean} magicBool if the weapon does magic damage
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
+ * @param {boolean} inCraftList is this item craftable?
 */
-function defineRanged(name, imgPaths, cost, weight, durability, spread, projName, ammoName, fireRate, roundSize, reloadSpeed, magicBool, desc, inCraftList){
-    defineItemSuper("Ranged", name, imgPaths, cost, weight, durability, desc, inCraftList);
+function defineRanged(name, imgPaths, cost, weight, durability, spread, projName, ammoName, fireRate, roundSize, reloadSpeed, magicBool, desc, rarity, inCraftList){
+    defineItemSuper("Ranged", name, imgPaths, cost, weight, durability, desc, rarity, inCraftList);
     
     let paramNames = getParamNames(defineRanged);
     checkParams(
@@ -825,9 +779,11 @@ function defineRanged(name, imgPaths, cost, weight, durability, spread, projName
  * @param {int} heal how much the food heals
  * @param {int} manaRegen how much the food regenerates mana
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
+ * @param {boolean} inCraftList is this item craftable?
 */
-function defineFood(name, imgPaths, cost, weight, durability, heal, manaRegen, desc, inCraftList){
-    defineItemSuper("Food", name, imgPaths, cost, weight, durability, desc, inCraftList);
+function defineFood(name, imgPaths, cost, weight, durability, heal, manaRegen, desc, rarity, inCraftList){
+    defineItemSuper("Food", name, imgPaths, cost, weight, durability, desc, rarity, inCraftList);
 
     checkParams([arguments[5],arguments[6]],[getParamNames(defineFood)[5],getParamNames(defineFood)[6]],["int", "int"]);
     
@@ -846,9 +802,11 @@ function defineFood(name, imgPaths, cost, weight, durability, heal, manaRegen, d
  * @param {number} statBoost the percentage change in the stat
  * @param {int} time how long the effect lasts
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
+ * @param {boolean} inCraftList is this item craftable?
 */
-function definePotion(name, imgPaths, cost, weight, statName, statBoost, time, desc, inCraftList){
-    defineItemSuper("Potion", name, imgPaths, cost, weight, 1, desc, inCraftList);
+function definePotion(name, imgPaths, cost, weight, statName, statBoost, time, desc, rarity, inCraftList){
+    defineItemSuper("Potion", name, imgPaths, cost, weight, 1, desc, rarity, inCraftList);
     let paramNames = getParamNames(definePotion);
     checkParams(
         [arguments[4], arguments[5], arguments[6]],
@@ -874,9 +832,11 @@ function definePotion(name, imgPaths, cost, weight, statName, statBoost, time, d
  * @param {string} statName the name of the stat this equipment effects
  * @param {number} statBoost the percentage change in the stat
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
+ * @param {boolean} inCraftList is this item craftable?
 */
-function defineEquipment(name, imgPaths, cost, weight, durability, slot, defense, statName, statBoost, desc, inCraftList){
-    defineItemSuper("Equipment", name, imgPaths, cost, weight, durability, desc, inCraftList);
+function defineEquipment(name, imgPaths, cost, weight, durability, slot, defense, statName, statBoost, desc, rarity, inCraftList){
+    defineItemSuper("Equipment", name, imgPaths, cost, weight, durability, desc, rarity, inCraftList);
     let paramNames = getParamNames(defineEquipment);
     checkParams(
         [arguments[5], arguments[6], arguments[7], arguments[8]],
@@ -900,9 +860,11 @@ function defineEquipment(name, imgPaths, cost, weight, durability, slot, defense
  * @param {string} plantName the name of the plant this seed will grow
  * @param {number} chance the chance the plant will grow
  * @param {string} desc the description of the item
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
+ * @param {boolean} inCraftList is this item craftable?
 */
-function defineSeed(name, imgPaths, cost, weight, plantName, chance, desc, inCraftList){
-    defineItemSuper("Seed", name, imgPaths, cost, weight, 1, desc, inCraftList);
+function defineSeed(name, imgPaths, cost, weight, plantName, chance, desc, rarity, inCraftList){
+    defineItemSuper("Seed", name, imgPaths, cost, weight, 1, desc, rarity, inCraftList);
     
     let paramNames = getParamNames(defineSeed);
     checkParams(
@@ -925,10 +887,11 @@ function defineSeed(name, imgPaths, cost, weight, plantName, chance, desc, inCra
  * @param {int} durability how many uses the item has left
  * @param {string} desc the description of the item
  * @param {function} useFunc the function that will be called when the item is used
+ * @param {string} rarity the rarity tier of the item (ItemRarity.BASIC/GOOD/GREAT/LEGENDARY/DEVIL/GOD)
  * @param {boolean} inCraftList is this item craftable?
 */
-function defineCustomItem(name, imgPaths, cost, weight, durability, desc, useFunc, inCraftList){
-    defineItemSuper("CustomItem", name, imgPaths, cost, weight, durability, desc, inCraftList);
+function defineCustomItem(name, imgPaths, cost, weight, durability, desc, useFunc, rarity, inCraftList){
+    defineItemSuper("CustomItem", name, imgPaths, cost, weight, durability, desc, rarity, inCraftList);
     checkParams([arguments[6]],[getParamNames(defineFood)[6]],["function"]);
 
     itemDic[name].use = useFunc;
