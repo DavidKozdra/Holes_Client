@@ -44,9 +44,15 @@ function preload() {
     for(let i = 0; i < objImgPaths.length; i++){
         let temp = [];
         for(let j = 0; j < objImgPaths[i].length; j++){
-            //console.log(objImgPaths[i][j])
-            temp.push(loadImage(objImgPaths[i][j]));
-            if(objImgPaths[i][j].includes(".gif")){
+            const path = objImgPaths[i][j];
+            // Skip undefined, null, or empty paths
+            if (!path || path === 'undefined' || typeof path !== 'string') {
+                console.warn(`Skipping invalid objImgPath at [${i}][${j}]:`, path);
+                continue;
+            }
+            //console.log(path)
+            temp.push(loadImage(path));
+            if(path.includes(".gif")){
                 temp[temp.length - 1].play();
             }
         }
@@ -57,8 +63,14 @@ function preload() {
     for(let i = 0; i < itemImgPaths.length; i++){
         let temp = [];
         for(let j = 0; j < itemImgPaths[i].length; j++){
-            temp.push(loadImage(itemImgPaths[i][j]));
-            if(itemImgPaths[i][j].includes(".gif")){
+            const path = itemImgPaths[i][j];
+            // Skip undefined, null, or empty paths
+            if (!path || path === 'undefined' || typeof path !== 'string') {
+                console.warn(`Skipping invalid itemImgPath at [${i}][${j}]:`, path);
+                continue;
+            }
+            temp.push(loadImage(path));
+            if(path.includes(".gif")){
                 temp[temp.length - 1].play();
             }
         }
@@ -77,7 +89,13 @@ function preload() {
     let keys = Object.keys(soundDic);
     for(let i = 0; i < keys.length; i++){
         for(let j = 1; j < soundDic[keys[i]].sounds.length; j++){
-            soundDic[keys[i]].sounds[j] = loadSound(soundDic[keys[i]].sounds[j]);
+            const soundPath = soundDic[keys[i]].sounds[j];
+            // Skip undefined, null, or empty sound paths
+            if (!soundPath || soundPath === 'undefined' || typeof soundPath !== 'string') {
+                console.warn(`Skipping invalid sound path at [${keys[i]}][${j}]:`, soundPath);
+                continue;
+            }
+            soundDic[keys[i]].sounds[j] = loadSound(soundPath);
             soundDic[keys[i]].sounds[j].setVolume((j/20)*soundDic[keys[i]].volume);
         }
     }

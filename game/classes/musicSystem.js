@@ -61,22 +61,33 @@ setVolume() {
 
 
   async playMainTheme() {
-    // 1) make sure the audio context is running
-    const ctx = getAudioContext();
-    if (ctx.state !== 'running') {
-      await ctx.resume();      // resume if suspended
-      //console.log("AudioContext resumed");
-    }
+    try {
+      // 1) make sure the audio context is running
+      const ctx = getAudioContext();
+      if (ctx.state !== 'running') {
+        await ctx.resume();      // resume if suspended
+        //console.log("AudioContext resumed");
+      }
 
-    // 2) now do your usual once-per-state logic
-    if (this.current === this.mainTheme && this.current.isPlaying()) {
-      return;
+      // 2) Check if audio is loaded before attempting to play
+      if (!this.mainTheme || !this.mainTheme.isLoaded || !this.mainTheme.isLoaded()) {
+        // Audio not loaded yet, silently return
+        return;
+      }
+
+      // 3) now do your usual once-per-state logic
+      if (this.current === this.mainTheme && this.current.isPlaying()) {
+        return;
+      }
+      this._stopCurrent();
+      this.current = this.mainTheme;
+      this.current.setLoop(true);
+      this.current.setVolume(this.volume);
+      this.current.play();
+    } catch (error) {
+      // Silently catch audio loading errors - music will play when ready
+      console.log('[Music] Audio not ready yet, will retry...');
     }
-    this._stopCurrent();
-    this.current = this.mainTheme;
-    this.current.setLoop(true);
-    this.current.setVolume(this.volume);
-    this.current.play();
   }
   /**
    * Play a random track (with chanceEmpty% chance of silence),
@@ -84,24 +95,35 @@ setVolume() {
    * @param {number} chanceEmpty – integer 0–100 chance to skip playing anything
    */
   playRandom(chanceEmpty = 0) {
-    // already playing one of the others?
-    if (this.otherTracks.includes(this.current) && this.current.isPlaying()) {
-      return;
-    }
+    try {
+      // already playing one of the others?
+      if (this.otherTracks.includes(this.current) && this.current.isPlaying()) {
+        return;
+      }
 
-    // roll to stay silent
-    if (random(100) < chanceEmpty) {
-      this.stop();
-      return;
-    }
+      // roll to stay silent
+      if (random(100) < chanceEmpty) {
+        this.stop();
+        return;
+      }
 
-    // pick & start a random track
-    this._stopCurrent();
-    const idx = floor(random(this.otherTracks.length));
-    this.current = this.otherTracks[idx];
-    this.current.setLoop(false);
-    this.current.setVolume(this.volume);
-    this.current.play();
+      // pick & start a random track
+      this._stopCurrent();
+      const idx = floor(random(this.otherTracks.length));
+      this.current = this.otherTracks[idx];
+      
+      // Check if track is loaded
+      if (!this.current || !this.current.isLoaded || !this.current.isLoaded()) {
+        return;
+      }
+      
+      this.current.setLoop(false);
+      this.current.setVolume(this.volume);
+      this.current.play();
+    } catch (error) {
+      // Silently catch audio loading errors
+      console.log('[Music] Random track not ready yet');
+    }
   }
 
   /** Stop whatever’s playing and reset so it can restart later */

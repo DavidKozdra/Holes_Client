@@ -11,6 +11,9 @@ function flipImage(img) {
   // Create an off-screen graphics buffer
   let flippedImg = createGraphics(img.width, img.height);
   
+  // Set willReadFrequently for better performance with getImageData operations
+  flippedImg.drawingContext.willReadFrequently = true;
+  
   // Disable smoothing for the buffer itself
   flippedImg.noSmooth();
   

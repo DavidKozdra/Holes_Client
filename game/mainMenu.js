@@ -445,7 +445,9 @@ function renderSingleServerEntry(server, indexInFullList) {
     logoContainer.style("overflow", "hidden");
     logoContainer.style("border", "2px solid var(--color-dirt-clay)");
 
-    let serverLogo = createImg(server.image);
+    // Use a default image if server.image is undefined or invalid
+    const imageUrl = (server.image && server.image !== 'undefined') ? server.image : 'images/ui/title.png';
+    let serverLogo = createImg(imageUrl);
     serverLogo.style("width", "100%");
     serverLogo.style("height", "100%");
     serverLogo.style("object-fit", "cover");

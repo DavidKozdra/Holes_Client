@@ -19,6 +19,10 @@ function setup() {
     let cnv = createCanvas(innerWidth - 10, innerHeight - 8);
     cnv.parent("canvas-container");
     document.getElementById("canvas-container").style.display = "none";
+    
+    // Set willReadFrequently to optimize getImageData operations
+    drawingContext.willReadFrequently = true;
+    
     noSmooth();
     background(220);
     angleMode(DEGREES);
