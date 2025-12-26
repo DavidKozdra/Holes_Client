@@ -45,7 +45,10 @@ function socketSetup(){
 
         if(data.statBlock.level != 1){
             players[data.id].statBlock.level = data.statBlock.level;
-            players[data.id].statBlock.stats = data.statBlock.stats;
+            // Merge stats and preserve healthRegen from BASE_STATS since server doesn't track it
+            const baseRegen = BASE_STATS[players[data.id].race].healthRegen;
+            Object.assign(players[data.id].statBlock.stats, data.statBlock.stats);
+            players[data.id].statBlock.stats.healthRegen = baseRegen;
         }
 
 
@@ -69,7 +72,10 @@ function socketSetup(){
 
             if(data.players[keys[i]].statBlock.level != 1){
                 players[keys[i]].statBlock.level = data.players[keys[i]].statBlock.level;
-                players[keys[i]].statBlock.stats = data.players[keys[i]].statBlock.stats;
+                // Merge stats and preserve healthRegen from BASE_STATS since server doesn't track it
+                const baseRegen = BASE_STATS[players[keys[i]].race].healthRegen;
+                Object.assign(players[keys[i]].statBlock.stats, data.players[keys[i]].statBlock.stats);
+                players[keys[i]].statBlock.stats.healthRegen = baseRegen;
             }
         }
     });
@@ -120,7 +126,12 @@ function socketSetup(){
                         if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
                         if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
                         if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
-                        if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                        // Merge saved stats with base stats to ensure all properties exist
+                        if (sb.stats && typeof sb.stats === 'object') {
+                            const raceIndex = sb.race != null ? sb.race : curPlayer.race;
+                            const baseStats = JSON.parse(JSON.stringify(BASE_STATS[raceIndex]));
+                            curPlayer.statBlock.stats = Object.assign({}, baseStats, sb.stats);
+                        }
                     } else {
                         const health = (sb.stats && typeof sb.stats.hp === 'number') ? sb.stats.hp : undefined;
                         const raceIndex = (typeof sb.race === 'number') ? sb.race : (typeof curPlayer.race === 'number' ? curPlayer.race : 0);
@@ -128,8 +139,13 @@ function socketSetup(){
                         if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
                         if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
                         if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
-                        if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                        // Merge saved stats with base stats to ensure all properties exist
+                        if (sb.stats && typeof sb.stats === 'object') {
+                            const baseStats = JSON.parse(JSON.stringify(BASE_STATS[raceIndex]));
+                            curPlayer.statBlock.stats = Object.assign({}, baseStats, sb.stats);
+                        }
                     }
+                    console.log('[Stats] Restored stats with healthRegen:', curPlayer.statBlock.stats.healthRegen);
                 }
                 
                 // Restore inventory - inventory is already empty from constructor

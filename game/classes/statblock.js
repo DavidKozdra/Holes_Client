@@ -65,7 +65,7 @@ const BASE_STATS = [
         "name": "skizzard",
         "hp": 100,
         "mhp": 100,
-        "healthRegen": 0.5,
+        "healthRegen": 5,
         "attack": 1,
         "magic": 1,
         "mp": 100,
@@ -84,7 +84,7 @@ const BASE_STATS = [
             "mhp": 8,
             "attack": 0.5,
             "magic": 0.5,
-            "healthRegen": 0.05,
+            "healthRegen": 0.06,
             "mp": 10,
             "mmp": 10,
             "magicResistance": 0.1,
@@ -161,5 +161,10 @@ class StatBlock{
     // Regenerate mana over time
     regenMana(amount) {
         this.stats.mp = Math.min(this.stats.mp + amount, this.stats.mmp);
+    }
+
+    // Regenerate health over time
+    regenHealth(amount) {
+        this.stats.hp = Math.min(this.stats.hp + amount, this.stats.mhp);
     }
 }

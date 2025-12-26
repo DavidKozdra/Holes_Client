@@ -135,28 +135,60 @@ function windowResized() {
 }
 
 function updatePlayerRegen(player) {
-    // Increase timer
-    player.regenTimer += 0.05;
-
-    // Only tick on interval
+    // Increase timer based on deltaTime (deltaTime is in ms, so divide by 1000 for seconds)
+    player.regenTimer += deltaTime / 1000;
+    
+    // Debug every 60 frames (about once per second)
+    if (frameCount % 60 === 0) {
+        console.log(`[REGEN DEBUG] Timer: ${player.regenTimer.toFixed(2)}/${player.regenInterval} | HP: ${player.statBlock.stats.hp}/${player.statBlock.stats.mhp} | healthRegen: ${player.statBlock.stats.healthRegen}`);
+    }
+    
+    // Only tick on interval (regenInterval is in seconds)
     if (player.regenTimer >= player.regenInterval) {
+        console.log(`[REGEN TICK] Timer reached! Checking conditions...`);
+        
         // --- HP Regen ---
         let mhp = player.statBlock.stats.mhp || 100;
-        if (player.statBlock.stats.hp < mhp) {
-            let regenAmount = (player.statBlock.stats.healthRegen || 0) ;
-            player.statBlock.stats.hp = Math.min(player.statBlock.stats.hp + regenAmount, mhp);
+        let currentHP = player.statBlock.stats.hp;
+        let regenAmount = player.statBlock.stats.healthRegen || 0;
+        
+        console.log(`[HP CHECK] currentHP: ${currentHP}, mhp: ${mhp}, regenAmount: ${regenAmount}, needsHeal: ${currentHP < mhp}, hasRegen: ${regenAmount > 0}`);
+        
+        if (currentHP < mhp && regenAmount > 0) {
+            player.statBlock.stats.hp = Math.min(currentHP + regenAmount, mhp);
+            console.log(`✅ Regenerated ${regenAmount} HP. Current HP: ${player.statBlock.stats.hp}/${mhp}`);
+            // Sync with server
+            socket.emit("update_player", {
+                id: player.id,
+                pos: player.pos,
+                holding: player.holding,
+                update_names: ["stats.hp"],
+                update_values: [player.statBlock.stats.hp]
+            });
+        } else {
+            console.log(`❌ HP regen skipped - Full health or no regen stat`);
         }
 
         // --- MP Regen ---
         let mmp = player.statBlock.stats.mmp || 100;
         if (player.statBlock.stats.mp < mmp) {
-            let mpRegen = (player.statBlock.stats.magic || 0) ;
+
+            let mpRegen = (player.statBlock.stats.magic || 1) * 0.1; // Regen 10% of magic stat as MP
             player.statBlock.stats.mp = Math.min(player.statBlock.stats.mp + mpRegen, mmp);
+            console.log(`✅ Regenerated ${mpRegen.toFixed(1)} MP. Current MP: ${player.statBlock.stats.mp.toFixed(1)}/${mmp}`);  
+            // Sync with server
+            socket.emit("update_player", {
+                id: player.id,
+                pos: player.pos,
+                holding: player.holding,
+                update_names: ["stats.mp"],
+                update_values: [player.statBlock.stats.mp]
+            });
         }
 
-        // Reset timer and interval (randomize 4-5s)
+        // Reset timer
         player.regenTimer = 0;
-        player.regenInterval = random(4, 5);
+        console.log(`[REGEN] Timer reset`);
     }
 }
 
@@ -281,7 +313,7 @@ function draw() {
             }
 
             //regen mana and health over time
-            updatePlayerRegen(curPlayer,1)
+            updatePlayerRegen(curPlayer)
 
             // PERF FIX #3: cache chunk key string, use const for INTERACT_RANGE
             let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
