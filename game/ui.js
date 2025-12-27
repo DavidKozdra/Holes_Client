@@ -2,6 +2,161 @@
 // This file focuses on in-game UI only
 
 // Lightweight perf toggle; enable with `window.__perfLog = true`
+
+    // Top-right ability row (dash + spells) with enlarged icons and key labels
+    if (curPlayer && curPlayer.spells) {
+        const iconSize = 26 * 4; // 4x bigger than generated base for visibility
+        const gap = 12;
+        const centerY = 18 + iconSize / 2;
+        const startX = width - 12;
+
+        // Cache icons (generated once)
+        const dashIcon = getSpellIcon('dash', (g) => {
+            g.clear();
+            g.push();
+            g.translate(g.width / 2, g.height / 2);
+            g.noStroke();
+            g.fill(120, 200, 255);
+            g.rectMode(CENTER);
+            g.rect(0, 0, 18, 12, 4);
+            g.fill(255);
+            g.triangle(-4, -4, -4, 4, 6, 0);
+            g.pop();
+        });
+        const combustionIcon = getSpellIcon('combustion', (g) => {
+            g.clear();
+            g.noStroke();
+            g.fill(255, 140, 60);
+            g.circle(13, 13, 18);
+            g.fill(255, 220, 120, 180);
+            g.circle(13, 13, 10);
+        });
+        const forceFieldIcon = getSpellIcon('forceField', (g) => {
+            g.clear();
+            g.noFill();
+            g.stroke(120, 220, 255);
+            g.strokeWeight(3);
+            g.circle(13, 13, 18);
+            g.stroke(120, 200, 240, 160);
+            g.strokeWeight(2);
+            g.circle(13, 13, 12);
+        });
+        const meditateIcon = getSpellIcon('meditate', (g) => {
+            g.clear();
+            g.noStroke();
+            g.fill(190, 150, 255);
+            g.rect(5, 8, 18, 10, 4);
+            g.fill(120, 90, 200, 180);
+            g.rect(8, 6, 12, 6, 3);
+        });
+
+        const entries = [
+            {
+                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey('2') : '2',
+                name: 'Force Field',
+                icon: forceFieldIcon,
+                active: curPlayer.spells.forceField.active,
+                onCd: curPlayer.spells.forceField.cooldown > 0,
+                cooldownPct: curPlayer.spells.forceField.cooldownMax ? curPlayer.spells.forceField.cooldown / curPlayer.spells.forceField.cooldownMax : 0,
+                locked: curPlayer.statBlock.level < (curPlayer.spells.forceField.level || 0),
+                unlockLevel: curPlayer.spells.forceField.level || 0,
+                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.forceField.manaCost,
+                readyColor: { r: 120, g: 200, b: 255 }
+            },
+            {
+                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey('1') : '1',
+                name: 'Combustion',
+                icon: combustionIcon,
+                active: false,
+                onCd: curPlayer.spells.combustion.cooldown > 0,
+                cooldownPct: curPlayer.spells.combustion.cooldownMax ? curPlayer.spells.combustion.cooldown / curPlayer.spells.combustion.cooldownMax : 0,
+                locked: curPlayer.statBlock.level < (curPlayer.spells.combustion.level || 0),
+                unlockLevel: curPlayer.spells.combustion.level || 0,
+                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.combustion.manaCost,
+                readyColor: { r: 255, g: 150, b: 100 }
+            },
+            {
+                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey('3') : '3',
+                name: 'Meditate',
+                icon: meditateIcon,
+                active: curPlayer.spells.meditate.active,
+                onCd: curPlayer.spells.meditate.cooldown > 0,
+                cooldownPct: curPlayer.spells.meditate.cooldownMax ? curPlayer.spells.meditate.cooldown / curPlayer.spells.meditate.cooldownMax : 0,
+                locked: curPlayer.statBlock.level < (curPlayer.spells.meditate.level || 0),
+                unlockLevel: curPlayer.spells.meditate.level || 0,
+                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.meditate.manaCost,
+                readyColor: { r: 200, g: 150, b: 255 }
+            },
+            {
+                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey(Controls_Dash_key || 'Shift') : (Controls_Dash_key || 'Shift'),
+                name: 'Dash',
+                icon: dashIcon,
+                active: curPlayer.isDashing,
+                onCd: curPlayer.dashCooldown > 0,
+                cooldownPct: curPlayer.dashCooldownMax ? curPlayer.dashCooldown / curPlayer.dashCooldownMax : 0,
+                locked: false,
+                unlockLevel: 1,
+                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.dashManaCost,
+                readyColor: { r: 120, g: 200, b: 255 }
+            }
+        ];
+
+        textFont(gameUIFont);
+        rectMode(CENTER);
+        imageMode(CORNER);
+
+        entries.forEach((entry, idx) => {
+            const x = startX - idx * (iconSize + gap) - iconSize / 2;
+
+            // background state
+            if (entry.locked) {
+                fill(50, 50, 50, 220);
+                stroke(80, 60, 30);
+            } else if (entry.onCd) {
+                fill(80, 80, 80, 220);
+                stroke(60, 60, 60);
+            } else if (entry.active) {
+                fill(entry.readyColor.r, entry.readyColor.g, entry.readyColor.b, 220);
+                stroke(230);
+            } else if (!entry.canAfford) {
+                fill(90, 40, 40, 220);
+                stroke(150, 60, 60);
+            } else {
+                fill(140, 240, 140, 220);
+                stroke(90, 190, 90);
+            }
+            strokeWeight(4);
+            rect(x, centerY, iconSize, iconSize, 10);
+
+            // icon graphic scaled up
+            image(entry.icon, x - iconSize / 2, centerY - iconSize / 2, iconSize, iconSize);
+
+            // cooldown overlay
+            if (entry.onCd && !entry.locked) {
+                noStroke();
+                fill(255, 120, 120, 160);
+                rect(x, centerY - (iconSize / 2) + (iconSize * entry.cooldownPct) / 2, iconSize, iconSize * entry.cooldownPct, 8);
+            }
+
+            // key label on top with badge
+            noStroke();
+            textSize(18);
+            textAlign(CENTER, CENTER);
+            const keyText = entry.locked ? `L${entry.unlockLevel}` : entry.key;
+            const keyW = Math.max(32, textWidth(keyText) + 12);
+            const keyH = 20;
+            const keyY = centerY - iconSize / 2 - keyH / 2 - 6;
+            fill(0, 180);
+            rect(x, keyY, keyW, keyH, 6);
+            fill(entry.locked ? color(255, 220, 160) : color(255));
+            text(keyText, x, keyY);
+
+            // name or unlock hint
+            textSize(14);
+            fill(entry.locked ? color(230, 190, 120) : color(230));
+            text(entry.locked ? `Unlock Lv ${entry.unlockLevel}` : entry.name, x, centerY + iconSize / 2 + 14);
+        });
+    }
 window.__perfLog = window.__perfLog ?? false;
 
 function perfTimed(label, fn) {
@@ -12,6 +167,57 @@ function perfTimed(label, fn) {
     console.log(`[perf] ${label}: ${(t1 - t0).toFixed(2)}ms`);
     return res;
 }
+
+// Cached generated icons for abilities/spells
+let spellIconCache = {};
+function getSpellIcon(key, drawCb) {
+    if (spellIconCache[key]) return spellIconCache[key];
+    const g = createGraphics(26, 26);
+    g.pixelDensity(1);
+    drawCb(g);
+    spellIconCache[key] = g;
+    return g;
+}
+
+// Global move catalog (extendable)
+const ALL_MOVES = [
+    { 
+        id: 'dash', 
+        name: 'Dash', 
+        requiredLevel: 1,
+        manaCost: 30,
+        cooldown: 0.5,
+        description: 'Quickly dash in the direction you are moving. Essential for evasion.',
+        color: { r: 120, g: 200, b: 255 }
+    },
+    { 
+        id: 'forceField', 
+        name: 'Force Field', 
+        requiredLevel: 3,
+        manaCost: 40,
+        cooldown: 8,
+        description: 'Create a protective barrier that blocks damage and projectiles.',
+        color: { r: 120, g: 220, b: 255 }
+    },
+    { 
+        id: 'combustion', 
+        name: 'Combustion', 
+        requiredLevel: 8,
+        manaCost: 30,
+        cooldown: 6,
+        description: 'Ignite enemies around you with a burst of fire damage.',
+        color: { r: 255, g: 150, b: 100 }
+    },
+    { 
+        id: 'meditate', 
+        name: 'Meditate', 
+        requiredLevel: 14,
+        manaCost: 5,
+        cooldown: 3,
+        description: 'Channel magic to restore mana over time. Toggle active.',
+        color: { r: 200, g: 150, b: 255 }
+    }
+];
 
 function updateResponsiveDesign() {
     // Update positions for in-game UI elements
@@ -615,6 +821,13 @@ var racePortraitDiv;
 var statsPanel;
 var viewingPlayerProfile;
 var nameBtn;
+
+// Moves editor globals
+var movesEditorDiv;
+var movesSlotList;
+var movesAllList;
+var selectedMoveSlotIdx = 0;
+
 function defineInvUI() {
     // Main inventory container
     invDiv = createDiv();
@@ -655,6 +868,14 @@ function defineInvUI() {
         spaceBarDiv.hide();
     });
     craftingTitle.style("cursor", "pointer");
+
+    // Moves editor button
+    let movesBtn = createButton("Edit Moves").parent(topBar);
+    movesBtn.class("inventory-title");
+    movesBtn.style("margin-left", "12px");
+    movesBtn.mousePressed(() => {
+        showMovesEditor();
+    });
 
     let tagBar = createDiv().parent(invDiv);
     tagBar.class("tag-bar");
@@ -725,6 +946,250 @@ function defineInvUI() {
     updatecurItemDiv();
 }
 
+// Ensure movesSlots exists and has 10 entries
+function ensureMoveSlots() {
+    if (!curPlayer) return;
+    if (!Array.isArray(curPlayer.movesSlots)) {
+        curPlayer.movesSlots = ['forceField', 'combustion', 'meditate', 'dash', null, null, null, null, null, null];
+    }
+    while (curPlayer.movesSlots.length < 10) curPlayer.movesSlots.push(null);
+}
+
+function showMovesEditor() {
+    ensureMoveSlots();
+    if (!movesEditorDiv) {
+        defineMovesEditorUI();
+    }
+    refreshMovesEditorUI();
+    invDiv.hide();
+    movesEditorDiv.show();
+}
+
+function defineMovesEditorUI() {
+    movesEditorDiv = createDiv();
+    movesEditorDiv.id("moves-editor");
+    movesEditorDiv.class("container");
+    movesEditorDiv.style("z-index", "50");
+    applyStyle(movesEditorDiv, {
+        position: "absolute",
+        top: "45%",
+        left: "55%",
+        transform: "translate(-50%, -50%)",
+        display: "none"
+    });
+
+    const panel = movesEditorDiv; // Use the div itself as the panel
+    panel.style("background", "#1e1e1e");
+    panel.style("border", "2px solid #888");
+    panel.style("border-radius", "12px");
+    panel.style("padding", "16px");
+    panel.style("width", "720px");
+    panel.style("max-width", "90vw");
+    panel.style("max-height", "80vh");
+    panel.style("color", "#fff");
+    panel.style("display", "grid");
+    panel.style("grid-template-columns", "1fr 1fr");
+    panel.style("gap", "12px");
+
+    const header = createDiv("<strong>Edit Moves (Slots 1-0)</strong>").parent(panel);
+    header.style("grid-column", "1 / span 2");
+    header.style("display", "flex");
+    header.style("justify-content", "space-between");
+    header.style("align-items", "center");
+
+    const backBtn = createButton("Back to Inventory").parent(header);
+    backBtn.style("padding", "8px 16px");
+    backBtn.style("background", "#444");
+    backBtn.style("color", "#fff");
+    backBtn.style("border", "1px solid #666");
+    backBtn.style("cursor", "pointer");
+    backBtn.mousePressed(() => {
+        movesEditorDiv.hide();
+        invDiv.show();
+    });
+
+    movesSlotList = createDiv().parent(panel);
+    movesSlotList.style("border", "1px solid #555");
+    movesSlotList.style("border-radius", "8px");
+    movesSlotList.style("padding", "8px");
+    movesSlotList.style("overflow-y", "auto");
+
+    movesAllList = createDiv().parent(panel);
+    movesAllList.style("border", "1px solid #555");
+    movesAllList.style("border-radius", "8px");
+    movesAllList.style("padding", "8px");
+    movesAllList.style("overflow-y", "auto");
+}
+
+function refreshMovesEditorUI() {
+    if (!curPlayer) return;
+    ensureMoveSlots();
+
+    const slotKeys = ['1','2','3','4','5','6','7','8','9','0'];
+
+    // Left panel: Slot assignments
+    movesSlotList.html('<div style="margin-bottom:8px; font-weight:bold; font-size:14px; color:#aef;">Slots</div>');
+    for (let i = 0; i < 10; i++) {
+        const moveId = curPlayer.movesSlots[i];
+        const move = moveId ? ALL_MOVES.find(m => m.id === moveId) : null;
+        const displayName = move ? move.name : 'Empty';
+        
+        const slotBtn = createButton(`${slotKeys[i]}: ${displayName}`).parent(movesSlotList);
+        slotBtn.style("width", "100%");
+        slotBtn.style("margin-bottom", "6px");
+        slotBtn.style("padding", "8px");
+        slotBtn.style("background", i === selectedMoveSlotIdx ? "#2e6cff" : "#333");
+        slotBtn.style("color", i === selectedMoveSlotIdx ? "#fff" : (moveId ? "#aef" : "#888"));
+        slotBtn.style("border", i === selectedMoveSlotIdx ? "2px solid #fff" : "1px solid #555");
+        slotBtn.style("cursor", "pointer");
+        slotBtn.style("text-align", "left");
+        slotBtn.mousePressed(() => { selectedMoveSlotIdx = i; refreshMovesEditorUI(); });
+
+        const clearBtn = createButton("\u2715").parent(slotBtn);
+        clearBtn.style("margin-left", "auto");
+        clearBtn.style("padding", "4px 8px");
+        clearBtn.style("background", "#a44");
+        clearBtn.style("border", "none");
+        clearBtn.style("cursor", "pointer");
+        clearBtn.mousePressed((e) => {
+            e.stopPropagation();
+            curPlayer.movesSlots[i] = null;
+            refreshMovesEditorUI();
+        });
+    }
+
+    // Right panel: All available moves with details
+    movesAllList.html('<div style="margin-bottom:12px; font-weight:bold; font-size:14px; color:#aef;">Available Moves</div>');
+    
+    // Create and cache move icons
+    const dashIcon = getSpellIcon('dash', (g) => {
+        g.clear();
+        g.push();
+        g.translate(g.width / 2, g.height / 2);
+        g.noStroke();
+        g.fill(120, 200, 255);
+        g.rectMode(CENTER);
+        g.rect(0, 0, 14, 9, 3);
+        g.fill(255);
+        g.triangle(-3, -3, -3, 3, 4, 0);
+        g.pop();
+    });
+    const combustionIcon = getSpellIcon('combustion', (g) => {
+        g.clear();
+        g.noStroke();
+        g.fill(255, 140, 60);
+        g.circle(13, 13, 14);
+        g.fill(255, 220, 120, 180);
+        g.circle(13, 13, 8);
+    });
+    const forceFieldIcon = getSpellIcon('forceField', (g) => {
+        g.clear();
+        g.noFill();
+        g.stroke(120, 220, 255);
+        g.strokeWeight(2);
+        g.circle(13, 13, 14);
+        g.stroke(120, 200, 240, 160);
+        g.strokeWeight(1.5);
+        g.circle(13, 13, 9);
+    });
+    const meditateIcon = getSpellIcon('meditate', (g) => {
+        g.clear();
+        g.noStroke();
+        g.fill(190, 150, 255);
+        g.rect(4, 7, 14, 8, 3);
+        g.fill(120, 90, 200, 180);
+        g.rect(6, 5, 9, 5, 2);
+    });
+    
+    const moveIcons = {
+        'dash': dashIcon,
+        'combustion': combustionIcon,
+        'forceField': forceFieldIcon,
+        'meditate': meditateIcon
+    };
+    
+    ALL_MOVES.forEach(move => {
+        const locked = curPlayer.statBlock.level < move.requiredLevel;
+        const isSelected = curPlayer.movesSlots[selectedMoveSlotIdx] === move.id;
+        
+        // Container for move item
+        const moveItemDiv = createDiv('').parent(movesAllList);
+        moveItemDiv.style("margin-bottom", "12px");
+        moveItemDiv.style("padding", "10px");
+        moveItemDiv.style("background", locked ? "#1a1a1a" : (isSelected ? "#2e5c99" : "#222"));
+        moveItemDiv.style("border", isSelected ? "2px solid #aef" : (locked ? "1px solid #444" : "1px solid #555"));
+        moveItemDiv.style("border-radius", "6px");
+        moveItemDiv.style("cursor", locked ? "not-allowed" : "pointer");
+        moveItemDiv.style("opacity", locked ? "0.6" : "1");
+        
+        // Icon + content wrapper
+        const contentWrapper = createDiv('').parent(moveItemDiv);
+        contentWrapper.style("display", "flex");
+        contentWrapper.style("gap", "10px");
+        contentWrapper.style("margin-bottom", "8px");
+        
+        // Icon container
+        const iconContainer = createDiv('').parent(contentWrapper);
+        iconContainer.style("min-width", "50px");
+        iconContainer.style("height", "50px");
+        iconContainer.style("background", locked ? "#111" : "#333");
+        iconContainer.style("border", "1px solid #555");
+        iconContainer.style("border-radius", "4px");
+        iconContainer.style("display", "flex");
+        iconContainer.style("align-items", "center");
+        iconContainer.style("justify-content", "center");
+        const iconCanvas = moveIcons[move.id];
+        if (iconCanvas) {
+            const iconImg = createImg(iconCanvas.canvas.toDataURL());
+            iconImg.parent(iconContainer);
+            iconImg.style("width", "40px");
+            iconImg.style("height", "40px");
+            iconImg.style("image-rendering", "pixelated");
+        }
+        
+        // Text content
+        const textContent = createDiv('').parent(contentWrapper);
+        textContent.style("flex", "1");
+        
+        // Header: name + level (only if locked)
+        const headerDiv = createDiv('').parent(textContent);
+        headerDiv.style("margin-bottom", "4px");
+        headerDiv.style("font-weight", "bold");
+        headerDiv.style("color", locked ? "#999" : "#aef");
+        const levelBadge = locked ? `<span style="color:#f88; margin-left:8px; font-size:11px;">Level Required: ${move.requiredLevel}</span>` : '';
+        headerDiv.html(`${move.name}${levelBadge}`);
+        
+        // Stats row: Mana + Cooldown
+        const statsDiv = createDiv('').parent(textContent);
+        statsDiv.style("margin-bottom", "4px");
+        statsDiv.style("font-size", "11px");
+        statsDiv.style("color", locked ? "#777" : "#ccc");
+        statsDiv.html(`<span style="color:#f88;">MP: ${move.manaCost}</span> | <span style="color:#88f;">CD: ${move.cooldown}s</span>`);
+        
+        // Description
+        const descDiv = createDiv('').parent(textContent);
+        descDiv.style("font-size", "10px");
+        descDiv.style("color", locked ? "#666" : "#aaa");
+        descDiv.style("line-height", "1.3");
+        descDiv.html(move.description);
+        
+        // Assign button
+        const assignBtn = createButton(locked ? `Level Required: ${move.requiredLevel}` : "Assign to Slot").parent(moveItemDiv);
+        assignBtn.style("width", "100%");
+        assignBtn.style("padding", "6px");
+        assignBtn.style("background", locked ? "#444" : "#2d5a3d");
+        assignBtn.style("color", locked ? "#888" : "#6f8");
+        assignBtn.style("border", "1px solid" + (locked ? " #555" : " #4a8f5f"));
+        assignBtn.style("cursor", locked ? "not-allowed" : "pointer");
+        assignBtn.style("font-size", "11px");
+        if (locked) assignBtn.attribute("disabled", "true");
+        assignBtn.mousePressed(() => {
+            if (locked) return;
+            curPlayer.movesSlots[selectedMoveSlotIdx] = move.id;
+            refreshMovesEditorUI();
+        });
+    });
+}
 
 
 // Safe helpers for item images in inventory UI
@@ -1584,106 +2049,216 @@ function renderPlayerCardUI() {
         text("Mana:", width - 530 + 6 + 30, 100);
     }
     
-    // Dash cooldown indicator - Boot icon
-    push();
-    let bootX = width - 530 + 6 + 30;
-    let bootY = 125; // Moved lower
-    
-    if (curPlayer.dashCooldown > 0) {
-        // Cooldown - show grayed out boot with cooldown overlay
-        let cooldownPercent = curPlayer.dashCooldown / curPlayer.dashCooldownMax;
-        
-        // Boot icon placeholder (replace with sprite: bootIcon)
-        fill(80, 80, 80);
-        stroke(60, 60, 60);
-        strokeWeight(2);
-        rect(bootX, bootY - 8, 16, 16, 2);
-        
-        // Cooldown overlay
-        fill(255, 100, 100, 150);
-        noStroke();
-        rect(bootX, bootY - 8, 16, 16 * cooldownPercent, 2);
-        
-    } else if (curPlayer.isDashing) {
-        // Dashing - bright glowing boot
-        fill(100, 255, 100);
-        stroke(200, 255, 200);
-        strokeWeight(3);
-        rect(bootX, bootY - 8, 16, 16, 2);
-    } else if (curPlayer.statBlock.stats.mp < curPlayer.dashManaCost) {
-        // Not enough mana - red/dark boot
-        fill(100, 30, 30);
-        stroke(150, 50, 50);
-        strokeWeight(2);
-        rect(bootX, bootY - 8, 16, 16, 2);
-        
-        // X mark or low mana indicator
-        stroke(200, 50, 50);
-        strokeWeight(2);
-        line(bootX + 4, bootY - 4, bootX + 12, bootY + 4);
-        line(bootX + 12, bootY - 4, bootX + 4, bootY + 4);
-    } else {
-        // Ready - normal boot icon
-        fill(150, 255, 150);
-        stroke(100, 200, 100);
-        strokeWeight(2);
-        rect(bootX, bootY - 8, 16, 16, 2);
-    }
-    pop();
-
-    // Spells 1/2/3 indicators next to dash icon
+    // Dash + Spells HUD at bottom-center
     if (curPlayer && curPlayer.spells) {
         push();
         textFont(gameUIFont);
         textAlign(CENTER, CENTER);
-        textSize(12);
-        let sX = bootX + 30;
-        let sY = bootY - 8;
-        const drawSpell = (idx, spell, label, readyColor, active) => {
-            let x = sX + (idx * 22);
-            let w = 18, h = 18;
-            let canAfford = (curPlayer.statBlock.stats.mp >= spell.manaCost);
-            let onCd = spell.cooldown && spell.cooldown > 0;
-            if (onCd) {
+        textSize(18);
+
+        const centerX = width / 2;
+        const sY = height - 110; // lift to fit larger icons
+        const spacing = 140;
+        const iconSize = 28 * 4; // 4x scale
+
+        // background bar
+        push();
+        noStroke();
+        fill(0, 0, 0, 120);
+        rectMode(CENTER);
+        rect(centerX, sY, spacing * 4 + 60, iconSize + 52, 14);
+        pop();
+
+        // Cache spell icons (defined once, reused every frame)
+        if (!window._hudIconsCache) {
+            window._hudIconsCache = {
+                dash: getSpellIcon('dash_hud_lg', (g) => {
+                    g.clear();
+                    g.push();
+                    g.translate(g.width / 2, g.height / 2);
+                    g.noStroke();
+                    g.fill(120, 200, 255);
+                    g.rectMode(CENTER);
+                    g.rect(0, 0, 18, 12, 4);
+                    g.fill(255);
+                    g.triangle(-4, -4, -4, 4, 6, 0);
+                    g.pop();
+                }),
+                combustion: getSpellIcon('combustion_hud_lg', (g) => {
+                    g.clear();
+                    g.noStroke();
+                    g.fill(255, 140, 60);
+                    g.circle(13, 13, 18);
+                    g.fill(255, 220, 120, 180);
+                    g.circle(13, 13, 10);
+                }),
+                forceField: getSpellIcon('forceField_hud_lg', (g) => {
+                    g.clear();
+                    g.noFill();
+                    g.stroke(120, 220, 255);
+                    g.strokeWeight(3);
+                    g.circle(13, 13, 18);
+                    g.stroke(120, 200, 240, 160);
+                    g.strokeWeight(2);
+                    g.circle(13, 13, 12);
+                }),
+                meditate: getSpellIcon('meditate_hud_lg', (g) => {
+                    g.clear();
+                    g.noStroke();
+                    g.fill(190, 150, 255);
+                    g.rect(5, 8, 18, 10, 4);
+                    g.fill(120, 90, 200, 180);
+                    g.rect(8, 6, 12, 6, 3);
+                }),
+                empty: getSpellIcon('emptyMove_hud_lg', (g) => {
+                    g.clear();
+                    g.noStroke();
+                    g.fill(70);
+                    g.rect(4, 4, 18, 18, 4);
+                    g.stroke(110);
+                    g.noFill();
+                })
+            };
+        }
+        const dashIcon = window._hudIconsCache.dash;
+        const combustionIcon = window._hudIconsCache.combustion;
+        const forceFieldIcon = window._hudIconsCache.forceField;
+        const meditateIcon = window._hudIconsCache.meditate;
+        const emptyIcon = window._hudIconsCache.empty;
+
+        const slotLabels = ['1','2','3','4','5','6','7','8','9','0'];
+        const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
+        const movesForHud = moves.slice(0, 4);
+        while (movesForHud.length < 4) movesForHud.push(null);
+
+        const drawEntry = (idx, options) => {
+            const { label, nameLabel, readyColor, active, locked, onCd, canAfford, iconImg, unlockLevel } = options;
+            let x = centerX + (idx - 1.5) * spacing;
+
+            // icon background
+            if (locked) {
+                fill(50, 50, 50);
+                stroke(80, 60, 30);
+            } else if (onCd) {
                 fill(80, 80, 80);
                 stroke(60, 60, 60);
-                strokeWeight(2);
-                rect(x, sY - 8, 16, 16, 2);
-                // Cooldown overlay
-                noStroke();
-                fill(255, 100, 100, 150);
-                let p = spell.cooldown / (spell.cooldownMax || 1);
-                rect(x, sY - 8, 16, 16 * p, 2);
             } else if (active) {
                 fill(readyColor.r, readyColor.g, readyColor.b);
-                stroke(200);
-                strokeWeight(2);
-                rect(x, sY - 8, 16, 16, 2);
+                stroke(220);
             } else if (!canAfford) {
-                fill(100, 30, 30);
-                stroke(150, 50, 50);
-                strokeWeight(2);
-                rect(x, sY - 8, 16, 16, 2);
-                // X mark
-                stroke(200, 50, 50);
-                strokeWeight(2);
-                line(x + 4, sY - 4, x + 12, sY + 4);
-                line(x + 12, sY - 4, x + 4, sY + 4);
+                fill(90, 40, 40);
+                stroke(150, 60, 60);
             } else {
-                fill(150, 255, 150);
-                stroke(100, 200, 100);
-                strokeWeight(2);
-                rect(x, sY - 8, 16, 16, 2);
+                fill(140, 240, 140);
+                stroke(90, 190, 90);
             }
-            // key label for clarity
-            fill(0);
+            strokeWeight(4);
+            rect(x - iconSize/2, sY - iconSize/2, iconSize, iconSize, 10);
+
+            // icon image
+            imageMode(CORNER);
+            image(iconImg, x - iconSize/2, sY - iconSize/2, iconSize, iconSize);
+
+            // cooldown overlay
+            if (onCd && !locked) {
+                noStroke();
+                fill(255, 100, 100, 150);
+                let p = options.cooldownPct || 0;
+                rect(x - iconSize/2, sY - iconSize/2, iconSize, iconSize * p, 12);
+            }
+
+            // key label (or Lx)
             noStroke();
-            text(label, x + 8, sY);
+            textSize(22);
+            const keyText = locked ? `L${unlockLevel}` : label;
+            const keyW = Math.max(48, textWidth(keyText) + 18);
+            const keyH = 26;
+            const keyY = sY - iconSize / 2 - keyH / 2 - 10;
+            fill(0, 180);
+            rect(x, keyY, keyW, keyH, 8);
+            fill(locked ? color(255, 220, 160) : color(255));
+            text(keyText, x, keyY + 1);
+
+            // name or unlock line
+            textSize(16);
+            fill(locked ? color(230, 190, 120) : color(230));
+            text(locked ? `Unlocks Lv ${unlockLevel}` : nameLabel, x, sY + iconSize / 2 + 20);
         };
 
-        drawSpell(0, curPlayer.spells.combustion, '1', { r: 255, g: 150, b: 100 }, false);
-        drawSpell(1, curPlayer.spells.forceField, '2', { r: 120, g: 200, b: 255 }, curPlayer.spells.forceField.active);
-        drawSpell(2, curPlayer.spells.meditate, '3', { r: 200, g: 150, b: 255 }, curPlayer.spells.meditate.active);
+        const getMoveEntry = (moveId, slotLabel) => {
+            switch (moveId) {
+                case 'forceField':
+                    return {
+                        label: slotLabel,
+                        nameLabel: 'Force Field',
+                        readyColor: { r: 120, g: 200, b: 255 },
+                        active: curPlayer.spells.forceField.active,
+                        locked: curPlayer.statBlock.level < (curPlayer.spells.forceField.level || 0),
+                        unlockLevel: curPlayer.spells.forceField.level || 0,
+                        onCd: curPlayer.spells.forceField.cooldown > 0,
+                        cooldownPct: curPlayer.spells.forceField.cooldownMax ? curPlayer.spells.forceField.cooldown / curPlayer.spells.forceField.cooldownMax : 0,
+                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.forceField.manaCost,
+                        iconImg: forceFieldIcon
+                    };
+                case 'combustion':
+                    return {
+                        label: slotLabel,
+                        nameLabel: 'Combustion',
+                        readyColor: { r: 255, g: 150, b: 100 },
+                        active: false,
+                        locked: curPlayer.statBlock.level < (curPlayer.spells.combustion.level || 0),
+                        unlockLevel: curPlayer.spells.combustion.level || 0,
+                        onCd: curPlayer.spells.combustion.cooldown > 0,
+                        cooldownPct: curPlayer.spells.combustion.cooldownMax ? curPlayer.spells.combustion.cooldown / curPlayer.spells.combustion.cooldownMax : 0,
+                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.combustion.manaCost,
+                        iconImg: combustionIcon
+                    };
+                case 'meditate':
+                    return {
+                        label: slotLabel,
+                        nameLabel: 'Meditate',
+                        readyColor: { r: 200, g: 150, b: 255 },
+                        active: curPlayer.spells.meditate.active,
+                        locked: curPlayer.statBlock.level < (curPlayer.spells.meditate.level || 0),
+                        unlockLevel: curPlayer.spells.meditate.level || 0,
+                        onCd: curPlayer.spells.meditate.cooldown > 0,
+                        cooldownPct: curPlayer.spells.meditate.cooldownMax ? curPlayer.spells.meditate.cooldown / curPlayer.spells.meditate.cooldownMax : 0,
+                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.meditate.manaCost,
+                        iconImg: meditateIcon
+                    };
+                case 'dash':
+                    return {
+                        label: slotLabel,
+                        nameLabel: 'Dash',
+                        readyColor: { r: 120, g: 200, b: 255 },
+                        active: curPlayer.isDashing,
+                        locked: false,
+                        unlockLevel: 1,
+                        onCd: curPlayer.dashCooldown > 0,
+                        cooldownPct: curPlayer.dashCooldownMax ? curPlayer.dashCooldown / curPlayer.dashCooldownMax : 0,
+                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.dashManaCost,
+                        iconImg: dashIcon
+                    };
+                default:
+                    return {
+                        label: slotLabel,
+                        nameLabel: 'Empty',
+                        readyColor: { r: 140, g: 140, b: 140 },
+                        active: false,
+                        locked: true,
+                        unlockLevel: '',
+                        onCd: false,
+                        cooldownPct: 0,
+                        canAfford: true,
+                        iconImg: emptyIcon
+                    };
+            }
+        };
+
+        movesForHud.forEach((moveId, idx) => {
+            const entry = getMoveEntry(moveId, slotLabels[idx]);
+            drawEntry(idx, entry);
+        });
         pop();
     }
 
@@ -3403,7 +3978,8 @@ function defineDeathUI() {
                 teamId: curPlayer.teamId || null,
                 race: curPlayer.race || null,
                 color: curPlayer.color || 0,
-                name: curPlayer.name || null
+                name: curPlayer.name || null,
+                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
             };
             console.log('[Disconnect] Saving player data:', playerData);
             socket.emit('save_player_state', playerData);

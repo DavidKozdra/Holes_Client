@@ -201,6 +201,15 @@ function socketSetup(){
                     curPlayer.teamId = data.teamId;
                 }
                 
+                // Restore move slots
+                if (Array.isArray(data.movesSlots)) {
+                    curPlayer.movesSlots = data.movesSlots.slice(0, 10);
+                    while (curPlayer.movesSlots.length < 10) {
+                        curPlayer.movesSlots.push(null);
+                    }
+                    console.log('[Moves] ✓ Restored move slots:', curPlayer.movesSlots);
+                }
+                
                 console.log('[Items] ✓ Old inventory restored successfully');
             } catch (e) {
                 console.error('[Items] Failed to restore old inventory:', e);

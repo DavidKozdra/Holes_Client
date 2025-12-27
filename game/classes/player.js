@@ -52,9 +52,23 @@ class Player {
 
         this.spells = {
             combustion: { level: 8, cooldown: 0, cooldownMax: 750, manaCost: 30, flashTimer: 0, particles: [] },
-            forceField: { level: 3, active: false, timer: 0, duration: 1200, cooldown: 0, cooldownMax: 450, manaCost: 40, bonusMR: 3, regenPerSec: 2.5 },
+            forceField: { level: 3, active: false, timer: 0, duration: 1200, cooldown: 0, cooldownMax: 450, manaCost: 40, bonusMR: 3, regenPerSec: 2.5, auraTimer: 0 },
             meditate: { level: 14, active: false, timer: 0, duration: 600, cooldown: 0, cooldownMax: 1200, manaCost: 5, manaPerSec: 2.5 }
         };
+
+        // Move slots (0-9) for spell/ability assignment
+        this.movesSlots = [
+            'forceField',
+            'combustion',
+            'meditate',
+            'dash',
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        ];
     }
 
     newCollisionPoint(xOffset, yOffset, direction) {
@@ -210,6 +224,7 @@ class Player {
         if (this.spells.combustion.cooldown > 0) this.spells.combustion.cooldown--;
         if (this.spells.combustion.flashTimer > 0) this.spells.combustion.flashTimer--;
         if (this.spells.forceField.cooldown > 0) this.spells.forceField.cooldown--;
+        if (this.spells.forceField.auraTimer > 0) this.spells.forceField.auraTimer--;
         if (this.spells.meditate.cooldown > 0) this.spells.meditate.cooldown--;
 
         // Update combustion particles
@@ -474,7 +489,7 @@ class Player {
 
         // Auras render only when a spell is active
 
-        if (this.spells.forceField.active) {
+        if (this.spells.forceField.active && this.spells.forceField.auraTimer > 0) {
             push();
             noFill();
             stroke(100, 255, 100, 150);
@@ -651,6 +666,9 @@ class Player {
     }
 
     activateCombustion() {
+        if (this.statBlock.level < this.spells.combustion.level) {
+            return false; // Spell locked by level
+        }
         if (this.spells.combustion.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.combustion.manaCost) {
             this.statBlock.useMana(this.spells.combustion.manaCost);
 
@@ -696,11 +714,15 @@ class Player {
     }
 
     activateForceField() {
+        if (this.statBlock.level < this.spells.forceField.level) {
+            return false; // Spell locked by level
+        }
         if (!this.spells.forceField.active && this.spells.forceField.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.forceField.manaCost) {
             this.statBlock.useMana(this.spells.forceField.manaCost);
             this.spells.forceField.active = true;
             this.spells.forceField.timer = this.spells.forceField.duration;
             this.spells.forceField.cooldown = this.spells.forceField.cooldownMax;
+            this.spells.forceField.auraTimer = 150; // 5 seconds at 30fps
             this.statBlock.stats.magicResistance += this.spells.forceField.bonusMR;
             socket.emit("update_player", {
                 id: this.id,
@@ -729,6 +751,9 @@ class Player {
     }
 
     activateMeditate() {
+        if (this.statBlock.level < this.spells.meditate.level) {
+            return false; // Spell locked by level
+        }
         if (!this.spells.meditate.active && this.spells.meditate.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.meditate.manaCost) {
             this.statBlock.useMana(this.spells.meditate.manaCost);
             this.spells.meditate.active = true;

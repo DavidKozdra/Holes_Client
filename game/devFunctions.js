@@ -114,6 +114,24 @@ function giveAllItems() {
     }
 }
 
+// Level the player up until reaching a target level by feeding the exact XP needed each step
+function levelUpTo(targetLevel) {
+    if (!curPlayer || !curPlayer.statBlock) return false;
+
+    const goal = Math.max(1, Math.floor(targetLevel || 0));
+    if (!Number.isFinite(goal) || curPlayer.statBlock.level >= goal) return false;
+
+    let safety = 0;
+    while (curPlayer.statBlock.level < goal && safety < 200) {
+        const xpNeeded = Math.max(0, curPlayer.statBlock.xpNeeded - curPlayer.statBlock.xp);
+        if (xpNeeded <= 0) break; // guard against malformed XP state
+        curPlayer.statBlock.setXP(xpNeeded);
+        safety++;
+    }
+
+    return curPlayer.statBlock.level >= goal;
+}
+
 
 function giveDefaultItems(){
     curPlayer.invBlock.addItem("Basic Shovel", 1, false);

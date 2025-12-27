@@ -30,6 +30,22 @@ var Controls_Interact_button, Controls_Inventory_button, Controls_Crafting_butto
 var Controls_MoveHotBarRight_button, Controls_MoveHotBarLeft_button, Controls_Build_button, Controls_Space_button, Controls_Dash_button;
 var Controls_ForceField_button, Controls_Combustion_button, Controls_Meditate_button;
 
+function updateSpellLockDisplay() {
+    if (!curPlayer || !curPlayer.statBlock) return;
+    const level = curPlayer.statBlock.level || 0;
+    const setState = (el, required, buttonEl, label) => {
+        if (!el) return;
+        const locked = level < required;
+        el.html(`${label} (Lvl ${required})${locked ? " - Locked" : " - Unlocked"}`);
+        if (buttonEl) {
+            buttonEl.style("opacity", locked ? "0.4" : "0.8");
+        }
+    };
+    setState(Controls_ForceField, 3, Controls_ForceField_button, "Force Field");
+    setState(Controls_Combustion, 8, Controls_Combustion_button, "Combustion");
+    setState(Controls_Meditate, 14, Controls_Meditate_button, "Meditate");
+}
+
 // ─────────────────────────────────────────────────────────
 // Helper Functions
 // ─────────────────────────────────────────────────────────
@@ -120,6 +136,7 @@ function definePauseUI() {
         gameState = "controls";
         gameSettingsContainer.hide();
         bindingDiv.show();
+        updateSpellLockDisplay();
     });
 
     removeData_button = createButton("Remove Data");
@@ -256,7 +273,8 @@ function definePauseUI() {
                 teamId: curPlayer.teamId || null,
                 race: curPlayer.race || null,
                 color: curPlayer.color || 0,
-                name: curPlayer.name || null
+                name: curPlayer.name || null,
+                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
             };
             console.log('[Disconnect] Saving player data:', playerData);
             socket.emit('save_player_state', playerData);

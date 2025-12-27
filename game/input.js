@@ -46,16 +46,20 @@ function keyReleased() {
     if (gameState == "playing") {
         // Spells 1/2/3
         if (!getIsChatting()) {
-            if (keyCode === 49) { // '1'
-                curPlayer && curPlayer.activateCombustion();
-                return;
-            }
-            if (keyCode === 50) { // '2'
-                curPlayer && curPlayer.activateForceField();
-                return;
-            }
-            if (keyCode === 51) { // '3'
-                curPlayer && curPlayer.activateMeditate();
+            const slotFromKey = {
+                49: 0, // 1
+                50: 1, // 2
+                51: 2, // 3
+                52: 3, // 4
+                53: 4, // 5
+                54: 5, // 6
+                55: 6, // 7
+                56: 7, // 8
+                57: 8, // 9
+                48: 9  // 0
+            };
+            if (slotFromKey[keyCode] !== undefined) {
+                triggerMoveSlot(slotFromKey[keyCode]);
                 return;
             }
         }
@@ -705,6 +709,31 @@ function continousMouseInput() { //ran once every frame, good for anything like 
         }
     }
 }
+
+// Cast or activate a move based on the configured movesSlots
+function triggerMoveSlot(slotIdx) {
+    if (!curPlayer || !Array.isArray(curPlayer.movesSlots)) return;
+    const moveId = curPlayer.movesSlots[slotIdx];
+    if (!moveId) return;
+
+    switch (moveId) {
+        case 'combustion':
+            curPlayer.activateCombustion();
+            break;
+        case 'forceField':
+            curPlayer.activateForceField();
+            break;
+        case 'meditate':
+            curPlayer.activateMeditate();
+            break;
+        case 'dash':
+            curPlayer.activateDash();
+            break;
+        default:
+            break;
+    }
+}
+
 function isElementVisible(el) {
     return el && el.style("display") !== "none";
 }
