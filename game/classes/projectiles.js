@@ -701,9 +701,78 @@ class FloatingText {
     }
 }
 
+class Explosion {
+    constructor(x, y, sizeW, sizeH) {
+        this.pos = createVector(x, y);
+        this.particles = [];
+        this.life = 60; // Longer lasting
+        this.age = 0;
+        this.deleteTag = false;
+        
+        // Generate explosion particles centered at player, radiating outward
+        for (let i = 0; i < 2000; i++) {
+            let angle = random(0, TWO_PI);
+            // Start particles very close to center
+            let px = this.pos.x + random(-5, 5);
+            let py = this.pos.y + random(-5, 5);
+            let size = random(40, 120); // Much larger particles
+            // Velocity radiates outward in all directions equally
+            let speed = random(8, 15); // Much faster spread
+            let vx = cos(angle) * speed;
+            let vy = sin(angle) * speed;
+            
+            this.particles.push({
+                x: px,
+                y: py,
+                vx: vx,
+                vy: vy,
+                size: size,
+                life: this.life,
+                color: { r: random(150, 255), g: random(0, 255), b: 0 }
+            });
+        }
+    }
+    
+    update() {
+        this.age++;
+        for (let p of this.particles) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vx *= 0.93; // Slower damping so it spreads further
+            p.vy *= 0.93;
+            p.life--;
+        }
+        if (this.age >= this.life) {
+            this.deleteTag = true;
+        }
+    }
+    
+    render() {
+        for (let p of this.particles) {
+            if (p.life > 0) {
+                push();
+                translate(p.x - camera.pos.x + (width / 2), p.y - camera.pos.y + (height / 2));
+                let alpha = map(p.life, 0, this.life, 0, 255);
+                fill(p.color.r, p.color.g, p.color.b, alpha);
+                noStroke();
+                square(0, 0, p.size);
+                pop();
+            }
+        }
+    }
+}
+
 function spawnFloatingText(value, x, y, kind, isCrit){
     const cpos = testMap.globalToChunk(x, y);
     const chunk = testMap.chunks[cpos.x+","+cpos.y];
     if(!chunk) return;
     chunk.floatingTexts.push(new FloatingText(value, x, y, kind, isCrit));
+}
+
+function spawnExplosion(x, y, sizeW, sizeH) {
+    const cpos = testMap.globalToChunk(x, y);
+    const chunk = testMap.chunks[cpos.x+","+cpos.y];
+    if(!chunk) return;
+    if (!chunk.explosions) chunk.explosions = [];
+    chunk.explosions.push(new Explosion(x, y, sizeW, sizeH));
 }

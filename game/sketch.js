@@ -46,6 +46,14 @@ function setup() {
         element.addEventListener("contextmenu", (e) => e.preventDefault());
     }
 
+    // Listen for player health changes and spawn floating text
+    window.addEventListener('playerHealthChange', (event) => {
+        if (curPlayer && event.detail.change !== 0) {
+            const kind = event.detail.change > 0 ? "heal" : "damage";
+            spawnFloatingText(Math.abs(event.detail.change), curPlayer.pos.x, curPlayer.pos.y, kind, false);
+        }
+    });
+
     //read keybinds from local storage
     if(localStorage.getItem("keyBindings") != null){
         let keyBindings = JSON.parse(localStorage.getItem("keyBindings"));

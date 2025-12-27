@@ -1130,6 +1130,8 @@ function renderDirtBagUI() {
         text("Full", dirtBagUI.pos.x + DIRT_BAG_W / 2, dirtBagUI.pos.y + DIRT_BAG_H / 2);
     }
     pop();
+
+    // (Spells indicators rendered in renderPlayerCardUI where dash icon is drawn)
 }
 
 
@@ -1628,7 +1630,63 @@ function renderPlayerCardUI() {
         rect(bootX, bootY - 8, 16, 16, 2);
     }
     pop();
-    
+
+    // Spells 1/2/3 indicators next to dash icon
+    if (curPlayer && curPlayer.spells) {
+        push();
+        textFont(gameUIFont);
+        textAlign(CENTER, CENTER);
+        textSize(12);
+        let sX = bootX + 30;
+        let sY = bootY - 8;
+        const drawSpell = (idx, spell, label, readyColor, active) => {
+            let x = sX + (idx * 22);
+            let w = 18, h = 18;
+            let canAfford = (curPlayer.statBlock.stats.mp >= spell.manaCost);
+            let onCd = spell.cooldown && spell.cooldown > 0;
+            if (onCd) {
+                fill(80, 80, 80);
+                stroke(60, 60, 60);
+                strokeWeight(2);
+                rect(x, sY - 8, 16, 16, 2);
+                // Cooldown overlay
+                noStroke();
+                fill(255, 100, 100, 150);
+                let p = spell.cooldown / (spell.cooldownMax || 1);
+                rect(x, sY - 8, 16, 16 * p, 2);
+            } else if (active) {
+                fill(readyColor.r, readyColor.g, readyColor.b);
+                stroke(200);
+                strokeWeight(2);
+                rect(x, sY - 8, 16, 16, 2);
+            } else if (!canAfford) {
+                fill(100, 30, 30);
+                stroke(150, 50, 50);
+                strokeWeight(2);
+                rect(x, sY - 8, 16, 16, 2);
+                // X mark
+                stroke(200, 50, 50);
+                strokeWeight(2);
+                line(x + 4, sY - 4, x + 12, sY + 4);
+                line(x + 12, sY - 4, x + 4, sY + 4);
+            } else {
+                fill(150, 255, 150);
+                stroke(100, 200, 100);
+                strokeWeight(2);
+                rect(x, sY - 8, 16, 16, 2);
+            }
+            // key label for clarity
+            fill(0);
+            noStroke();
+            text(label, x + 8, sY);
+        };
+
+        drawSpell(0, curPlayer.spells.combustion, '1', { r: 255, g: 150, b: 100 }, false);
+        drawSpell(1, curPlayer.spells.forceField, '2', { r: 120, g: 200, b: 255 }, curPlayer.spells.forceField.active);
+        drawSpell(2, curPlayer.spells.meditate, '3', { r: 200, g: 150, b: 255 }, curPlayer.spells.meditate.active);
+        pop();
+    }
+
     //fill with team color
     let displayColor = teamColors[curPlayer.color];
     if (curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {

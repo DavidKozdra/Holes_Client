@@ -109,6 +109,7 @@ class Chunk{
         this.projectiles = [];
         this.soundObjs = [];
         this.floatingTexts = [];
+        this.explosions = [];
     }
 
     cordToScreen(x,y){
@@ -144,6 +145,12 @@ class Chunk{
                 this.floatingTexts.splice(i, 1);
             }
         }
+        for(let i = this.explosions.length-1; i >= 0; i--){
+            this.explosions[i].update();
+            if(this.explosions[i].deleteTag){
+                this.explosions.splice(i, 1);
+            }
+        }
     }
   
     DebugDraw(){
@@ -168,6 +175,10 @@ class Chunk{
         //rendered under other stuff to help hide collishion problems
         for(let i = 0; i < this.projectiles.length; i++){
             this.projectiles[i].render();
+        }
+        // explosions
+        for(let i = 0; i < this.explosions.length; i++){
+            this.explosions[i].render();
         }
         // floating combat text
         for(let i = 0; i < this.floatingTexts.length; i++){

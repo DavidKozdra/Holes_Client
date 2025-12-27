@@ -44,6 +44,21 @@ function keyReleased() {
 
     }
     if (gameState == "playing") {
+        // Spells 1/2/3
+        if (!getIsChatting()) {
+            if (keyCode === 49) { // '1'
+                curPlayer && curPlayer.activateCombustion();
+                return;
+            }
+            if (keyCode === 50) { // '2'
+                curPlayer && curPlayer.activateForceField();
+                return;
+            }
+            if (keyCode === 51) { // '3'
+                curPlayer && curPlayer.activateMeditate();
+                return;
+            }
+        }
         if (keyCode === Controls_Build_code) { //r
 
             let slot = curPlayer.invBlock.selectedHotBar;
@@ -478,6 +493,11 @@ function keyReleased() {
 }
 
 function keyPressed() { //prevents normal key related actions
+    // Cancel meditation if any button is pressed
+    if (curPlayer && curPlayer.spells && curPlayer.spells.meditate.active) {
+        curPlayer.endMeditate();
+    }
+    
     if (keyCode == 27) { //ESC
         // Allow escape to exit search state
         if (gameState == "search") {

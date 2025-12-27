@@ -49,6 +49,12 @@ class Player {
         this.dashCooldownMax = 60; // frames (2 seconds at 30fps)
         this.dashSpeedMultiplier = 2.5; // How much faster during dash
         this.dashManaCost = 20; // Mana cost per dash
+
+        this.spells = {
+            combustion: { cooldown: 0, cooldownMax: 20, manaCost: 30, flashTimer: 0, particles: [] },
+            forceField: { active: false, timer: 0, duration: 1200, cooldown: 0, cooldownMax: 20, manaCost: 40, bonusMR: 3, regenPerSec: 2.5 },
+            meditate: { active: false, timer: 0, duration: 600, cooldown: 0, cooldownMax: 20, manaCost: 5, manaPerSec: 2.5 }
+        };
     }
 
     newCollisionPoint(xOffset, yOffset, direction) {
@@ -199,6 +205,21 @@ class Player {
         }
         if (this.dashCooldown > 0) {
             this.dashCooldown--;
+        }
+
+        if (this.spells.combustion.cooldown > 0) this.spells.combustion.cooldown--;
+        if (this.spells.combustion.flashTimer > 0) this.spells.combustion.flashTimer--;
+        if (this.spells.forceField.cooldown > 0) this.spells.forceField.cooldown--;
+        if (this.spells.meditate.cooldown > 0) this.spells.meditate.cooldown--;
+
+        // Update combustion particles
+        if (this.spells.combustion.particles) {
+            for (let i = this.spells.combustion.particles.length - 1; i >= 0; i--) {
+                this.spells.combustion.particles[i].life--;
+                if (this.spells.combustion.particles[i].life <= 0) {
+                    this.spells.combustion.particles.splice(i, 1);
+                }
+            }
         }
 
         // Calculate speed multiplier based on dash state
@@ -381,6 +402,29 @@ class Player {
         }
 
         this.vel = createVector(0, 0);
+
+        if (this.spells.forceField.active) {
+            this.spells.forceField.timer--;
+            let amt = this.spells.forceField.regenPerSec * (deltaTime/30);
+            this.statBlock.regenHealth(amt);
+            if (this.spells.forceField.timer <= 0) {
+                this.endForceField();
+            }
+        }
+
+        if (this.spells.meditate.active) {
+            // cancel meditation immediately if moving
+            if (this.moving) {
+                this.endMeditate();
+            } else {
+                this.spells.meditate.timer--;
+                let m = this.spells.meditate.manaPerSec * (deltaTime/30);
+                this.statBlock.regenMana(m);
+                if (this.spells.meditate.timer <= 0) {
+                    this.endMeditate();
+                }
+            }
+        }
     }
 
     render() {
@@ -426,6 +470,50 @@ class Player {
                 }
             }
             pop();
+        }
+
+        // Auras render only when a spell is active
+
+        if (this.spells.forceField.active) {
+            push();
+            noFill();
+            stroke(100, 255, 100, 150);
+            strokeWeight(4);
+            ellipse(this.pos.x, this.pos.y, 120, 120);
+            pop();
+        }
+
+        if (this.spells.meditate.active) {
+            push();
+            noFill();
+            stroke(180, 100, 255, 140);
+            strokeWeight(2);
+            let s = 90 + Math.sin(frameCount * 0.2) * 8;
+            ellipse(this.pos.x, this.pos.y, s, s);
+            pop();
+        }
+
+        if (this.spells.combustion.flashTimer > 0) {
+            push();
+            noFill();
+            stroke(255, 120, 60, map(this.spells.combustion.flashTimer, 0, 30, 0, 180));
+            strokeWeight(6);
+            let s = map(this.spells.combustion.flashTimer, 0, 30, 180, 60);
+            ellipse(this.pos.x, this.pos.y, s, s);
+            pop();
+        }
+
+        // Combustion particles
+        if (this.spells.combustion.particles && this.spells.combustion.particles.length > 0) {
+            for (let p of this.spells.combustion.particles) {
+                push();
+                translate(p.x - camera.pos.x + (width / 2), p.y - camera.pos.y + (height / 2));
+                let alpha = map(p.life, 0, 25, 0, 200);
+                fill(100, 255, 100, alpha);
+                noStroke();
+                square(0, 0, p.size);
+                pop();
+            }
         }
 
         // Decide how far above the character we want the label
@@ -560,5 +648,105 @@ class Player {
             return true;
         }
         return false;
+    }
+
+    activateCombustion() {
+        if (this.spells.combustion.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.combustion.manaCost) {
+            this.statBlock.useMana(this.spells.combustion.manaCost);
+
+            // Create explosion object with damage and damage to nearby objects
+            let origin = {
+                pos: this.pos.copy(),
+                size: { w: 100, h: 100 }
+            };
+            createExplosion(origin);
+
+            // Create animated explosion visual effect
+            spawnExplosion(this.pos.x, this.pos.y, 100, 100);
+
+            // Generate animated healing particles (green, shorter aura)
+            const explosionRadius = 80;
+            for (let i = 0; i < 60; i++) {
+                let angle = random(0, TWO_PI);
+                let distance = random(0, explosionRadius);
+                let x = this.pos.x + cos(angle) * distance;
+                let y = this.pos.y + sin(angle) * distance;
+                let size = random(15, 40);
+                this.spells.combustion.particles.push({
+                    x: x,
+                    y: y,
+                    size: size,
+                    life: 25
+                });
+            }
+
+            this.spells.combustion.cooldown = this.spells.combustion.cooldownMax;
+            this.spells.combustion.flashTimer = 30;
+
+            socket.emit("update_player", {
+                id: this.id,
+                pos: this.pos,
+                holding: this.holding,
+                update_names: ["stats.mp"],
+                update_values: [this.statBlock.stats.mp]
+            });
+            return true;
+        }
+        return false;
+    }
+
+    activateForceField() {
+        if (!this.spells.forceField.active && this.spells.forceField.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.forceField.manaCost) {
+            this.statBlock.useMana(this.spells.forceField.manaCost);
+            this.spells.forceField.active = true;
+            this.spells.forceField.timer = this.spells.forceField.duration;
+            this.spells.forceField.cooldown = this.spells.forceField.cooldownMax;
+            this.statBlock.stats.magicResistance += this.spells.forceField.bonusMR;
+            socket.emit("update_player", {
+                id: this.id,
+                pos: this.pos,
+                holding: this.holding,
+                update_names: ["stats.mp", "stats.magicResistance"],
+                update_values: [this.statBlock.stats.mp, this.statBlock.stats.magicResistance]
+            });
+            return true;
+        }
+        return false;
+    }
+
+    endForceField() {
+        if (this.spells.forceField.active) {
+            this.spells.forceField.active = false;
+            this.statBlock.stats.magicResistance -= this.spells.forceField.bonusMR;
+            socket.emit("update_player", {
+                id: this.id,
+                pos: this.pos,
+                holding: this.holding,
+                update_names: ["stats.magicResistance"],
+                update_values: [this.statBlock.stats.magicResistance]
+            });
+        }
+    }
+
+    activateMeditate() {
+        if (!this.spells.meditate.active && this.spells.meditate.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.meditate.manaCost) {
+            this.statBlock.useMana(this.spells.meditate.manaCost);
+            this.spells.meditate.active = true;
+            this.spells.meditate.timer = this.spells.meditate.duration;
+            this.spells.meditate.cooldown = this.spells.meditate.cooldownMax;
+            socket.emit("update_player", {
+                id: this.id,
+                pos: this.pos,
+                holding: this.holding,
+                update_names: ["stats.mp"],
+                update_values: [this.statBlock.stats.mp]
+            });
+            return true;
+        }
+        return false;
+    }
+
+    endMeditate() {
+        this.spells.meditate.active = false;
     }
 }
