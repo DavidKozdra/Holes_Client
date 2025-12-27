@@ -196,16 +196,6 @@ function bombUpdate() {
             amt: 1
         });
 
-        //why not hurting trees ? 
-
-
-
-        // if you made this bomb, when it eventually blows up, the 'damage' will be sent to server by bomb-placer
-        // if(this.id == curPlayer.id && this.ownerName == curPlayer.name) { 
-
-        // }
-
-        // Remove bomb after explosion
         this.deleteTag = true;
         socket.emit("delete_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z });
     }

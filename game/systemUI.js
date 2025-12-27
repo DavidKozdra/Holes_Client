@@ -23,10 +23,12 @@ var keysDiv;
 var Controls_Up, Controls_Left, Controls_Down, Controls_Right;
 var Controls_Interact, Controls_Inventory, Controls_Crafting, Controls_Pause;
 var Controls_MoveHotBarRight, Controls_MoveHotBarLeft, Controls_Build, Controls_Space, Controls_Dash;
+var Controls_ForceField, Controls_Combustion, Controls_Meditate;
 
 var Controls_Up_button, Controls_Left_button, Controls_Down_button, Controls_Right_button;
 var Controls_Interact_button, Controls_Inventory_button, Controls_Crafting_button, Controls_Pause_button;
 var Controls_MoveHotBarRight_button, Controls_MoveHotBarLeft_button, Controls_Build_button, Controls_Space_button, Controls_Dash_button;
+var Controls_ForceField_button, Controls_Combustion_button, Controls_Meditate_button;
 
 // ─────────────────────────────────────────────────────────
 // Helper Functions
@@ -456,6 +458,18 @@ function defineKeyBindingUI() {
     Controls_Dash.class("control-label");
     Controls_Dash.parent(namesDiv);
 
+    Controls_ForceField = createP("Force Field (Lvl 3):");
+    Controls_ForceField.class("control-label");
+    Controls_ForceField.parent(namesDiv);
+
+    Controls_Combustion = createP("Combustion (Lvl 8):");
+    Controls_Combustion.class("control-label");
+    Controls_Combustion.parent(namesDiv);
+
+    Controls_Meditate = createP("Meditate (Lvl 14):");
+    Controls_Meditate.class("control-label");
+    Controls_Meditate.parent(namesDiv);
+
     keysDiv = createDiv();
     keysDiv.class("binding-keys");
     keysDiv.parent(contentDiv);
@@ -616,4 +630,22 @@ function defineKeyBindingUI() {
         }
     });
     Controls_Dash_button.parent(keysDiv);
+
+    Controls_ForceField_button = createButton("2");
+    Controls_ForceField_button.class("control-button");
+    Controls_ForceField_button.attribute("disabled", "");
+    Controls_ForceField_button.style("opacity", "0.5");
+    Controls_ForceField_button.parent(keysDiv);
+
+    Controls_Combustion_button = createButton("1");
+    Controls_Combustion_button.class("control-button");
+    Controls_Combustion_button.attribute("disabled", "");
+    Controls_Combustion_button.style("opacity", "0.5");
+    Controls_Combustion_button.parent(keysDiv);
+
+    Controls_Meditate_button = createButton("3");
+    Controls_Meditate_button.class("control-button");
+    Controls_Meditate_button.attribute("disabled", "");
+    Controls_Meditate_button.style("opacity", "0.5");
+    Controls_Meditate_button.parent(keysDiv);
 }

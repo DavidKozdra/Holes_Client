@@ -51,9 +51,9 @@ class Player {
         this.dashManaCost = 20; // Mana cost per dash
 
         this.spells = {
-            combustion: { cooldown: 0, cooldownMax: 20, manaCost: 30, flashTimer: 0, particles: [] },
-            forceField: { active: false, timer: 0, duration: 1200, cooldown: 0, cooldownMax: 20, manaCost: 40, bonusMR: 3, regenPerSec: 2.5 },
-            meditate: { active: false, timer: 0, duration: 600, cooldown: 0, cooldownMax: 20, manaCost: 5, manaPerSec: 2.5 }
+            combustion: { level: 8, cooldown: 0, cooldownMax: 750, manaCost: 30, flashTimer: 0, particles: [] },
+            forceField: { level: 3, active: false, timer: 0, duration: 1200, cooldown: 0, cooldownMax: 450, manaCost: 40, bonusMR: 3, regenPerSec: 2.5 },
+            meditate: { level: 14, active: false, timer: 0, duration: 600, cooldown: 0, cooldownMax: 1200, manaCost: 5, manaPerSec: 2.5 }
         };
     }
 
