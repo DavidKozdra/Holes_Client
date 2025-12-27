@@ -966,61 +966,50 @@ function showMovesEditor() {
 }
 
 function defineMovesEditorUI() {
-    movesEditorDiv = createDiv();
-    movesEditorDiv.id("moves-editor");
-    movesEditorDiv.class("container");
-    movesEditorDiv.style("z-index", "50");
-    applyStyle(movesEditorDiv, {
-        position: "absolute",
-        top: "45%",
-        left: "55%",
-        transform: "translate(-50%, -50%)",
-        display: "none"
-    });
 
-    const panel = movesEditorDiv; // Use the div itself as the panel
-    panel.style("background", "#1e1e1e");
-    panel.style("border", "2px solid #888");
-    panel.style("border-radius", "12px");
-    panel.style("padding", "16px");
-    panel.style("width", "720px");
-    panel.style("max-width", "90vw");
-    panel.style("max-height", "80vh");
-    panel.style("color", "#fff");
+
+    // For simplicity, reuse the inventory div as the moves editor container
+    movesEditorDiv = invDiv;
+    movesEditorDiv.id("moves-editor");
+    movesEditorDiv.html(''); // Clear existing content
+    
+    const panel = movesEditorDiv;
     panel.style("display", "grid");
     panel.style("grid-template-columns", "1fr 1fr");
     panel.style("gap", "12px");
-
-    const header = createDiv("<strong>Edit Moves (Slots 1-0)</strong>").parent(panel);
+    panel.style("width", "60vw");
+    panel.style("max-width", "85vw");
+    
+    const header = createDiv("<strong>Edit Moves (Slots 0-9)</strong>").parent(panel);
     header.style("grid-column", "1 / span 2");
     header.style("display", "flex");
     header.style("justify-content", "space-between");
     header.style("align-items", "center");
-
+    header.style("margin-bottom", "12px");
+    header.style("color", "yellow");
+    
     const backBtn = createButton("Back to Inventory").parent(header);
     backBtn.style("padding", "8px 16px");
-    backBtn.style("background", "#444");
-    backBtn.style("color", "#fff");
-    backBtn.style("border", "1px solid #666");
     backBtn.style("cursor", "pointer");
     backBtn.mousePressed(() => {
         movesEditorDiv.hide();
         invDiv.show();
     });
-
+    
     movesSlotList = createDiv().parent(panel);
-    movesSlotList.style("border", "1px solid #555");
     movesSlotList.style("border-radius", "8px");
     movesSlotList.style("padding", "8px");
     movesSlotList.style("overflow-y", "auto");
-
+    movesSlotList.style("background", "#222");
+    
     movesAllList = createDiv().parent(panel);
-    movesAllList.style("border", "1px solid #555");
     movesAllList.style("border-radius", "8px");
     movesAllList.style("padding", "8px");
     movesAllList.style("overflow-y", "auto");
-}
+    movesAllList.style("background", "#222");
 
+    
+}
 function refreshMovesEditorUI() {
     if (!curPlayer) return;
     ensureMoveSlots();
@@ -1038,24 +1027,26 @@ function refreshMovesEditorUI() {
         slotBtn.style("width", "100%");
         slotBtn.style("margin-bottom", "6px");
         slotBtn.style("padding", "8px");
-        slotBtn.style("background", i === selectedMoveSlotIdx ? "#2e6cff" : "#333");
+        slotBtn.style("background", i === selectedMoveSlotIdx ? "green" : "#333");
         slotBtn.style("color", i === selectedMoveSlotIdx ? "#fff" : (moveId ? "#aef" : "#888"));
         slotBtn.style("border", i === selectedMoveSlotIdx ? "2px solid #fff" : "1px solid #555");
         slotBtn.style("cursor", "pointer");
         slotBtn.style("text-align", "left");
         slotBtn.mousePressed(() => { selectedMoveSlotIdx = i; refreshMovesEditorUI(); });
 
-        const clearBtn = createButton("\u2715").parent(slotBtn);
-        clearBtn.style("margin-left", "auto");
-        clearBtn.style("padding", "4px 8px");
-        clearBtn.style("background", "#a44");
-        clearBtn.style("border", "none");
+        // clear button should be xlogo png
+        const clearBtn = createImg("images/ui/x.png", "Clear").parent(slotBtn);
+        clearBtn.style("width", "16px");
+        clearBtn.style("height", "16px");
+        clearBtn.style("float", "right");
         clearBtn.style("cursor", "pointer");
+        clearBtn.style("image-rendering", "pixelated");
         clearBtn.mousePressed((e) => {
-            e.stopPropagation();
+            e.stopPropagation(); // Prevent triggering the slot button click
             curPlayer.movesSlots[i] = null;
             refreshMovesEditorUI();
         });
+
     }
 
     // Right panel: All available moves with details
@@ -1190,7 +1181,6 @@ function refreshMovesEditorUI() {
         });
     });
 }
-
 
 // Safe helpers for item images in inventory UI
 function _getFrameURLSafe(imgNum) {
