@@ -381,8 +381,6 @@ class MeleeProjectile extends SimpleProjectile{
                     // Use centralized damage method
                     let actualDamage = curPlayer.statBlock.takeDamage(this.damage, this.isMagic);
                     
-                    // floating combat text for player damage
-                    spawnFloatingText(actualDamage, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
                     camera.shake = {intensity: actualDamage, length: 5};
                     camera.edgeBlood = 5;
                     socket.emit("update_player", {

@@ -1931,6 +1931,408 @@ function updateManaDisplay(mp, mmp) {
 
 
 
+function ensureMoveHotbarDOM() {
+  if (window._moveHotbarDOM) return window._moveHotbarDOM;
+
+  // Styles (only once)
+  if (!document.getElementById("move-hotbar-styles")) {
+    const style = document.createElement("style");
+    style.id = "move-hotbar-styles";
+    style.textContent = `
+      #moveHotbarRoot {
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%);
+        z-index: 9999;
+        pointer-events: none;
+        user-select: none;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      }
+
+      #moveHotbarBar {
+        display: flex;
+        gap: 22px;
+        align-items: flex-end;
+        padding: 14px 18px;
+        border-radius: 14px;
+        background: rgba(0,0,0,0.45);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        border: 1px solid rgba(255,255,255,0.10);
+      }
+
+      .moveSlot {
+        position: relative;
+        width: 112px;
+        height: 112px;
+        border-radius: 12px;
+        border: 4px solid rgba(140,240,140,0.9);
+        background: rgba(30,30,30,0.75);
+        overflow: hidden;
+      }
+
+      .moveSlot.isLocked {
+        border-color: rgba(120,90,40,0.9);
+        background: rgba(25,25,25,0.85);
+        filter: saturate(0.7);
+      }
+
+      .moveSlot.isOnCd {
+        border-color: rgba(110,110,110,0.9);
+        background: rgba(30,30,30,0.85);
+      }
+
+      .moveSlot.isActive {
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.35) inset;
+      }
+
+      .moveSlot.cantAfford {
+        border-color: rgba(170,70,70,0.95);
+        background: rgba(60,20,20,0.75);
+      }
+
+      .moveIcon {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        image-rendering: pixelated;
+        object-fit: cover;
+      }
+
+      /* Cooldown overlay: grows downward (like your rect overlay) */
+      .cdOverlay {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 0%;
+        background: rgba(255,100,100,0.55);
+        border-radius: 10px;
+        pointer-events: none;
+      }
+
+      .keyLabel {
+        position: absolute;
+        left: 50%;
+        top: -34px;
+        transform: translateX(-50%);
+        height: 26px;
+        min-width: 48px;
+        padding: 0 10px;
+        border-radius: 8px;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 18px;
+        letter-spacing: 0.5px;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.12);
+      }
+
+      .keyLabel.lockedKey {
+        color: rgb(255,220,160);
+      }
+
+      .nameLabel {
+        position: absolute;
+        left: 50%;
+        bottom: -30px;
+        transform: translateX(-50%);
+        width: 160px;
+        text-align: center;
+        font-size: 14px;
+        color: rgba(230,230,230,0.95);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.65);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .nameLabel.lockedName {
+        color: rgb(230,190,120);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Root
+  const root = document.createElement("div");
+  root.id = "moveHotbarRoot";
+
+  const bar = document.createElement("div");
+  bar.id = "moveHotbarBar";
+  root.appendChild(bar);
+
+  // 4 slots (matches your HUD)
+  const slots = [];
+  for (let i = 0; i < 4; i++) {
+    const slot = document.createElement("div");
+    slot.className = "moveSlot";
+
+    const icon = document.createElement("img");
+    icon.className = "moveIcon";
+    icon.alt = "";
+
+    const cd = document.createElement("div");
+    cd.className = "cdOverlay";
+
+    const key = document.createElement("div");
+    key.className = "keyLabel";
+    key.textContent = String(i + 1);
+
+    const name = document.createElement("div");
+    name.className = "nameLabel";
+    name.textContent = "";
+
+    slot.appendChild(icon);
+    slot.appendChild(cd);
+    slot.appendChild(key);
+    slot.appendChild(name);
+
+    bar.appendChild(slot);
+
+    slots.push({ slot, icon, cd, key, name });
+  }
+
+  document.body.appendChild(root);
+
+  window._moveHotbarDOM = { root, bar, slots };
+  return window._moveHotbarDOM;
+}
+
+// Build icons once and keep dataURLs around for <img>
+function ensureMoveHotbarIcons() {
+  if (window._moveHotbarIcons) return window._moveHotbarIcons;
+
+  // If you already have getSpellIcon(id, drawFn) from your code, reuse it.
+  // We convert p5.Graphics -> dataURL for DOM <img>.
+  const toDataUrl = (g) => {
+    // p5.Graphics has .canvas
+    try { return g?.canvas?.toDataURL?.("image/png"); } catch (e) {}
+    return "";
+  };
+
+  // Fallback: tiny blank (if getSpellIcon isn't ready yet)
+  const blank = "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
+
+  // If getSpellIcon exists, generate the same icons you had
+  const hasGetSpellIcon = typeof window.getSpellIcon === "function";
+
+  let dashG, combustionG, forceFieldG, meditateG, emptyG;
+
+  if (hasGetSpellIcon) {
+    dashG = getSpellIcon("dash_hud_lg", (g) => {
+      g.clear();
+      g.push();
+      g.translate(g.width / 2, g.height / 2);
+      g.noStroke();
+      g.fill(120, 200, 255);
+      g.rectMode(g.CENTER);
+      g.rect(0, 0, 18, 12, 4);
+      g.fill(255);
+      g.triangle(-4, -4, -4, 4, 6, 0);
+      g.pop();
+    });
+
+    combustionG = getSpellIcon("combustion_hud_lg", (g) => {
+      g.clear();
+      g.noStroke();
+      g.fill(255, 140, 60);
+      g.circle(13, 13, 18);
+      g.fill(255, 220, 120, 180);
+      g.circle(13, 13, 10);
+    });
+
+    forceFieldG = getSpellIcon("forceField_hud_lg", (g) => {
+      g.clear();
+      g.noFill();
+      g.stroke(120, 220, 255);
+      g.strokeWeight(3);
+      g.circle(13, 13, 18);
+      g.stroke(120, 200, 240, 160);
+      g.strokeWeight(2);
+      g.circle(13, 13, 12);
+    });
+
+    meditateG = getSpellIcon("meditate_hud_lg", (g) => {
+      g.clear();
+      g.noStroke();
+      g.fill(190, 150, 255);
+      g.rect(5, 8, 18, 10, 4);
+      g.fill(120, 90, 200, 180);
+      g.rect(8, 6, 12, 6, 3);
+    });
+
+    emptyG = getSpellIcon("emptyMove_hud_lg", (g) => {
+      g.clear();
+      g.noStroke();
+      g.fill(70);
+      g.rect(4, 4, 18, 18, 4);
+      g.stroke(110);
+      g.noFill();
+    });
+  }
+
+  window._moveHotbarIcons = {
+    dash: hasGetSpellIcon ? toDataUrl(dashG) : blank,
+    combustion: hasGetSpellIcon ? toDataUrl(combustionG) : blank,
+    forceField: hasGetSpellIcon ? toDataUrl(forceFieldG) : blank,
+    meditate: hasGetSpellIcon ? toDataUrl(meditateG) : blank,
+    empty: hasGetSpellIcon ? toDataUrl(emptyG) : blank
+  };
+
+  return window._moveHotbarIcons;
+}
+
+function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
+  const icons = ensureMoveHotbarIcons();
+
+  const spells = curPlayer?.spells || {};
+  const stats = curPlayer?.statBlock?.stats || {};
+  const level = curPlayer?.statBlock?.level || 0;
+  const mp = stats.mp ?? 0;
+
+  const mk = (o) => ({
+    label: slotLabel,
+    nameLabel: o.nameLabel || "Empty",
+    locked: !!o.locked,
+    unlockLevel: o.unlockLevel ?? "",
+    onCd: !!o.onCd,
+    cooldownPct: Math.max(0, Math.min(1, o.cooldownPct || 0)),
+    canAfford: o.canAfford !== false,
+    active: !!o.active,
+    iconUrl: o.iconUrl || icons.empty
+  });
+
+  switch (moveId) {
+    case "forceField": {
+      const s = spells.forceField || {};
+      const req = s.level || 0;
+      const locked = level < req;
+      return mk({
+        nameLabel: "Force Field",
+        locked,
+        unlockLevel: req,
+        onCd: (s.cooldown || 0) > 0,
+        cooldownPct: s.cooldownMax ? (s.cooldown / s.cooldownMax) : 0,
+        canAfford: mp >= (s.manaCost || 0),
+        active: !!s.active,
+        iconUrl: icons.forceField
+      });
+    }
+    case "combustion": {
+      const s = spells.combustion || {};
+      const req = s.level || 0;
+      const locked = level < req;
+      return mk({
+        nameLabel: "Combustion",
+        locked,
+        unlockLevel: req,
+        onCd: (s.cooldown || 0) > 0,
+        cooldownPct: s.cooldownMax ? (s.cooldown / s.cooldownMax) : 0,
+        canAfford: mp >= (s.manaCost || 0),
+        active: false,
+        iconUrl: icons.combustion
+      });
+    }
+    case "meditate": {
+      const s = spells.meditate || {};
+      const req = s.level || 0;
+      const locked = level < req;
+      return mk({
+        nameLabel: "Meditate",
+        locked,
+        unlockLevel: req,
+        onCd: (s.cooldown || 0) > 0,
+        cooldownPct: s.cooldownMax ? (s.cooldown / s.cooldownMax) : 0,
+        canAfford: mp >= (s.manaCost || 0),
+        active: !!s.active,
+        iconUrl: icons.meditate
+      });
+    }
+    case "dash": {
+      const onCd = (curPlayer.dashCooldown || 0) > 0;
+      const pct = curPlayer.dashCooldownMax ? (curPlayer.dashCooldown / curPlayer.dashCooldownMax) : 0;
+      return mk({
+        nameLabel: "Dash",
+        locked: false,
+        unlockLevel: 1,
+        onCd,
+        cooldownPct: pct,
+        canAfford: mp >= (curPlayer.dashManaCost || 0),
+        active: !!curPlayer.isDashing,
+        iconUrl: icons.dash
+      });
+    }
+    default:
+      // Empty slot: show "locked" feel like before
+      return mk({
+        nameLabel: "Empty",
+        locked: true,
+        unlockLevel: "",
+        onCd: false,
+        cooldownPct: 0,
+        canAfford: true,
+        active: false,
+        iconUrl: icons.empty
+      });
+  }
+}
+
+function updateMoveHotbarDOM(curPlayer) {
+  const dom = ensureMoveHotbarDOM();
+
+  // Only show if we have a player + spells
+  if (!curPlayer || !curPlayer.spells) {
+    dom.root.style.display = "none";
+    return;
+  }
+  dom.root.style.display = "block";
+
+  const slotLabels = ["1", "2", "3", "4"]; // your HUD uses 4 entries
+  const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
+  const movesForHud = moves.slice(0, 4);
+  while (movesForHud.length < 4) movesForHud.push(null);
+
+  for (let i = 0; i < 4; i++) {
+    const moveId = movesForHud[i];
+    const entry = getMoveEntryForDOM(curPlayer, moveId, slotLabels[i]);
+
+    const s = dom.slots[i];
+
+    // Classes
+    s.slot.classList.toggle("isLocked", entry.locked);
+    s.slot.classList.toggle("isOnCd", entry.onCd && !entry.locked);
+    s.slot.classList.toggle("isActive", entry.active && !entry.locked);
+    s.slot.classList.toggle("cantAfford", !entry.canAfford && !entry.locked);
+
+    // Icon
+    if (s.icon.src !== entry.iconUrl) s.icon.src = entry.iconUrl;
+
+    // Cooldown overlay height: p is ratio remaining -> overlay height = p*100%
+    if (entry.onCd && !entry.locked) {
+      s.cd.style.height = `${(entry.cooldownPct * 100).toFixed(2)}%`;
+      s.cd.style.display = "block";
+    } else {
+      s.cd.style.height = "0%";
+      s.cd.style.display = "none";
+    }
+
+    // Key label
+    const keyText = entry.locked ? `L${entry.unlockLevel}` : entry.label;
+    s.key.textContent = keyText;
+    s.key.classList.toggle("lockedKey", entry.locked);
+
+    // Name label
+    s.name.textContent = entry.locked ? `Unlocks Lv ${entry.unlockLevel}` : entry.nameLabel;
+    s.name.classList.toggle("lockedName", entry.locked);
+  }
+}
+
+
 function renderPlayerCardUI() {
     push();
     fill(0);
@@ -1972,319 +2374,119 @@ function renderPlayerCardUI() {
     rect(width - 530 + 304, 83, 34, 19);
     rect(width - 530 + 340, 83, 36, 19);
 
-    image(hpBarImg, width - 530 + 93, 52, 281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp), 14, 0, 0, 281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp), 14);
-    let heldItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]];
+    image(
+        hpBarImg,
+        width - 530 + 93,
+        52,
+        281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp),
+        14,
+        0,
+        0,
+        281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp),
+        14
+    );
+
+    let heldItem =
+        curPlayer.invBlock.items[
+            curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]
+        ];
+
     if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "") {
-        let manaRatio = Math.min(curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp, 1);
-        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14, 0, 0, 281 * manaRatio, 14);
-    }
-    else if (heldItem.manaCost == 0 && heldItem.type == "Ranged") {
-        //render ammo bar
+        let manaRatio = Math.min(
+            curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
+            1
+        );
+        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14);
+    } else if (heldItem.manaCost == 0 && heldItem.type == "Ranged") {
         let ammoBarLength;
+
         if (heldItem.reloadBool) {
-            ammoBarLength = (heldItem.reloadSpeed - curPlayer.invBlock.useTimer) / heldItem.reloadSpeed;
+            ammoBarLength =
+                (heldItem.reloadSpeed - curPlayer.invBlock.useTimer) /
+                heldItem.reloadSpeed;
             if (curPlayer.invBlock.useTimer <= 0) {
                 heldItem.reloadBool = false;
             }
+        } else if (!curPlayer.invBlock.items[heldItem.ammoName]) {
+            ammoBarLength = 0.00000001;
+        } else if (
+            curPlayer.invBlock.items[heldItem.ammoName].amount <
+            heldItem.bulletsLeft
+        ) {
+            ammoBarLength =
+                curPlayer.invBlock.items[heldItem.ammoName].amount /
+                heldItem.roundSize;
+        } else {
+            ammoBarLength = heldItem.bulletsLeft / heldItem.roundSize;
         }
-        else if (curPlayer.invBlock.items[heldItem.ammoName] == undefined) {
-            ammoBarLength = 0.000000000001;
-        }
-        else if (curPlayer.invBlock.items[heldItem.ammoName].amount < heldItem.bulletsLeft) {
-            ammoBarLength = curPlayer.invBlock.items[heldItem.ammoName].amount / heldItem.roundSize;
-        }
-        else {
-            ammoBarLength = (heldItem.bulletsLeft / heldItem.roundSize);
-        }
-        image(ammoBarImg, width - 530 + 93, 83, 281 * ammoBarLength, 14, 0, 0, 281 * ammoBarLength, 14);
+
+        image(ammoBarImg, width - 530 + 93, 83, 281 * ammoBarLength, 14);
+
         stroke(0);
         strokeWeight(1);
         for (let i = 1; i < heldItem.roundSize; i++) {
-            line(width - 530 + 93 + (281 * (i / heldItem.roundSize)), 83, width - 530 + 93 + (281 * (i / heldItem.roundSize)), 97);
+            let lx = width - 530 + 93 + (281 * i) / heldItem.roundSize;
+            line(lx, 83, lx, 97);
         }
+    } else {
+        let manaRatio = Math.min(
+            curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
+            1
+        );
+        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14);
     }
-    else {
-        let manaRatio = Math.min(curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp, 1);
-        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14, 0, 0, 281 * manaRatio, 14);
-        stroke(0);
-        strokeWeight(1);
-        for (let i = 1; i < curPlayer.statBlock.stats.mmp / heldItem.manaCost; i++) {
-            line(width - 530 + 93 + (281 * (i / (curPlayer.statBlock.stats.mmp / heldItem.manaCost))), 83, width - 530 + 93 + (281 * (i / (curPlayer.statBlock.stats.mmp / heldItem.manaCost))), 97);
-        }
-    }
-
-    // Race portrait now rendered as HTML element - see defineRacePortrait()
-    // let raceName = races[curPlayer.race];
-    // image(raceImages[raceName].portrait, width - 30 - 115 + 6 + 7, 7, 98, 98);
 
     textFont(gameUIFont);
     textSize(20);
     strokeWeight(1);
 
-    // Label: lvl
     fill(134);
-    stroke(134);
-    text("lvl", width - 530 + 6 + 10 + 10, 35);
+    text("lvl", width - 530 + 26, 35);
 
-    // Level number
     fill(0, 255, 0);
-    stroke(0, 255, 0);
-    text(curPlayer.statBlock.level + "   " + `${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded} XP`, width - 530 + 6 + 30 + 10 + 5, 35);
+    text(
+        curPlayer.statBlock.level +
+            "   " +
+            `${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded} XP`,
+        width - 530 + 45,
+        35
+    );
 
+    fill(134);
+    text("HP:", width - 530 + 36, 70);
 
-    text("HP:", width - 530 + 6 + 30, 70);
-    if (buildMode) {
-        fill(0, 255, 255);
-        stroke(0, 255, 255);
-        text("Mana:", width - 530 + 6 + 30, 100);
-    }
-    else if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]]?.manaCost == 0 && curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Ranged") {
-        fill(255, 255, 0);
-        stroke(255, 255, 0);
-        text("AMMO:", width - 530 + 6 + 15, 100);
-    }
-    else {
-        fill(0, 255, 255);
-        stroke(0, 255, 255);
-        text("Mana:", width - 530 + 6 + 30, 100);
-    }
-    
-    // Dash + Spells HUD at bottom-center
-    if (curPlayer && curPlayer.spells) {
-        push();
-        textFont(gameUIFont);
-        textAlign(CENTER, CENTER);
-        textSize(18);
+    fill(0, 255, 255);
+    text("Mana:", width - 530 + 36, 100);
 
-        const centerX = width / 2;
-        const sY = height - 110; // lift to fit larger icons
-        const spacing = 140;
-        const iconSize = 28 * 4; // 4x scale
+    // ✅ DOM hotbar replaces ALL canvas hotbar code
+    updateMoveHotbarDOM(curPlayer);
 
-        // background bar
-        push();
-        noStroke();
-        fill(0, 0, 0, 120);
-        rectMode(CENTER);
-        rect(centerX, sY, spacing * 4 + 60, iconSize + 52, 14);
-        pop();
-
-        // Cache spell icons (defined once, reused every frame)
-        if (!window._hudIconsCache) {
-            window._hudIconsCache = {
-                dash: getSpellIcon('dash_hud_lg', (g) => {
-                    g.clear();
-                    g.push();
-                    g.translate(g.width / 2, g.height / 2);
-                    g.noStroke();
-                    g.fill(120, 200, 255);
-                    g.rectMode(CENTER);
-                    g.rect(0, 0, 18, 12, 4);
-                    g.fill(255);
-                    g.triangle(-4, -4, -4, 4, 6, 0);
-                    g.pop();
-                }),
-                combustion: getSpellIcon('combustion_hud_lg', (g) => {
-                    g.clear();
-                    g.noStroke();
-                    g.fill(255, 140, 60);
-                    g.circle(13, 13, 18);
-                    g.fill(255, 220, 120, 180);
-                    g.circle(13, 13, 10);
-                }),
-                forceField: getSpellIcon('forceField_hud_lg', (g) => {
-                    g.clear();
-                    g.noFill();
-                    g.stroke(120, 220, 255);
-                    g.strokeWeight(3);
-                    g.circle(13, 13, 18);
-                    g.stroke(120, 200, 240, 160);
-                    g.strokeWeight(2);
-                    g.circle(13, 13, 12);
-                }),
-                meditate: getSpellIcon('meditate_hud_lg', (g) => {
-                    g.clear();
-                    g.noStroke();
-                    g.fill(190, 150, 255);
-                    g.rect(5, 8, 18, 10, 4);
-                    g.fill(120, 90, 200, 180);
-                    g.rect(8, 6, 12, 6, 3);
-                }),
-                empty: getSpellIcon('emptyMove_hud_lg', (g) => {
-                    g.clear();
-                    g.noStroke();
-                    g.fill(70);
-                    g.rect(4, 4, 18, 18, 4);
-                    g.stroke(110);
-                    g.noFill();
-                })
-            };
-        }
-        const dashIcon = window._hudIconsCache.dash;
-        const combustionIcon = window._hudIconsCache.combustion;
-        const forceFieldIcon = window._hudIconsCache.forceField;
-        const meditateIcon = window._hudIconsCache.meditate;
-        const emptyIcon = window._hudIconsCache.empty;
-
-        const slotLabels = ['1','2','3','4','5','6','7','8','9','0'];
-        const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
-        const movesForHud = moves.slice(0, 4);
-        while (movesForHud.length < 4) movesForHud.push(null);
-
-        const drawEntry = (idx, options) => {
-            const { label, nameLabel, readyColor, active, locked, onCd, canAfford, iconImg, unlockLevel } = options;
-            let x = centerX + (idx - 1.5) * spacing;
-
-            // icon background
-            if (locked) {
-                fill(50, 50, 50);
-                stroke(80, 60, 30);
-            } else if (onCd) {
-                fill(80, 80, 80);
-                stroke(60, 60, 60);
-            } else if (active) {
-                fill(readyColor.r, readyColor.g, readyColor.b);
-                stroke(220);
-            } else if (!canAfford) {
-                fill(90, 40, 40);
-                stroke(150, 60, 60);
-            } else {
-                fill(140, 240, 140);
-                stroke(90, 190, 90);
-            }
-            strokeWeight(4);
-            rect(x - iconSize/2, sY - iconSize/2, iconSize, iconSize, 10);
-
-            // icon image
-            imageMode(CORNER);
-            image(iconImg, x - iconSize/2, sY - iconSize/2, iconSize, iconSize);
-
-            // cooldown overlay
-            if (onCd && !locked) {
-                noStroke();
-                fill(255, 100, 100, 150);
-                let p = options.cooldownPct || 0;
-                rect(x - iconSize/2, sY - iconSize/2, iconSize, iconSize * p, 12);
-            }
-
-            // key label (or Lx)
-            noStroke();
-            textSize(22);
-            const keyText = locked ? `L${unlockLevel}` : label;
-            const keyW = Math.max(48, textWidth(keyText) + 18);
-            const keyH = 26;
-            const keyY = sY - iconSize / 2 - keyH / 2 - 10;
-            fill(0, 180);
-            rect(x, keyY, keyW, keyH, 8);
-            fill(locked ? color(255, 220, 160) : color(255));
-            text(keyText, x, keyY + 1);
-
-            // name or unlock line
-            textSize(16);
-            fill(locked ? color(230, 190, 120) : color(230));
-            text(locked ? `Unlocks Lv ${unlockLevel}` : nameLabel, x, sY + iconSize / 2 + 20);
-        };
-
-        const getMoveEntry = (moveId, slotLabel) => {
-            switch (moveId) {
-                case 'forceField':
-                    return {
-                        label: slotLabel,
-                        nameLabel: 'Force Field',
-                        readyColor: { r: 120, g: 200, b: 255 },
-                        active: curPlayer.spells.forceField.active,
-                        locked: curPlayer.statBlock.level < (curPlayer.spells.forceField.level || 0),
-                        unlockLevel: curPlayer.spells.forceField.level || 0,
-                        onCd: curPlayer.spells.forceField.cooldown > 0,
-                        cooldownPct: curPlayer.spells.forceField.cooldownMax ? curPlayer.spells.forceField.cooldown / curPlayer.spells.forceField.cooldownMax : 0,
-                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.forceField.manaCost,
-                        iconImg: forceFieldIcon
-                    };
-                case 'combustion':
-                    return {
-                        label: slotLabel,
-                        nameLabel: 'Combustion',
-                        readyColor: { r: 255, g: 150, b: 100 },
-                        active: false,
-                        locked: curPlayer.statBlock.level < (curPlayer.spells.combustion.level || 0),
-                        unlockLevel: curPlayer.spells.combustion.level || 0,
-                        onCd: curPlayer.spells.combustion.cooldown > 0,
-                        cooldownPct: curPlayer.spells.combustion.cooldownMax ? curPlayer.spells.combustion.cooldown / curPlayer.spells.combustion.cooldownMax : 0,
-                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.combustion.manaCost,
-                        iconImg: combustionIcon
-                    };
-                case 'meditate':
-                    return {
-                        label: slotLabel,
-                        nameLabel: 'Meditate',
-                        readyColor: { r: 200, g: 150, b: 255 },
-                        active: curPlayer.spells.meditate.active,
-                        locked: curPlayer.statBlock.level < (curPlayer.spells.meditate.level || 0),
-                        unlockLevel: curPlayer.spells.meditate.level || 0,
-                        onCd: curPlayer.spells.meditate.cooldown > 0,
-                        cooldownPct: curPlayer.spells.meditate.cooldownMax ? curPlayer.spells.meditate.cooldown / curPlayer.spells.meditate.cooldownMax : 0,
-                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.meditate.manaCost,
-                        iconImg: meditateIcon
-                    };
-                case 'dash':
-                    return {
-                        label: slotLabel,
-                        nameLabel: 'Dash',
-                        readyColor: { r: 120, g: 200, b: 255 },
-                        active: curPlayer.isDashing,
-                        locked: false,
-                        unlockLevel: 1,
-                        onCd: curPlayer.dashCooldown > 0,
-                        cooldownPct: curPlayer.dashCooldownMax ? curPlayer.dashCooldown / curPlayer.dashCooldownMax : 0,
-                        canAfford: curPlayer.statBlock.stats.mp >= curPlayer.dashManaCost,
-                        iconImg: dashIcon
-                    };
-                default:
-                    return {
-                        label: slotLabel,
-                        nameLabel: 'Empty',
-                        readyColor: { r: 140, g: 140, b: 140 },
-                        active: false,
-                        locked: true,
-                        unlockLevel: '',
-                        onCd: false,
-                        cooldownPct: 0,
-                        canAfford: true,
-                        iconImg: emptyIcon
-                    };
-            }
-        };
-
-        movesForHud.forEach((moveId, idx) => {
-            const entry = getMoveEntry(moveId, slotLabels[idx]);
-            drawEntry(idx, entry);
-        });
-        pop();
-    }
-
-    //fill with team color
+    // Team color name
     let displayColor = teamColors[curPlayer.color];
-    if (curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {
+    if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
         displayColor = window.allTeams[curPlayer.teamId].color;
     }
+
     fill(displayColor.r, displayColor.g, displayColor.b);
-    stroke(displayColor.r, displayColor.g, displayColor.b);
     textAlign(CENTER, CENTER);
-    
-    // Update existing nameBtn instead of creating new one
+
     nameBtn.html(curPlayer.name);
-    nameBtn.style('color', `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`);
-    
-    // Position it EXACTLY where your text was
-    let x = width - 530 + 6 + 45 + (350 / 2);
-    let y = 19;
-    nameBtn.position(x, y);
+    nameBtn.style(
+        "color",
+        `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`
+    );
+
+    let nx = width - 530 + 6 + 45 + 350 / 2;
+    let ny = 19;
+    nameBtn.position(nx, ny);
     nameBtn.show();
 
-    let box = gameUIFont.textBounds(curPlayer.name, width - 530 + 6 + 45 + (350 / 2), 19);
+    let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
     line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
+
     pop();
 }
+
 
 
 var teamPickDiv;

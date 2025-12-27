@@ -166,8 +166,6 @@ function bombUpdate() {
         if (this.pos.dist(curPlayer.pos) < 33 + (6 * (this.size.w + this.size.h) / 4)) {
             const dmg = ((33 + (6 * (this.size.w + this.size.h) / 4)) - this.pos.dist(curPlayer.pos)) / 2;
             curPlayer.statBlock.stats.hp -= dmg;
-            // floating combat text for player damage from bomb
-            spawnFloatingText(dmg, curPlayer.pos.x, curPlayer.pos.y, "damage", false);
             curPlayer.attackingOBJ = this;
             camera.shake = { intensity: dmg, length: 5 };
             camera.edgeBlood = 5;
@@ -911,15 +909,11 @@ update() {
                 // Use centralized damage method for players
                 if (t === curPlayer) {
                     let actualDamage = t.statBlock.takeDamage(this.damage, false);
-                    spawnFloatingText(actualDamage, t.pos.x, t.pos.y, "damage", false);
                 } else {
                     t.statBlock.stats.hp -= this.damage;
-                    spawnFloatingText(this.damage, t.pos.x, t.pos.y, "damage", false);
                 }
             } else {
                 t.hp -= this.damage;
-                // floating combat text for object damage from trap
-                spawnFloatingText(this.damage, t.pos.x, t.pos.y, "damage", false);
             }
 
             // screen shake only for local player

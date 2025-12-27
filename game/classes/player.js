@@ -420,8 +420,13 @@ class Player {
 
         if (this.spells.forceField.active) {
             this.spells.forceField.timer--;
-            let amt = this.spells.forceField.regenPerSec * (deltaTime/30);
-            this.statBlock.regenHealth(amt);
+
+            if(this.spells.forceField.timer % 10 ==0){
+          
+                let amt = ((this.statBlock.stats.magic * (deltaTime/30)) / 5) +1;
+                this.statBlock.regenHealth(amt);
+            }
+
             if (this.spells.forceField.timer <= 0) {
                 this.endForceField();
             }
@@ -680,10 +685,9 @@ class Player {
             createExplosion(origin);
 
             // Create animated explosion visual effect
-            spawnExplosion(this.pos.x, this.pos.y, 100, 100);
+            spawnExplosion(this.pos.x, this.pos.y, 200, 200);
 
-            // Generate animated healing particles (green, shorter aura)
-            const explosionRadius = 80;
+            const explosionRadius = 180;
             for (let i = 0; i < 60; i++) {
                 let angle = random(0, TWO_PI);
                 let distance = random(0, explosionRadius);
@@ -722,7 +726,7 @@ class Player {
             this.spells.forceField.active = true;
             this.spells.forceField.timer = this.spells.forceField.duration;
             this.spells.forceField.cooldown = this.spells.forceField.cooldownMax;
-            this.spells.forceField.auraTimer = 150; // 5 seconds at 30fps
+            this.spells.forceField.auraTimer =this.spells.forceField.duration; 
             this.statBlock.stats.magicResistance += this.spells.forceField.bonusMR;
             socket.emit("update_player", {
                 id: this.id,

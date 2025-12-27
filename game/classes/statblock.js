@@ -150,10 +150,6 @@ class StatBlock{
             this.stats.hp = this.stats.mhp;
         }
 
-        // floating combat text for player heals
-        if (curPlayer && curPlayer.pos) {
-            spawnFloatingText(amount, curPlayer.pos.x, curPlayer.pos.y, "heal", false);
-        }
 
         // Dispatch health change event
         if (typeof window !== 'undefined' && this.stats.hp !== oldHP) {
