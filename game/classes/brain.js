@@ -46,15 +46,32 @@ class Brain {
                 this.space();
             }
         }
+
+        console.log("Brain State:", this.state);
     }
 
     wander(){
-        // Move randomly: if no target or reached target, request a new one from server
-        if(this.target == null || this.obj.pos.dist(this.target) < 6){
-            socket.emit("wander_request", {id: this.id, pos: {x: this.obj.pos.x, y: this.obj.pos.y}});
+        // Improved wander: pick a random nearby point locally, only rarely request from server
+        if (this.target == null || this.obj.pos.dist(this.target) < 6) {
+            // 10% chance to request a new wander target from server for variety
+            if (Math.random() < 0.1) {
+                socket.emit("wander_request", {id: this.id, pos: {x: this.obj.pos.x, y: this.obj.pos.y}});
+            } else {
+                // Pick a random point within 80-160px in a random direction
+                let angle = Math.random() * Math.PI * 2;
+                let dist = 80 + Math.random() * 80;
+                let tx = this.obj.pos.x + Math.cos(angle) * dist;
+                let ty = this.obj.pos.y + Math.sin(angle) * dist;
+                // Clamp to map bounds if needed (assume testMap has width/height or use chunk bounds)
+                if (typeof testMap !== 'undefined' && testMap.width && testMap.height) {
+                    tx = Math.max(0, Math.min(testMap.width * CHUNKSIZE * TILESIZE, tx));
+                    ty = Math.max(0, Math.min(testMap.height * CHUNKSIZE * TILESIZE, ty));
+                }
+                this.target = createVector(tx, ty);
+            }
             return;
         }
-        this.moveObjTowards(this.target.x,this.target.y,2);
+        this.moveObjTowards(this.target.x, this.target.y, 2);
     }
 
 
@@ -64,6 +81,14 @@ class Brain {
         let projType = projDic[this.obj.projName];
         let isRanged = projType && projType.type === "SimpleProj";
         let attackRange = isRanged ? projType.r * 6 : projType.sr; // Ranged entities attack from 6x projectile radius
+
+        if(!this.targetEntity || this.targetEntity.hp <= 0){
+            this.stateTimer = 0;
+            this.state = "Wander";
+            this.target = null;
+            this.targetEntity = null;
+            return;
+        }
 
         if(this.obj.pos.dist(this.target) > attackRange){
             this.moveObjTowards(this.target.x,this.target.y, isRanged ? 4 : 6); // Ranged moves slower
