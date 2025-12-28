@@ -252,6 +252,15 @@ class WarpAbility extends MagicAbility {
                 });
             }
         }
+        // Clear a small area around the player (safe zone)
+        if (typeof dig === 'function' && typeof mine === 'function') {
+            for (let y = -5; y < 5; y++) {
+                for (let x = -5; x < 5; x++) {
+                    dig(player.pos.x + x * TILESIZE, player.pos.y + y * TILESIZE, 1, false);
+                    mine(player.pos.x + x * TILESIZE, player.pos.y + y * TILESIZE, 1, false);
+                }
+            }
+        }
     }
 }
 // Dash Ability
