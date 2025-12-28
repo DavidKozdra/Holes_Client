@@ -56,13 +56,13 @@ if (typeof window !== 'undefined') {
 }
 
 defineShovel("Basic Shovel", [[4,4]], [1,["Log",1],["Rock",1]], 1, 100, 0.12, 3, 1, "A basic shovel for digging dirt", ItemRarity.GOOD, true);
-defineShovel("Better Shovel", [[5,4]], [1,["Log",1],["Gem",2]], 1, 100, 0.18, 3, 1, "A better shovel for digging dirt", ItemRarity.GOOD, true);
-defineShovel("God Shovel", [[6,4]], [1,["Rock",2],["Philosopher's Stone",2]], 1, 100, 0.3, 3, 1, "A godly shovel for digging dirt", ItemRarity.GOD, true);
+defineShovel("Better Shovel", [[5,4]], [1,["Log",1],["Metal",2]], 1, 100, 0.18, 3, 1, "A better shovel for digging dirt", ItemRarity.GOOD, true);
+defineShovel("God Shovel", [[6,4]], [1,["Metal",5],["Philosopher's Stone",4]], 1, 100, 0.3, 3, 1, "A godly shovel for digging dirt", ItemRarity.GOD, true);
 defineShovel("Pickaxe", [[1,4]], [1,["Log",2],["Rock",3]], 1, 100, 0.2, 3, 1, "A basic pickaxe for mining iron", ItemRarity.GOOD, true);
 
 defineMelee("Mush Knife", [[4,3]], [1,["Mushroom",1],["Rock",1],["Mushroom Fiber",1]], 1, 60, 8, 3, 50, 60, 80, 35, false, "A basic knife", ItemRarity.GOOD, true);
 defineMelee("Basic Sword", [[1,5]], [1,["Log",1],["Rock",3],["Mushroom Fiber",2]], 1, 70, 15, 3, 45, 55, 75, 45, false, "A basic sword for slashing", ItemRarity.GOOD, true);
-defineMelee("Better Sword", [[2,5]], [1,["Log",2],["Rock",2],["Gem",5],["Mushroom Fiber", 3]], 1, 120, 24, 25, 55, 65, 95, 22, false, "A better sword for slashing", ItemRarity.GREAT, true);
+defineMelee("Better Sword", [[2,5]], [1,["Log",2],["Rock",2],["Metal",5],["Mushroom Fiber", 3]], 1, 120, 24, 25, 55, 65, 95, 22, false, "A better sword for slashing", ItemRarity.GREAT, true);
 defineMelee("Gem Sword", [[2,2]], [1,["Gem",3],["Philosopher's Stone",1],["Black Gem",2],["Tech",4]], 1, 160, 45, 7, 65, 75, 105, 16, false, "A legendary sword for slashing, really really green", ItemRarity.LEGENDARY, true);
 defineMelee("Evil Apple on Stick", [[5,1]], [1,["Bad Apple",1],["Log",1]], 1, 80, 20, 4, 90, 50, 25, 12, false, "Now it'll bite your opponets", ItemRarity.GREAT, true);
 defineMelee("Scythe", [[3,4]], [1,["Log",2],["Rock",4],["Mushroom Fiber",1]], 1, 110, 25, 4, 60, 140, 140, 100, false, "Just gotta make sure they are on the blade", ItemRarity.GOOD, true);

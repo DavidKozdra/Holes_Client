@@ -3198,7 +3198,6 @@ class Popup {
         // Set text color to item rarity
         if (typeof getItemRarityRGB === 'function') {
             const rgb = getItemRarityRGB(this.rarity);
-            console.log(rgb, 'rarity color for', this.rarity);
             fill(rgb[0], rgb[1], rgb[2]);
         } else {
             fill(255);
