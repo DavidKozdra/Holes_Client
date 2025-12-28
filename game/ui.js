@@ -1,3 +1,17 @@
+// Listen for movesSlots from server and store for use in ensureMoveSlots
+if (typeof socket !== 'undefined') {
+    socket.on('receive_my_items', function(data) {
+        console.log('[CLIENT] receive_my_items:', data);
+        // Only replace default moves if this is a returning user
+        if (data.hasOldItems && Array.isArray(data.movesSlots)) {
+            window.serverMovesSlots = data.movesSlots.slice();
+            console.log('[CLIENT] Moves set received from server:', window.serverMovesSlots);
+        } else {
+            window.serverMovesSlots = null;
+            console.log('[CLIENT] No moves set received, using defaults.');
+        }
+    });
+}
 // Main menu globals moved to mainMenu.js
 // This file focuses on in-game UI only
 
@@ -949,8 +963,13 @@ function defineInvUI() {
 // Ensure movesSlots exists and has 10 entries
 function ensureMoveSlots() {
     if (!curPlayer) return;
-    if (!Array.isArray(curPlayer.movesSlots)) {
-        curPlayer.movesSlots = ['forceField', 'combustion', 'meditate', 'dash', null, null, null, null, null, null];
+    // If movesSlots is provided by server, use it
+    if (!Array.isArray(curPlayer.movesSlots) || curPlayer.movesSlots.length === 0) {
+        if (window.serverMovesSlots && Array.isArray(window.serverMovesSlots)) {
+            curPlayer.movesSlots = window.serverMovesSlots.slice();
+        } else {
+            curPlayer.movesSlots = ['forceField', 'combustion', 'meditate', 'dash', null, null, null, null, null, null];
+        }
     }
     while (curPlayer.movesSlots.length < 10) curPlayer.movesSlots.push(null);
 }
