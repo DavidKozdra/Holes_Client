@@ -31,7 +31,229 @@ class MagicAbility {
     render(player) {}
     onActivate(player, ...args) {}
 }
+class GoblinModeAbility extends MagicAbility {
+    constructor() {
+        super('GoblinMode', 'buff', 100, 1800, 'Lose no HP and no mana for 5 seconds.', 20);
+    }
+    onActivate(player) {
+        player.goblinModeActive = true;
+        player.goblinModeTimer = 300; // 5 seconds at 60fps
+        if (typeof socket !== 'undefined') {
+            socket.emit("update_player", {
+                id: player.id,
+                pos: player.pos,
+                holding: player.holding,
+                update_names: ["goblinModeActive", "goblinModeTimer", "stats.mp"],
+                update_values: [true, 300, player.statBlock.stats.mp]
+            });
+        }
+    }
+    update(player) {
+        if (player.goblinModeActive) {
+            player.goblinModeTimer--;
+            if (player.goblinModeTimer <= 0) {
+                player.goblinModeActive = false;
+                player.goblinModeTimer = 0;
+            }
+            if (typeof socket !== 'undefined') {
+                socket.emit("update_player", {
+                    id: player.id,
+                    pos: player.pos,
+                    holding: player.holding,
+                    update_names: ["goblinModeActive", "goblinModeTimer"],
+                    update_values: [player.goblinModeActive, player.goblinModeTimer]
+                });
+            }
+        }
+    }
+    render(player) {
+        if (player.goblinModeActive) {
+            push();
+            stroke(0,255,0,180);
+            strokeWeight(6);
+            noFill();
+            ellipse(player.pos.x, player.pos.y, 140, 140);
+            pop();
+        }
+    }
+}
 
+// God Mode: All cooldowns but this one fail for X seconds (level), requires level 25
+class GodModeAbility extends MagicAbility {
+    constructor() {
+        super('GodMode', 'buff', 0, 3600, 'All cooldowns but this one fail for X seconds (level).', 25);
+    }
+    onActivate(player) {
+        player.godModeActive = true;
+        player.godModeTimer = player.statBlock.level * 60; // X seconds, X = level
+        if (typeof socket !== 'undefined') {
+            socket.emit("update_player", {
+                id: player.id,
+                pos: player.pos,
+                holding: player.holding,
+                update_names: ["godModeActive", "godModeTimer"],
+                update_values: [true, player.godModeTimer]
+            });
+        }
+    }
+    update(player) {
+        if (player.godModeActive) {
+            player.godModeTimer--;
+            if (player.godModeTimer <= 0) {
+                player.godModeActive = false;
+                player.godModeTimer = 0;
+            }
+            if (typeof socket !== 'undefined') {
+                socket.emit("update_player", {
+                    id: player.id,
+                    pos: player.pos,
+                    holding: player.holding,
+                    update_names: ["godModeActive", "godModeTimer"],
+                    update_values: [player.godModeActive, player.godModeTimer]
+                });
+            }
+        }
+    }
+    render(player) {
+        if (player.godModeActive) {
+            push();
+            stroke(255,255,0,180);
+            strokeWeight(8);
+            noFill();
+            ellipse(player.pos.x, player.pos.y, 160, 160);
+            pop();
+        }
+    }
+}
+
+// Life Drain: Heals you 1 mana per health taken, uses magic to make it stronger, requires level 10
+class LifeDrainAbility extends MagicAbility {
+    constructor() {
+        super('LifeDrain', 'attack', 10, 120, 'Drain a little HP from an enemy and heal yourself for 1 mana per HP taken.', 10);
+    }
+    onActivate(player) {
+        // Find nearest enemy player in range
+        let best = null, bestDist = 120;
+        if (typeof players !== 'undefined') {
+            Object.values(players).forEach(p => {
+                if (p && p.id !== player.id && p.pos && player.pos) {
+                    let d = p.pos.dist(player.pos);
+                    if (d < bestDist) {
+                        best = p;
+                        bestDist = d;
+                    }
+                }
+            });
+        }
+        if (best) {
+            let magic = player.statBlock.stats.magic || 1;
+            let drain = Math.floor(3 + magic * 0.5);
+            best.statBlock.stats.hp -= drain;
+            if (best.statBlock.stats.hp < 0) best.statBlock.stats.hp = 0;
+            player.statBlock.stats.mp += drain;
+            if (typeof socket !== 'undefined') {
+                socket.emit("update_player", {
+                    id: best.id,
+                    pos: best.pos,
+                    holding: best.holding,
+                    update_names: ["stats.hp"],
+                    update_values: [best.statBlock.stats.hp]
+                });
+                socket.emit("update_player", {
+                    id: player.id,
+                    pos: player.pos,
+                    holding: player.holding,
+                    update_names: ["stats.mp"],
+                    update_values: [player.statBlock.stats.mp]
+                });
+            }
+            if (typeof spawnFloatingText !== 'undefined') {
+                spawnFloatingText(drain, best.pos.x, best.pos.y, "damage", false);
+                spawnFloatingText(drain, player.pos.x, player.pos.y, "heal", false);
+            }
+        }
+    }
+}
+
+// Cloak: Makes you invisible for 1 second per 2 mana, requires level 10
+class CloakAbility extends MagicAbility {
+    constructor() {
+        super('Cloak', 'utility', 2, 300, 'Become invisible for 1 second per 2 mana spent.', 10);
+    }
+    onActivate(player) {
+        let seconds = Math.floor(player.statBlock.stats.mp / 2);
+        if (seconds < 1) seconds = 1;
+        let manaCost = seconds * 2;
+        if (player.statBlock.stats.mp < manaCost) return;
+        player.statBlock.stats.mp -= manaCost;
+        player.cloakActive = true;
+        player.cloakTimer = seconds * 60;
+        if (typeof socket !== 'undefined') {
+            socket.emit("update_player", {
+                id: player.id,
+                pos: player.pos,
+                holding: player.holding,
+                update_names: ["cloakActive", "cloakTimer", "stats.mp"],
+                update_values: [true, player.cloakTimer, player.statBlock.stats.mp]
+            });
+        }
+    }
+    update(player) {
+        if (player.cloakActive) {
+            player.cloakTimer--;
+            if (player.cloakTimer <= 0) {
+                player.cloakActive = false;
+                player.cloakTimer = 0;
+            }
+            if (typeof socket !== 'undefined') {
+                socket.emit("update_player", {
+                    id: player.id,
+                    pos: player.pos,
+                    holding: player.holding,
+                    update_names: ["cloakActive", "cloakTimer"],
+                    update_values: [player.cloakActive, player.cloakTimer]
+                });
+            }
+        }
+    }
+    render(player) {
+        if (player.cloakActive) {
+            push();
+            noFill();
+            stroke(120,120,255,120);
+            strokeWeight(3);
+            ellipse(player.pos.x, player.pos.y, 100, 100);
+            pop();
+        }
+    }
+}
+
+// Warp: Teleports you to a random chunk
+class WarpAbility extends MagicAbility {
+    constructor() {
+        super('Warp', 'mobility', 30, 900, 'Teleport to a random place.', 1);
+    }
+    onActivate(player) {
+        // Pick a random chunk in the map
+        let maxChunkX = 5+player.statBlock.stats.magic, maxChunkY =  5+player.statBlock.stats.magic; // TODO: get from map size
+        let cx = Math.floor(Math.random() * maxChunkX);
+        let cy = Math.floor(Math.random() * maxChunkY);
+        if (typeof teleportToChunk === 'function') {
+            teleportToChunk(cx, cy);
+        } else {
+            // fallback: move player directly
+            player.pos.x = cx * CHUNKSIZE * TILESIZE;
+            player.pos.y = cy * CHUNKSIZE * TILESIZE;
+            if (typeof socket !== 'undefined') {
+                socket.emit("update_pos", {
+                    id: player.id,
+                    pos: player.pos,
+                    holding: player.holding
+                });
+            }
+        }
+    }
+}
 // Dash Ability
 class DashAbility extends MagicAbility {
     constructor() {
@@ -343,7 +565,11 @@ const magicAbilities = [
     new CombustionAbility(),
     new ForceFieldAbility(),
     new MeditateAbility(),
-    // Add more here
+    new GoblinModeAbility(),
+    new GodModeAbility(),
+    new LifeDrainAbility(),
+    new CloakAbility(),
+    new WarpAbility()
 ];
 
 // Export for use in UI and player logic
