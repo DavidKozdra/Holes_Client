@@ -49,13 +49,15 @@ class Brain {
     }
 
     wander(){
-        //Move randomly
+        // Move randomly: if no target or reached target, request a new one from server
         if(this.target == null || this.obj.pos.dist(this.target) < 6){
             socket.emit("wander_request", {id: this.id, pos: {x: this.obj.pos.x, y: this.obj.pos.y}});
             return;
         }
         this.moveObjTowards(this.target.x,this.target.y,2);
     }
+
+
 
     chase(){
         //Move towards target
@@ -359,4 +361,21 @@ function scareBrain(brainID, proj){
             }
         }
     }
+}
+
+// Listen for WANDER_TARGET from server and update AI target
+if (typeof socket !== 'undefined') {
+    socket.on("WANDER_TARGET", data => {
+        if (!data || typeof data.id === 'undefined' || !data.target) return;
+        // Find the brain with this id and set its target
+        if (window.testMap && Array.isArray(window.testMap.brains)) {
+            for (let i = 0; i < window.testMap.brains.length; i++) {
+                let brain = window.testMap.brains[i];
+                if (brain && brain.id === data.id) {
+                    brain.target = createVector(data.target.x, data.target.y);
+                    break;
+                }
+            }
+        }
+    });
 }

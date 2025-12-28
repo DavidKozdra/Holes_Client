@@ -102,7 +102,8 @@ class SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2){
-                
+                // Prevent projectiles from hitting their owner (AI or player)
+                if(this.ownerName && chunk.objects[j].ownerName && this.ownerName === chunk.objects[j].ownerName) continue;
                 let d = chunk.objects[j].pos.dist(this.pos);
                 if(d < (chunk.objects[j].size.w+chunk.objects[j].size.h)/4){
                     if(chunk.objects[j].objName == "Door"){
@@ -118,7 +119,6 @@ class SimpleProjectile{
 
                             if(this.ownerName != chunk.objects[j].ownerName){
                                 damageObj(chunk, chunk.objects[j], this.damage);
-
                                 scareBrain(chunk.objects[j].brainID, this);
                             }
                         }
@@ -135,7 +135,6 @@ class SimpleProjectile{
 
                         if(this.ownerName != chunk.objects[j].ownerName){
                             damageObj(chunk, chunk.objects[j], this.damage);
-
                             scareBrain(chunk.objects[j].brainID, this);
                         }
                     }
@@ -494,7 +493,8 @@ class ObjProj extends SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2){
-                
+                // Prevent projectiles from hitting their owner (AI or player)
+                if(this.ownerName && chunk.objects[j].ownerName && this.ownerName === chunk.objects[j].ownerName) continue;
                 let d = chunk.objects[j].pos.dist(this.pos);
                 if(d < (chunk.objects[j].size.w+chunk.objects[j].size.h)/4){
                     if(chunk.objects[j].objName == "Door"){

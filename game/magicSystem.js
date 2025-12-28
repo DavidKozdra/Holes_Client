@@ -436,7 +436,7 @@ class ForceFieldAbility extends MagicAbility {
         super('ForceField', 'buff', 40, 450, 'Create a protective barrier that blocks damage and projectiles.', 3);
         this.active = false;
         this.timer = 0;
-        this.duration = 1200;
+        this.duration = 200;
         this.auraTimer = 0;
         this.bonusMR = 3;
     }
@@ -522,14 +522,14 @@ class MeditateAbility extends MagicAbility {
     }
     update(player) {
         if (player.meditateActive) {
-            // cancel meditation immediately if moving
-            if (player.moving) {
+            // cancel meditation immediately if moving or mouse or key pressed
+            if (player.moving ) {
                 player.meditateActive = false;
                 player.meditateTimer = 0;
             } else {
                 player.meditateTimer--;
-                let m = this.manaPerSec * (deltaTime/30);
-                player.statBlock.regenMana(m);
+                let m = (this.manaPerSec * (deltaTime/30));
+                player.statBlock.regenMana(m/5);
                 if (player.meditateTimer <= 0) {
                     player.meditateActive = false;
                     player.meditateTimer = 0;
@@ -560,6 +560,113 @@ class MeditateAbility extends MagicAbility {
 }
 
 
+
+// Arrow Circle Ability
+class ArrowCircleAbility extends MagicAbility {
+    constructor() {
+        super('ArrowCircle', 'attack', 25, 600, 'Spawn a circle of arrows around you 3 times.', 8);
+        this.repeatCount = 3;
+        this.interval = 12; // frames between each circle
+    }
+    onActivate(player) {
+        this._startArrowCircle(player);
+    }
+    _startArrowCircle(player) {
+        player.arrowCircleActive = true;
+        player.arrowCircleTimer = 0;
+        player.arrowCircleRepeats = this.repeatCount;
+        player.arrowCircleInterval = this.interval;
+        player.arrowCircleOrigin = player.pos.copy();
+        this._spawnArrowCircle(player);
+        if (typeof socket !== 'undefined') {
+            socket.emit("update_player", {
+                id: player.id,
+                pos: player.pos,
+                holding: player.holding,
+                update_names: ["arrowCircleActive", "arrowCircleTimer", "arrowCircleRepeats", "arrowCircleOrigin"],
+                update_values: [true, 0, this.repeatCount, {x: player.pos.x, y: player.pos.y}]
+            });
+        }
+    }
+    _spawnArrowCircle(player) {
+        const numArrows = 12;
+        const radius = 40;
+        for (let i = 0; i < numArrows; i++) {
+            // arrows go outward from the circle in all directions
+            let angle = (2 * Math.PI * i) / numArrows;
+            let px = player.pos.x + Math.cos(angle) * radius;
+            let py = player.pos.y + Math.sin(angle) * radius;
+            let a = angle; // point outward (no + Math.PI)
+
+            if (typeof createProjectile !== 'undefined') {
+                let proj = createProjectile("Arrow", player.name || player.id, player.color, px, py, a, player);
+                if (typeof projectiles !== 'undefined') projectiles.push(proj);
+                // Add to correct chunk for rendering and updates
+                if (typeof testMap !== 'undefined' && typeof testMap.globalToChunk === 'function' && typeof testMap.chunks === 'object') {
+                    let chunkPos = testMap.globalToChunk(px, py);
+                    let chunkKey = chunkPos.x + ',' + chunkPos.y;
+                    if (testMap.chunks[chunkKey] && Array.isArray(testMap.chunks[chunkKey].projectiles)) {
+                        testMap.chunks[chunkKey].projectiles.push(proj);
+                    }
+                }
+            }
+            if (typeof socket !== 'undefined') {
+                socket.emit("new_proj", {
+                    name: "Arrow",
+                    ownerName: player.name || player.id,
+                    color: player.color,
+                    x: px,
+                    y: py,
+                    a: a
+                });
+            }
+        }
+    }
+    update(player) {
+        if (player.arrowCircleActive) {
+            player.arrowCircleTimer++;
+            if (player.arrowCircleTimer >= player.arrowCircleInterval) {
+                player.arrowCircleTimer = 0;
+                player.arrowCircleRepeats--;
+                this._spawnArrowCircle(player);
+                if (typeof socket !== 'undefined') {
+                    socket.emit("update_player", {
+                        id: player.id,
+                        pos: player.pos,
+                        holding: player.holding,
+                        update_names: ["arrowCircleRepeats", "arrowCircleTimer"],
+                        update_values: [player.arrowCircleRepeats, 0]
+                    });
+                }
+            }
+            if (player.arrowCircleRepeats <= 1) {
+                player.arrowCircleActive = false;
+                player.arrowCircleTimer = 0;
+                player.arrowCircleRepeats = 0;
+                if (typeof socket !== 'undefined') {
+                    socket.emit("update_player", {
+                        id: player.id,
+                        pos: player.pos,
+                        holding: player.holding,
+                        update_names: ["arrowCircleActive", "arrowCircleRepeats", "arrowCircleTimer"],
+                        update_values: [false, 0, 0]
+                    });
+                }
+            }
+        }
+    }
+    render(player) {
+        if (player.arrowCircleActive) {
+            push();
+            noFill();
+            stroke(120, 180, 255, 120);
+            strokeWeight(2);
+            ellipse(player.pos.x, player.pos.y, 90, 90);
+            pop();
+        }
+    }
+}
+
 const magicAbilities = [
     new DashAbility(),
     new CombustionAbility(),
@@ -569,7 +676,8 @@ const magicAbilities = [
     new GodModeAbility(),
     new LifeDrainAbility(),
     new CloakAbility(),
-    new WarpAbility()
+    new WarpAbility(),
+    new ArrowCircleAbility()
 ];
 
 // Export for use in UI and player logic
