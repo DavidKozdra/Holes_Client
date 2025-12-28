@@ -120,6 +120,35 @@ class CombustionAbility extends MagicAbility {
         }
         player.flashTimer = 30;
         player.particles = particles;
+        // --- Damage players in radius ---
+        if (typeof players !== 'undefined') {
+            const casterId = player.id;
+            const damage = 40; // Set combustion damage here
+            Object.values(players).forEach(p => {
+                if (p && p.id !== casterId && p.pos && player.pos && p.statBlock && p.statBlock.stats) {
+                    const dist = p.pos.dist(player.pos);
+                    if (dist <= explosionRadius) {
+                        p.statBlock.stats.hp -= damage;
+                        // Clamp HP to 0
+                        if (p.statBlock.stats.hp < 0) p.statBlock.stats.hp = 0;
+                        // Sync damage to server
+                        if (typeof socket !== 'undefined') {
+                            socket.emit("update_player", {
+                                id: p.id,
+                                pos: p.pos,
+                                holding: p.holding,
+                                update_names: ["stats.hp"],
+                                update_values: [p.statBlock.stats.hp]
+                            });
+                        }
+                        // Optional: show floating text
+                        if (typeof spawnFloatingText !== 'undefined') {
+                            spawnFloatingText(damage, p.pos.x, p.pos.y, "damage", false);
+                        }
+                    }
+                }
+            });
+        }
         if (typeof socket !== 'undefined') {
             socket.emit("update_player", {
                 id: player.id,
