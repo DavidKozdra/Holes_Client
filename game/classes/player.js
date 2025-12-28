@@ -202,7 +202,12 @@ class Player {
         let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
         if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) return;
 
+        // Gather dirt collision checks for all four directions
         let collisionChecks = [];
+        collisionChecks.push(this.newCollisionPoint(0, -1, "up"));
+        collisionChecks.push(this.newCollisionPoint(0, 1, "down"));
+        collisionChecks.push(this.newCollisionPoint(-1, 0, "left"));
+        collisionChecks.push(this.newCollisionPoint(1, 0, "right"));
         this.moving = (this.holding.w || this.holding.a || this.holding.s || this.holding.d);
 
         // Decrement magic cooldowns for all abilities by name

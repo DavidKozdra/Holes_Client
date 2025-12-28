@@ -1,3 +1,20 @@
+// Listen for explosion events and spawn visuals for all clients
+socket.on('EXPLOSION', (data) => {
+    if (typeof createExplosion !== 'undefined') {
+        createExplosion({ pos: { x: data.x, y: data.y }, size: { w: data.w, h: data.h } });
+    }
+    if (typeof spawnExplosion !== 'undefined') {
+        spawnExplosion(data.x, data.y, data.w, data.h);
+    }
+});
+// Listen for explicit ability visual state events from the server
+socket.on('ABILITY_VISUAL', (data) => {
+    // data: { playerId, ability, value }
+    if (players && players[data.playerId]) {
+        // Set the visual state field directly
+        players[data.playerId][data.ability] = data.value;
+    }
+});
 var socket; //Connection to the server
 var curID = null; //The ID of the current player
 
@@ -384,14 +401,30 @@ function socketSetup(){
     socket.on("UPDATE_PLAYER", (data) =>{
         if(players[data.id]){
             for(let i=0; i<data.update_names.length; i++){
-                if(data.update_names[i].includes("stats")){
-                    players[data.id].statBlock.stats[data.update_names[i].split("stats.")[1]] = data.update_values[i];
+                const name = data.update_names[i];
+                const value = data.update_values[i];
+                if(name.includes("stats")){
+                    players[data.id].statBlock.stats[name.split("stats.")[1]] = value;
                 }
-                else if(data.update_names[i].includes("statBlock")){
-                    players[data.id].statBlock[data.update_names[i].split("statBlock.")[1]] = data.update_values[i];
+                else if(name.includes("statBlock")){
+                    players[data.id].statBlock[name.split("statBlock.")[1]] = value;
+                }
+                // Sync all move/ability state fields (e.g., forcefieldActive, auraTimer, isDashing, flashTimer, meditateActive, meditateTimer, dashTimer, dashCooldown, particles, etc)
+                else if (name === "particles" && Array.isArray(value)) {
+                    // Deep copy to avoid reference issues
+                    players[data.id].particles = value.map(p => Object.assign({}, p));
+                }
+                else if (
+                    name.endsWith("Active") ||
+                    name.endsWith("Timer") ||
+                    name.endsWith("Cooldown") ||
+                    name.endsWith("flashTimer") ||
+                    name.endsWith("isDashing")
+                ) {
+                    players[data.id][name] = value;
                 }
                 else{
-                    players[data.id][data.update_names[i]] = data.update_values[i];
+                    players[data.id][name] = value;
                 }
             }
             players[data.id].pos.x = data.pos.x;
