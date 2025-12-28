@@ -992,8 +992,19 @@ function defineMovesEditorUI() {
     backBtn.style("padding", "8px 16px");
     backBtn.style("cursor", "pointer");
     backBtn.mousePressed(() => {
+        // Sync movesSlots with server before leaving
+        if (curPlayer && curPlayer.movesSlots) {
+            socket.emit("update_moves", {
+                playerId: curPlayer.id,
+                movesSlots: curPlayer.movesSlots
+            });
+        }
+        // Restore inventory UI by re-initializing
         movesEditorDiv.hide();
+        defineInvUI();
         invDiv.show();
+        updateItemList();
+        updatecurItemDiv();
     });
     
     movesSlotList = createDiv().parent(panel);
@@ -1938,6 +1949,7 @@ function ensureMoveHotbarDOM() {
         pointer-events: none;
         user-select: none;
         font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        max-width: 50dvw;
       }
 
       #moveHotbarBar {
@@ -2056,36 +2068,37 @@ function ensureMoveHotbarDOM() {
   bar.id = "moveHotbarBar";
   root.appendChild(bar);
 
-  // 4 slots (matches your HUD)
-  const slots = [];
-  for (let i = 0; i < 4; i++) {
-    const slot = document.createElement("div");
-    slot.className = "moveSlot";
+    // 10 slots for moves (0-9)
+    const slots = [];
+    for (let i = 0; i < 10; i++) {
+        const slot = document.createElement("div");
+        slot.className = "moveSlot";
+        slot.style.transform = "scale(0.7)";
 
-    const icon = document.createElement("img");
-    icon.className = "moveIcon";
-    icon.alt = "";
+        const icon = document.createElement("img");
+        icon.className = "moveIcon";
+        icon.alt = "";
 
-    const cd = document.createElement("div");
-    cd.className = "cdOverlay";
+        const cd = document.createElement("div");
+        cd.className = "cdOverlay";
 
-    const key = document.createElement("div");
-    key.className = "keyLabel";
-    key.textContent = String(i + 1);
+        const key = document.createElement("div");
+        key.className = "keyLabel";
+        key.textContent = (i === 9 ? "0" : String(i + 1));
 
-    const name = document.createElement("div");
-    name.className = "nameLabel";
-    name.textContent = "";
+        const name = document.createElement("div");
+        name.className = "nameLabel";
+        name.textContent = "";
 
-    slot.appendChild(icon);
-    slot.appendChild(cd);
-    slot.appendChild(key);
-    slot.appendChild(name);
+        slot.appendChild(icon);
+        slot.appendChild(cd);
+        slot.appendChild(key);
+        slot.appendChild(name);
 
-    bar.appendChild(slot);
+        bar.appendChild(slot);
 
-    slots.push({ slot, icon, cd, key, name });
-  }
+        slots.push({ slot, icon, cd, key, name });
+    }
 
   document.body.appendChild(root);
 
@@ -2282,44 +2295,52 @@ function updateMoveHotbarDOM(curPlayer) {
   }
   dom.root.style.display = "block";
 
-  const slotLabels = ["1", "2", "3", "4"]; // your HUD uses 4 entries
-  const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
-  const movesForHud = moves.slice(0, 4);
-  while (movesForHud.length < 4) movesForHud.push(null);
+    const slotLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+    const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
+    const movesForHud = moves.slice(0, 10);
+    while (movesForHud.length < 10) movesForHud.push(null);
 
-  for (let i = 0; i < 4; i++) {
-    const moveId = movesForHud[i];
-    const entry = getMoveEntryForDOM(curPlayer, moveId, slotLabels[i]);
+    for (let i = 0; i < 10; i++) {
+        const moveId = movesForHud[i];
+        const entry = getMoveEntryForDOM(curPlayer, moveId, slotLabels[i]);
 
-    const s = dom.slots[i];
+        const s = dom.slots[i];
 
-    // Classes
-    s.slot.classList.toggle("isLocked", entry.locked);
-    s.slot.classList.toggle("isOnCd", entry.onCd && !entry.locked);
-    s.slot.classList.toggle("isActive", entry.active && !entry.locked);
-    s.slot.classList.toggle("cantAfford", !entry.canAfford && !entry.locked);
+        // Hide slot if not filled
+        if (!moveId) {
+            s.slot.style.display = "none";
+            continue;
+        } else {
+            s.slot.style.display = "";
+        }
 
-    // Icon
-    if (s.icon.src !== entry.iconUrl) s.icon.src = entry.iconUrl;
+        // Classes
+        s.slot.classList.toggle("isLocked", entry.locked);
+        s.slot.classList.toggle("isOnCd", entry.onCd && !entry.locked);
+        s.slot.classList.toggle("isActive", entry.active && !entry.locked);
+        s.slot.classList.toggle("cantAfford", !entry.canAfford && !entry.locked);
 
-    // Cooldown overlay height: p is ratio remaining -> overlay height = p*100%
-    if (entry.onCd && !entry.locked) {
-      s.cd.style.height = `${(entry.cooldownPct * 100).toFixed(2)}%`;
-      s.cd.style.display = "block";
-    } else {
-      s.cd.style.height = "0%";
-      s.cd.style.display = "none";
+        // Icon
+        if (s.icon.src !== entry.iconUrl) s.icon.src = entry.iconUrl;
+
+        // Cooldown overlay height: p is ratio remaining -> overlay height = p*100%
+        if (entry.onCd && !entry.locked) {
+            s.cd.style.height = `${(entry.cooldownPct * 100).toFixed(2)}%`;
+            s.cd.style.display = "block";
+        } else {
+            s.cd.style.height = "0%";
+            s.cd.style.display = "none";
+        }
+
+        // Key label
+        const keyText = entry.locked ? `L${entry.unlockLevel}` : entry.label;
+        s.key.textContent = keyText;
+        s.key.classList.toggle("lockedKey", entry.locked);
+
+        // Name label
+        s.name.textContent = entry.locked ? `Unlocks Lv ${entry.unlockLevel}` : entry.nameLabel;
+        s.name.classList.toggle("lockedName", entry.locked);
     }
-
-    // Key label
-    const keyText = entry.locked ? `L${entry.unlockLevel}` : entry.label;
-    s.key.textContent = keyText;
-    s.key.classList.toggle("lockedKey", entry.locked);
-
-    // Name label
-    s.name.textContent = entry.locked ? `Unlocks Lv ${entry.unlockLevel}` : entry.nameLabel;
-    s.name.classList.toggle("lockedName", entry.locked);
-  }
 }
 
 

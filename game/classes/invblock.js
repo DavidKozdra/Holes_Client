@@ -1,7 +1,7 @@
 class InvBlock{
     constructor(){
         this.items = {};
-        this.hotbar = ["","","","",""]; //only put item names in here
+        this.hotbar = Array(10).fill(""); // 10 slots for hotbar, 0-9
         this.selectedHotBar = 0; //index of the selected hotbar item
         this.equiped = {
             head: "",
@@ -72,6 +72,8 @@ class InvBlock{
     }
 
     hotbarItem(itemName, slot){ //move an item to the hotbar
+        if (slot < 0 || slot > 9) return; // Only allow slots 0-9
+        if (!itemName || !itemDic[itemName]) return; // Guard against undefined
         if(itemName == this.hotbar[slot]){
             this.hotbar[slot] = "";
         }
