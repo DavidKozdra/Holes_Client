@@ -206,35 +206,12 @@ class Player {
         if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) return;
 
         let collisionChecks = [];
-
-
         this.moving = (this.holding.w || this.holding.a || this.holding.s || this.holding.d);
 
-        // Update dash state
-        if (this.isDashing) {
-            this.dashTimer--;
-            if (this.dashTimer <= 0) {
-                this.isDashing = false;
-            }
-        }
-        if (this.dashCooldown > 0) {
-            this.dashCooldown--;
-        }
-
-        if (this.spells.combustion.cooldown > 0) this.spells.combustion.cooldown--;
-        if (this.spells.combustion.flashTimer > 0) this.spells.combustion.flashTimer--;
-        if (this.spells.forceField.cooldown > 0) this.spells.forceField.cooldown--;
-        if (this.spells.forceField.auraTimer > 0) this.spells.forceField.auraTimer--;
-        if (this.spells.meditate.cooldown > 0) this.spells.meditate.cooldown--;
-
-        // Update combustion particles
-        if (this.spells.combustion.particles) {
-            for (let i = this.spells.combustion.particles.length - 1; i >= 0; i--) {
-                this.spells.combustion.particles[i].life--;
-                if (this.spells.combustion.particles[i].life <= 0) {
-                    this.spells.combustion.particles.splice(i, 1);
-                }
-            }
+        // Update all magic abilities (active or equipped)
+        const abilities = Array.isArray(this.magicAbilities) ? this.magicAbilities : (window.magicAbilities || []);
+        for (const ability of abilities) {
+            if (typeof ability.update === 'function') ability.update(this);
         }
 
         // Calculate speed multiplier based on dash state
@@ -257,59 +234,20 @@ class Player {
             this.direction = 'right';
         }
 
-        //console.log(this.vel.heading());
-        if(this.vel.heading() >= -80 && this.vel.heading() < 80){ //right
-            collisionChecks.push(this.newCollisionPoint(1, 1, "right"));
-            if (this.holding.w) {
-                collisionChecks.push(this.newCollisionPoint(1, 2, "right"));
-            }
-            else {
-                collisionChecks.push(this.newCollisionPoint(1, 0, "right"));
-            }
-        }
-        if(this.vel.heading() >= 10 && this.vel.heading() < 170){ //down
-            collisionChecks.push(this.newCollisionPoint(0, 1, "down"));
-            collisionChecks.push(this.newCollisionPoint(1, 1, "down"));
-        }
-        if((this.vel.heading() >= 100 && this.vel.heading() <= 180) || (this.vel.heading() >= -180 && this.vel.heading() <= -100)){ //left
-            collisionChecks.push(this.newCollisionPoint(0, 1, "left"));
-            if (this.holding.w) {
-                collisionChecks.push(this.newCollisionPoint(0, 2, "left"));
-            }
-            else {
-                collisionChecks.push(this.newCollisionPoint(0, 0, "left"));
-            }
-        }
-        if(this.vel.heading() >= -170 && this.vel.heading() < -10){ //up
-            collisionChecks.push(this.newCollisionPoint(0, 1, "up"));
-            collisionChecks.push(this.newCollisionPoint(1, 1, "up"));
-        }
-
-
-
+        // ...existing code for movement/collision/animation...
         let oldPos = this.pos.copy();
-
-        // Apply movement with continuous collision detection
-        // Break large movements into smaller steps to prevent tunneling
         let movement = this.vel.copy().mult(deltaTime/33);
-        const maxStepSize = TILESIZE * 0.25; // Maximum step size per iteration (smaller for dash/high stats)
+        const maxStepSize = TILESIZE * 0.25;
         const movementMag = movement.mag();
-        
         if (movementMag > maxStepSize) {
-            // Break into smaller steps for fast movement
             const steps = Math.ceil(movementMag / maxStepSize);
             const stepVec = movement.copy().div(steps);
-            
             for (let step = 0; step < steps; step++) {
                 let testPos = this.pos.copy().add(stepVec);
                 let collision = false;
-                
-                // Check collisions at test position
                 let testChunkPos = testMap.globalToChunk(testPos.x, testPos.y);
                 let testChunk = testMap.chunks[testChunkPos.x + "," + testChunkPos.y];
-                
                 if (testChunk) {
-                    // Check object collisions
                     for (let j = 0; j < testChunk.objects.length; j++) {
                         if (testChunk.objects[j].z == 2) {
                             let d = testChunk.objects[j].pos.dist(testPos);
@@ -326,8 +264,6 @@ class Player {
                             }
                         }
                     }
-                    
-                    // Check wall collisions at test position
                     if (!collision) {
                         for (let i = 0; i < collisionChecks.length; i++) {
                             let check = collisionChecks[i];
@@ -352,20 +288,14 @@ class Player {
                         }
                     }
                 }
-                
-                // Only apply movement if no collision
                 if (!collision) {
                     this.pos = testPos;
                 } else {
-                    // Stop movement on collision
                     break;
                 }
             }
         } else {
-            // Small movement - use original single-step logic
             this.pos.add(movement);
-            
-            // Handle collisions
             let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
             for (let j = 0; j < chunk.objects.length; j++) {
                 if (chunk.objects[j].z == 2) {
@@ -381,7 +311,6 @@ class Player {
                     }
                 }
             }
-
             for (let i = 0; i < collisionChecks.length; i++) {
                 let check = collisionChecks[i];
                 if (check.val == -1) this.pos = oldPos;
@@ -395,8 +324,6 @@ class Player {
                 }
             }
         }
-
-        // Update the current frame for animation
         if (this.moving) {
             this.animationFrame += (1 / 7);
             this.currentFrame = 1 + (this.animationFrame) % 4;
@@ -405,7 +332,6 @@ class Player {
             switch (this.animationType) {
                 case "put": { this.currentFrame = 4; } break;
             }
-
             this.animationFrame -= 1;
             if (this.animationFrame <= 0) {
                 this.animationFrame = 0;
@@ -413,38 +339,9 @@ class Player {
             }
         } else {
             this.animationFrame = 0;
-            this.currentFrame = 0; // Reset to standing frame when not moving
+            this.currentFrame = 0;
         }
-
         this.vel = createVector(0, 0);
-
-        if (this.spells.forceField.active) {
-            this.spells.forceField.timer--;
-
-            if(this.spells.forceField.timer % 10 ==0){
-          
-                let amt = ((this.statBlock.stats.magic * (deltaTime/30)) / 5) +1;
-                this.statBlock.regenHealth(amt);
-            }
-
-            if (this.spells.forceField.timer <= 0) {
-                this.endForceField();
-            }
-        }
-
-        if (this.spells.meditate.active) {
-            // cancel meditation immediately if moving
-            if (this.moving) {
-                this.endMeditate();
-            } else {
-                this.spells.meditate.timer--;
-                let m = this.spells.meditate.manaPerSec * (deltaTime/30);
-                this.statBlock.regenMana(m);
-                if (this.spells.meditate.timer <= 0) {
-                    this.endMeditate();
-                }
-            }
-        }
     }
 
     render() {
@@ -455,119 +352,32 @@ class Player {
         // Move relative to the camera
         translate(-camera.pos.x + width / 2, -camera.pos.y + height / 2);
 
-        // Draw dash effect if dashing
-        if (this.isDashing) {
-            push();
-            // Pulsing glow effect
-            let glowSize = 80 + Math.sin(frameCount * 0.5) * 10;
-            fill(100, 200, 255, 50);
-            noStroke();
-            ellipse(this.pos.x, this.pos.y, glowSize, glowSize);
-            
-            // Speed lines in direction of movement
-            stroke(100, 200, 255, 150);
-            strokeWeight(2);
-            let lineLength = 30;
-            if (this.direction === 'right') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x - lineLength - i*10, this.pos.y + (i-1)*8, 
-                         this.pos.x - 10 - i*10, this.pos.y + (i-1)*8);
-                }
-            } else if (this.direction === 'left') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x + 10 + i*10, this.pos.y + (i-1)*8, 
-                         this.pos.x + lineLength + i*10, this.pos.y + (i-1)*8);
-                }
-            } else if (this.direction === 'up') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x + (i-1)*8, this.pos.y + lineLength + i*10, 
-                         this.pos.x + (i-1)*8, this.pos.y + 10 + i*10);
-                }
-            } else if (this.direction === 'down') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x + (i-1)*8, this.pos.y - 10 - i*10, 
-                         this.pos.x + (i-1)*8, this.pos.y - lineLength - i*10);
-                }
-            }
-            pop();
+        // Render all magic abilities (auras, particles, etc)
+        const abilities = Array.isArray(this.magicAbilities) ? this.magicAbilities : (window.magicAbilities || []);
+        for (const ability of abilities) {
+            if (typeof ability.render === 'function') ability.render(this);
         }
 
-        // Auras render only when a spell is active
-
-        if (this.spells.forceField.active && this.spells.forceField.auraTimer > 0) {
-            push();
-            noFill();
-            stroke(100, 255, 100, 150);
-            strokeWeight(4);
-            ellipse(this.pos.x, this.pos.y, 120, 120);
-            pop();
-        }
-
-        if (this.spells.meditate.active) {
-            push();
-            noFill();
-            stroke(180, 100, 255, 140);
-            strokeWeight(2);
-            let s = 90 + Math.sin(frameCount * 0.2) * 8;
-            ellipse(this.pos.x, this.pos.y, s, s);
-            pop();
-        }
-
-        if (this.spells.combustion.flashTimer > 0) {
-            push();
-            noFill();
-            stroke(255, 120, 60, map(this.spells.combustion.flashTimer, 0, 30, 0, 180));
-            strokeWeight(6);
-            let s = map(this.spells.combustion.flashTimer, 0, 30, 180, 60);
-            ellipse(this.pos.x, this.pos.y, s, s);
-            pop();
-        }
-
-        // Combustion particles
-        if (this.spells.combustion.particles && this.spells.combustion.particles.length > 0) {
-            for (let p of this.spells.combustion.particles) {
-                push();
-                translate(p.x - camera.pos.x + (width / 2), p.y - camera.pos.y + (height / 2));
-                let alpha = map(p.life, 0, 25, 0, 200);
-                fill(100, 255, 100, alpha);
-                noStroke();
-                square(0, 0, p.size);
-                pop();
-            }
-        }
-
-        // Decide how far above the character we want the label
-        // For a "larger z" effect, increase this from 40 to e.g. 60 or 80
+        // ...existing code for name, health bar, and sprite...
         const yOffset = 60;
-
-        // Prepare text
         textSize(16);
         textAlign(CENTER, CENTER);
         let nameText = this.name + " lvl_" + this.statBlock.level;
-
-        // Measure text width to draw a background rectangle around it
-        let textW = textWidth(nameText) + 10;  // some padding
-        let textH = 20;                        // approximate line height
-
-        // Draw background box behind the text
+        let textW = textWidth(nameText) + 10;
+        let textH = 20;
         rectMode(CENTER);
-        fill(0, 150);   // semi-transparent black
+        fill(0, 150);
         noStroke();
-        rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4); // last param 4 = corner radius
-
-        
-        // Use custom team color if player is in a team
+        rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4);
         let displayColor = teamColors[this.color];
         if (this.teamId && window.allTeams && window.allTeams[this.teamId]) {
             displayColor = window.allTeams[this.teamId].color;
         }
         fill(displayColor.r, displayColor.g, displayColor.b);
-        //bold text
         textStyle(BOLD);
         text(nameText, this.pos.x, this.pos.y - yOffset);
         textStyle(NORMAL);
         let raceName = races[this.race]
-        // Select the correct image based on the direction and frame
         let imageToRender;
         if (this.direction === 'up') {
             imageToRender = raceImages[raceName].back[floor(this.currentFrame)]
@@ -578,11 +388,8 @@ class Player {
         } else if (this.direction === 'right') {
             imageToRender = raceImages[raceName].right[floor(this.currentFrame)]
         }
-
-        // Draw the character's image
-        image(imageToRender, this.pos.x - 33.2, this.pos.y - 44.2, 66.2, 88.3, 0, 0, 29, 29); // Adjust size as needed
-
-        this.renderHealthBar(); // Render health bar
+        image(imageToRender, this.pos.x - 33.2, this.pos.y - 44.2, 66.2, 88.3, 0, 0, 29, 29);
+        this.renderHealthBar();
         pop();
     }
 

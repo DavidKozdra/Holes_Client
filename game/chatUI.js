@@ -14,7 +14,105 @@ let lastReadTimestamp = Date.now(); // Track when user last viewed chat
 function renderChatUI() {
     if (chatRendered) return;
     chatRendered = true;
-    // ...existing code from ui.js renderChatUI...
+
+    // Create main chat container
+    chatContainer = createDiv();
+    chatContainer.id('chat-container');
+    chatContainer.style('position', 'fixed');
+    chatContainer.style('bottom', '24px');
+    chatContainer.style('left', '24px');
+    chatContainer.style('width', '340px');
+    chatContainer.style('max-width', '90vw');
+    chatContainer.style('background', 'rgba(30,30,30,0.95)');
+    chatContainer.style('border-radius', '10px');
+    chatContainer.style('box-shadow', '0 2px 12px #0008');
+    chatContainer.style('z-index', '1000');
+    chatContainer.style('font-family', 'sans-serif');
+    chatContainer.style('overflow', 'hidden');
+    chatContainer.style('display', 'flex');
+    chatContainer.style('flex-direction', 'column');
+
+    // Toggle/collapse button
+    toggleChatButton = createButton('Chat (Players: 1) ▼');
+    toggleChatButton.parent(chatContainer);
+    toggleChatButton.style('width', '100%');
+    toggleChatButton.style('background', '#222');
+    toggleChatButton.style('color', '#fff');
+    toggleChatButton.style('font-weight', 'bold');
+    toggleChatButton.style('border', 'none');
+    toggleChatButton.style('padding', '8px 0');
+    toggleChatButton.style('cursor', 'pointer');
+    toggleChatButton.mousePressed(toggleChatDropdown);
+
+    // Notification badge
+    chatNotificationBadge = createDiv('');
+    chatNotificationBadge.parent(toggleChatButton);
+    chatNotificationBadge.style('position', 'absolute');
+    chatNotificationBadge.style('right', '16px');
+    chatNotificationBadge.style('top', '8px');
+    chatNotificationBadge.style('background', '#ff4444');
+    chatNotificationBadge.style('color', '#fff');
+    chatNotificationBadge.style('border-radius', '10px');
+    chatNotificationBadge.style('padding', '2px 7px');
+    chatNotificationBadge.style('font-size', '12px');
+    chatNotificationBadge.style('display', 'none');
+    chatNotificationBadge.style('z-index', '1001');
+
+    // Messages box
+    chatMessagesBox = createDiv();
+    chatMessagesBox.parent(chatContainer);
+    chatMessagesBox.id('chat-messages-box');
+    chatMessagesBox.style('height', '180px');
+    chatMessagesBox.style('overflow-y', 'auto');
+    chatMessagesBox.style('background', 'rgba(0,0,0,0.2)');
+    chatMessagesBox.style('padding', '10px');
+    chatMessagesBox.style('flex', '1');
+    chatMessagesBox.style('font-size', '15px');
+    chatMessagesBox.style('color', '#fff');
+
+    // Input container
+    inputContainer = createDiv();
+    inputContainer.parent(chatContainer);
+    inputContainer.style('display', 'flex');
+    inputContainer.style('padding', '8px');
+    inputContainer.style('background', '#222');
+    inputContainer.style('border-top', '1px solid #333');
+
+    // Input box
+    chatInput = createInput('');
+    chatInput.parent(inputContainer);
+    chatInput.id('chat-input');
+    chatInput.attribute('placeholder', 'Type a message...');
+    chatInput.style('flex', '1');
+    chatInput.style('padding', '7px 10px');
+    chatInput.style('border-radius', '5px');
+    chatInput.style('border', '1px solid #444');
+    chatInput.style('background', '#181818');
+    chatInput.style('color', '#fff');
+    chatInput.style('font-size', '15px');
+    chatInput.style('margin-right', '8px');
+    chatInput.elt.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendChatMessage();
+    });
+
+    // Send button
+    chatSendButton = createButton('Send');
+    chatSendButton.parent(inputContainer);
+    chatSendButton.style('padding', '7px 16px');
+    chatSendButton.style('border-radius', '5px');
+    chatSendButton.style('border', 'none');
+    chatSendButton.style('background', '#3a7');
+    chatSendButton.style('color', '#fff');
+    chatSendButton.style('font-weight', 'bold');
+    chatSendButton.style('font-size', '15px');
+    chatSendButton.style('cursor', 'pointer');
+    chatSendButton.mousePressed(sendChatMessage);
+
+    // Make sure chat is open by default
+    isChatOpen = true;
+    updateToggleChatButtonText();
+    updateChatNotificationBadge();
+    chatContainer.show();
 }
 
 function toggleChatDropdown() {

@@ -14,13 +14,17 @@ function getSpellIcon(key, drawCb) {
     return g;
 }
 
-// Global move catalog (extendable)
-const ALL_MOVES = [
-    { id: 'dash', name: 'Dash', requiredLevel: 1, manaCost: 30, cooldown: 0.5, description: 'Quickly dash in the direction you are moving. Essential for evasion.', color: { r: 120, g: 200, b: 255 } },
-    { id: 'forceField', name: 'Force Field', requiredLevel: 3, manaCost: 40, cooldown: 8, description: 'Create a protective barrier that blocks damage and projectiles.', color: { r: 120, g: 220, b: 255 } },
-    { id: 'combustion', name: 'Combustion', requiredLevel: 8, manaCost: 30, cooldown: 6, description: 'Ignite enemies around you with a burst of fire damage.', color: { r: 255, g: 150, b: 100 } },
-    { id: 'meditate', name: 'Meditate', requiredLevel: 14, manaCost: 5, cooldown: 3, description: 'Channel magic to restore mana over time. Toggle active.', color: { r: 200, g: 150, b: 255 } }
-];
+
+// Use magicAbilities as the global move catalog
+const ALL_MOVES = magicAbilities.map(ability => ({
+    id: ability.name.toLowerCase().replace(/\s+/g, ''),
+    name: ability.name,
+    requiredLevel: ability.requiredLevel || 1,
+    manaCost: ability.manaCost,
+    cooldown: ability.cooldown,
+    description: ability.desc,
+    color: ability.color || { r: 120, g: 200, b: 255 }
+}));
 
 function ensureMoveSlots() {
     if (!curPlayer) return;
