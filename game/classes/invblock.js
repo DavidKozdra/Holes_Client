@@ -29,7 +29,8 @@ class InvBlock{
             this.items[item].amount += amount;
         }
         if(toPlayer){
-            popups.push(new Popup(itemImgs[itemDic[item].img][0], amount + " " + item + " added to inv", 50, 0, 0));
+            let rarity = (itemDic[item] && itemDic[item].rarity) ? itemDic[item].rarity : 'basic';
+            popups.push(new Popup(itemImgs[itemDic[item].img][0], amount + " " + item + " added to inv", 50, 0, 0, rarity));
         }
     }
 

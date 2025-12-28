@@ -4401,7 +4401,7 @@ function updatePageNumber() {
 var popups = [];
 
 class Popup {
-    constructor(img, text, lifespan, x, y) {
+    constructor(img, text, lifespan, x, y, rarity) {
         this.img = img;
         this.txt = text;
         this.lifespan = lifespan;
@@ -4409,6 +4409,7 @@ class Popup {
         this.deleteTag = false;
         this.yOffset = 0;
         this.h = 50;
+        this.rarity = rarity;
     }
 
     render(i) {
@@ -4438,7 +4439,14 @@ class Popup {
         strokeWeight(2);
         rect(this.pos.x, this.pos.y + this.yOffset - (50 - this.h), 50 + 5 + textWidth(this.txt), 50, 10);
 
-        fill(255);
+        // Set text color to item rarity
+        if (typeof getItemRarityRGB === 'function') {
+            const rgb = getItemRarityRGB(this.rarity);
+            console.log(rgb, 'rarity color for', this.rarity);
+            fill(rgb[0], rgb[1], rgb[2]);
+        } else {
+            fill(255);
+        }
         noStroke();
         textAlign(CENTER, CENTER);
         text(this.txt, this.pos.x + 50 - 5 + textWidth(this.txt) / 2, this.pos.y + 25 + this.yOffset - (50 - this.h));
