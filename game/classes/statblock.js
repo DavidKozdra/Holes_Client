@@ -179,9 +179,9 @@ class StatBlock{
             actualDamage = Math.max(1, amount - this.stats.magicResistance);
         }
         this.stats.hp -= actualDamage;
-        // If meditating, set a flag to cancel on next update
-        if (this.owner && this.owner.meditateActive) {
-            this.owner.meditateCancelFlag = true;
+        // If meditating or using magic, dispatch cancel_magic event
+        if (typeof window !== 'undefined' && this.owner && this.owner.meditateActive) {
+            window.dispatchEvent(new Event('cancel_magic'));
         }
         // Dispatch health change event
         if (typeof window !== 'undefined' && this.stats.hp !== oldHP) {

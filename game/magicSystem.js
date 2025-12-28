@@ -504,6 +504,16 @@ class MeditateAbility extends MagicAbility {
         this.timer = 0;
         this.duration = 300; // Halved duration
         this.manaPerSec = 2.5;
+        // Listen for global cancel_magic event
+        if (typeof window !== 'undefined') {
+            window.addEventListener('cancel_magic', () => {
+                if (window.curPlayer && window.curPlayer.meditateActive) {
+                    window.curPlayer.meditateActive = false;
+                    window.curPlayer.meditateTimer = 0;
+                    window.curPlayer.meditateCancelFlag = false;
+                }
+            });
+        }
     }
     onActivate(player) {
         if (!player.meditateActive) {
