@@ -130,8 +130,22 @@ function refreshMovesEditorUI() {
             refreshMovesEditorUI();
         });
     }
-    movesAllList.html('<div style="margin-bottom:12px; font-weight:bold; font-size:14px; color:#aef;">Available Moves</div>');
-    // ... (move icon and assign logic, see ui.js for full details)
+    let html = '<div style="margin-bottom:12px; font-weight:bold; font-size:14px; color:#aef;">Available Moves</div>';
+    for (const move of ALL_MOVES) {
+      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="min-width:120px;display:inline-block;">${move.name} <span style='color:#ff8'>(Lv ${move.requiredLevel})</span></span>
+        <button class='assign-move-btn' data-moveid='${move.id}' style="padding:4px 10px;cursor:pointer;">Assign</button>
+      </div>`;
+    }
+    movesAllList.html(html);
+    // Add event listeners for assign buttons
+    movesAllList.elt.querySelectorAll('.assign-move-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        const moveId = btn.getAttribute('data-moveid');
+        curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
+        refreshMovesEditorUI();
+      };
+    });
 }
 
 // --- Hotbar rendering (example, see ui.js for full details) ---
@@ -279,34 +293,63 @@ function ensureMoveHotbarDOM() {
 
     // 10 slots for moves (0-9)
     const slots = [];
+
     for (let i = 0; i < 10; i++) {
-        const slot = document.createElement("div");
-        slot.className = "moveSlot";
-        slot.style.transform = "scale(0.7)";
+      const slot = document.createElement("div");
+      slot.className = "moveSlot";
+      slot.style.transform = "scale(0.7)";
 
-        const icon = document.createElement("img");
-        icon.className = "moveIcon";
-        icon.alt = "";
+      const icon = document.createElement("img");
+      icon.className = "moveIcon";
+      icon.alt = "";
 
-        const cd = document.createElement("div");
-        cd.className = "cdOverlay";
+      const cd = document.createElement("div");
+      cd.className = "cdOverlay";
 
-        const key = document.createElement("div");
-        key.className = "keyLabel";
-        key.textContent = (i === 9 ? "0" : String(i + 1));
+      // Hotkey label (top right)
+      const key = document.createElement("div");
+      key.className = "keyLabel";
+      key.textContent = (i === 9 ? "0" : String(i + 1));
+      key.style.position = "absolute";
+      key.style.top = "4px";
+      key.style.right = "8px";
+      key.style.left = "auto";
+      key.style.transform = "none";
+      key.style.background = "rgba(0,0,0,0.7)";
+      key.style.fontSize = "16px";
+      key.style.padding = "2px 10px";
+      key.style.borderRadius = "8px";
+      key.style.minWidth = "unset";
+      key.style.height = "auto";
+      key.style.zIndex = "2";
 
-        const name = document.createElement("div");
-        name.className = "nameLabel";
-        name.textContent = "";
+      // Move name label (bottom center)
+      const name = document.createElement("div");
+      name.className = "nameLabel";
+      name.textContent = "";
+      name.style.position = "absolute";
+      name.style.left = "50%";
+      name.style.bottom = "4px";
+      name.style.transform = "translateX(-50%)";
+      name.style.width = "90%";
+      name.style.textAlign = "center";
+      name.style.fontSize = "15px";
+      name.style.color = "rgba(230,230,230,0.95)";
+      name.style.textShadow = "0 1px 2px rgba(0,0,0,0.65)";
+      name.style.whiteSpace = "nowrap";
+      name.style.overflow = "hidden";
+      name.style.textOverflow = "ellipsis";
+      name.style.pointerEvents = "none";
+      name.style.zIndex = "2";
 
-        slot.appendChild(icon);
-        slot.appendChild(cd);
-        slot.appendChild(key);
-        slot.appendChild(name);
+      slot.appendChild(icon);
+      slot.appendChild(cd);
+      slot.appendChild(key);
+      slot.appendChild(name);
 
-        bar.appendChild(slot);
+      bar.appendChild(slot);
 
-        slots.push({ slot, icon, cd, key, name });
+      slots.push({ slot, icon, cd, key, name });
     }
 
   document.body.appendChild(root);
@@ -317,6 +360,8 @@ function ensureMoveHotbarDOM() {
 
 // Build icons once and keep dataURLs around for <img>
 function ensureMoveHotbarIcons() {
+ // Expose for use in other scripts
+ window.updateMoveHotbarDOM = updateMoveHotbarDOM;
   if (window._moveHotbarIcons) return window._moveHotbarIcons;
 
   // If you already have getSpellIcon(id, drawFn) from your code, reuse it.
@@ -405,9 +450,10 @@ function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
   const stats = curPlayer?.statBlock?.stats || {};
   const level = curPlayer?.statBlock?.level || 0;
   const mp = stats.mp ?? 0;
+  // Use slot index for label and spell number
   const mk = (o) => ({
-    label: slotLabel,
-    nameLabel: o.nameLabel || "Empty",
+    label: slotLabel, // hotkey label (1,2,3,4...)
+    nameLabel: o.nameLabel || `Spell ${slotLabel}`,
     locked: !!o.locked,
     unlockLevel: o.unlockLevel ?? "",
     onCd: !!o.onCd,
@@ -422,7 +468,7 @@ function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
   if (!moveId || !ability) {
     // Empty slot or unknown move
     return mk({
-      nameLabel: "Empty",
+      nameLabel: `Spell ${slotLabel}`,
       locked: true,
       unlockLevel: "",
       onCd: false,
@@ -469,7 +515,7 @@ function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
   if (ability.name === 'Meditate') iconUrl = icons.meditate;
 
   return mk({
-    nameLabel: ability.name,
+    nameLabel: `Spell ${slotLabel}`,
     locked,
     unlockLevel: ability.requiredLevel || 1,
     onCd: onCd && !locked,
@@ -503,10 +549,9 @@ function updateMoveHotbarDOM(curPlayer) {
 
         // Hide slot if not filled
         if (!moveId) {
-            s.slot.style.display = "none";
-            continue;
+          continue;
         } else {
-            s.slot.style.display = "";
+          s.slot.style.display = "";
         }
 
         // Classes

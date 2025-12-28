@@ -23,12 +23,13 @@ var keysDiv;
 var Controls_Up, Controls_Left, Controls_Down, Controls_Right;
 var Controls_Interact, Controls_Inventory, Controls_Crafting, Controls_Pause;
 var Controls_MoveHotBarRight, Controls_MoveHotBarLeft, Controls_Build, Controls_Space, Controls_Dash;
-var Controls_ForceField, Controls_Combustion, Controls_Meditate;
+// General spell key variables
+var Controls_Spell_One, Controls_Spell_Two, Controls_Spell_Three, Controls_Spell_Four, Controls_Spell_Five, Controls_Spell_Six, Controls_Spell_Seven, Controls_Spell_Eight, Controls_Spell_Nine, Controls_Spell_Ten;
 
 var Controls_Up_button, Controls_Left_button, Controls_Down_button, Controls_Right_button;
 var Controls_Interact_button, Controls_Inventory_button, Controls_Crafting_button, Controls_Pause_button;
 var Controls_MoveHotBarRight_button, Controls_MoveHotBarLeft_button, Controls_Build_button, Controls_Space_button, Controls_Dash_button;
-var Controls_ForceField_button, Controls_Combustion_button, Controls_Meditate_button;
+var Controls_Spell_One_button, Controls_Spell_Two_button, Controls_Spell_Three_button, Controls_Spell_Four_button, Controls_Spell_Five_button, Controls_Spell_Six_button, Controls_Spell_Seven_button, Controls_Spell_Eight_button, Controls_Spell_Nine_button, Controls_Spell_Ten_button;
 
 function updateSpellLockDisplay() {
     if (!curPlayer || !curPlayer.statBlock) return;
@@ -419,251 +420,91 @@ function defineKeyBindingUI() {
         gameSettingsContainer.show();
     });
 
+    // ========================
+    // LABEL COLUMN
+    // ========================
     namesDiv = createDiv();
     namesDiv.class("binding-names");
     namesDiv.parent(contentDiv);
 
-    // Create labels for each key
-    Controls_Up = createP("Move Up:");
-    Controls_Up.class("control-label");
-    Controls_Up.parent(namesDiv);
+    const labels = [
+        "Move Up:",
+        "Move Left:",
+        "Move Down:",
+        "Move Right:",
+        "Interact:",
+        "Inventory:",
+        "Crafting:",
+        "Pause:",
+        "Move HotBar Right:",
+        "Move HotBar Left:",
+        "Build:",
+        "Space:",
+        "Dash:",
+        "Spell 1:",
+        "Spell 2:",
+        "Spell 3:",
+        "Spell 4:",
+        "Spell 5:",
+        "Spell 6:",
+        "Spell 7:",
+        "Spell 8:",
+        "Spell 9:",
+        "Spell 10:"
+    ];
 
-    Controls_Left = createP("Move Left:");
-    Controls_Left.class("control-label");
-    Controls_Left.parent(namesDiv);
+    labels.forEach(text => {
+        const p = createP(text);
+        p.class("control-label");
+        p.parent(namesDiv);
+    });
 
-    Controls_Down = createP("Move Down:");
-    Controls_Down.class("control-label");
-    Controls_Down.parent(namesDiv);
-
-    Controls_Right = createP("Move Right:");
-    Controls_Right.class("control-label");
-    Controls_Right.parent(namesDiv);
-
-    Controls_Interact = createP("Interact:");
-    Controls_Interact.class("control-label");
-    Controls_Interact.parent(namesDiv);
-
-    Controls_Inventory = createP("Inventory:");
-    Controls_Inventory.class("control-label");
-    Controls_Inventory.parent(namesDiv);
-
-    Controls_Crafting = createP("Crafting:");
-    Controls_Crafting.class("control-label");
-    Controls_Crafting.parent(namesDiv);
-
-    Controls_Pause = createP("Pause:");
-    Controls_Pause.class("control-label");
-    Controls_Pause.parent(namesDiv);
-
-    Controls_MoveHotBarRight = createP("Move HotBar Right:");
-    Controls_MoveHotBarRight.class("control-label");
-    Controls_MoveHotBarRight.parent(namesDiv);
-
-    Controls_MoveHotBarLeft = createP("Move HotBar Left:");
-    Controls_MoveHotBarLeft.class("control-label");
-    Controls_MoveHotBarLeft.parent(namesDiv);
-
-    Controls_Build = createP("Build:");
-    Controls_Build.class("control-label");
-    Controls_Build.parent(namesDiv);
-
-    Controls_Space = createP("Space:");
-    Controls_Space.class("control-label");
-    Controls_Space.parent(namesDiv);
-
-    Controls_Dash = createP("Dash:");
-    Controls_Dash.class("control-label");
-    Controls_Dash.parent(namesDiv);
-
-    Controls_ForceField = createP("Force Field (Lvl 3):");
-    Controls_ForceField.class("control-label");
-    Controls_ForceField.parent(namesDiv);
-
-    Controls_Combustion = createP("Combustion (Lvl 8):");
-    Controls_Combustion.class("control-label");
-    Controls_Combustion.parent(namesDiv);
-
-    Controls_Meditate = createP("Meditate (Lvl 14):");
-    Controls_Meditate.class("control-label");
-    Controls_Meditate.parent(namesDiv);
-
+    // ========================
+    // KEY COLUMN
+    // ========================
     keysDiv = createDiv();
     keysDiv.class("binding-keys");
     keysDiv.parent(contentDiv);
 
-    Controls_Up_button = createButton(keyToVisualKey(Controls_Up_key));
-    Controls_Up_button.class("control-button");
-    Controls_Up_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 1;
-            key = Controls_Up_key;
-            lastKey = key;
-            Controls_Up_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Up_button.parent(keysDiv);
+    function makeBindableButton(label, setId, keyRef) {
+        const btn = createButton(keyToVisualKey(label));
+        btn.class("control-button");
+        btn.mousePressed(() => {
+            if (control_set === 0) {
+                control_set = setId;
+                key = keyRef;
+                lastKey = key;
+                btn.style("background-color", "var(--color-gold)");
+            }
+        });
+        btn.parent(keysDiv);
+        return btn;
+    }
 
-    Controls_Left_button = createButton(keyToVisualKey(Controls_Left_key));
-    Controls_Left_button.class("control-button");
-    Controls_Left_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 2;
-            key = Controls_Left_key;
-            lastKey = key;
-            Controls_Left_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Left_button.class("control-button");
-    Controls_Left_button.parent(keysDiv);
+    Controls_Up_button            = makeBindableButton(Controls_Up_key, 1, Controls_Up_key);
+    Controls_Left_button          = makeBindableButton(Controls_Left_key, 2, Controls_Left_key);
+    Controls_Down_button          = makeBindableButton(Controls_Down_key, 3, Controls_Down_key);
+    Controls_Right_button         = makeBindableButton(Controls_Right_key, 4, Controls_Right_key);
+    Controls_Interact_button      = makeBindableButton(Controls_Interact_key, 5, Controls_Interact_key);
+    Controls_Inventory_button     = makeBindableButton(Controls_Inventory_key, 6, Controls_Inventory_key);
+    Controls_Crafting_button      = makeBindableButton(Controls_Crafting_key, 7, Controls_Crafting_key);
+    Controls_Pause_button         = makeBindableButton(Controls_Pause_key, 8, Controls_Pause_key);
+    Controls_MoveHotBarRight_button = makeBindableButton(Controls_MoveHotBarRight_key, 9, Controls_MoveHotBarRight_key);
+    Controls_MoveHotBarLeft_button  = makeBindableButton(Controls_MoveHotBarLeft_key, 10, Controls_MoveHotBarLeft_key);
+    Controls_Build_button         = makeBindableButton(Controls_Build_key, 11, Controls_Build_key);
+    Controls_Space_button         = makeBindableButton(Controls_Space_key, 12, Controls_Space_key);
+    Controls_Dash_button          = makeBindableButton(Controls_Dash_key, 13, Controls_Dash_key);
 
-    Controls_Down_button = createButton(keyToVisualKey(Controls_Down_key));
-    Controls_Down_button.class("control-button");
-    Controls_Down_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 3;
-            key = Controls_Down_key;
-            lastKey = key;
-            Controls_Down_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Down_button.parent(keysDiv);
-
-    Controls_Right_button = createButton(keyToVisualKey(Controls_Right_key));
-    Controls_Right_button.class("control-button");
-    Controls_Right_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 4;
-            key = Controls_Right_key;
-            lastKey = key;
-            Controls_Right_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Right_button.parent(keysDiv);
-
-    Controls_Interact_button = createButton(keyToVisualKey(Controls_Interact_key));
-    Controls_Interact_button.class("control-button");
-    Controls_Interact_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 5;
-            key = Controls_Interact_key;
-            lastKey = key;
-            Controls_Interact_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Interact_button.parent(keysDiv);
-
-    Controls_Inventory_button = createButton(keyToVisualKey(Controls_Inventory_key));
-    Controls_Inventory_button.class("control-button");
-    Controls_Inventory_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 6;
-            key = Controls_Inventory_key;
-            lastKey = key;
-            Controls_Inventory_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Inventory_button.parent(keysDiv);
-
-    Controls_Crafting_button = createButton(keyToVisualKey(Controls_Crafting_key));
-    Controls_Crafting_button.class("control-button");
-    Controls_Crafting_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 7;
-            key = Controls_Crafting_key;
-            lastKey = key;
-            Controls_Crafting_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Crafting_button.parent(keysDiv);
-
-    Controls_Pause_button = createButton(keyToVisualKey(Controls_Pause_key));
-    Controls_Pause_button.class("control-button");
-    Controls_Pause_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 8;
-            key = Controls_Pause_key;
-            lastKey = key;
-            Controls_Pause_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Pause_button.parent(keysDiv);
-
-    Controls_MoveHotBarRight_button = createButton(keyToVisualKey(Controls_MoveHotBarRight_key));
-    Controls_MoveHotBarRight_button.class("control-button");
-    Controls_MoveHotBarRight_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 9;
-            key = Controls_MoveHotBarRight_key;
-            lastKey = key;
-            Controls_MoveHotBarRight_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_MoveHotBarRight_button.parent(keysDiv);
-
-    Controls_MoveHotBarLeft_button = createButton(keyToVisualKey(Controls_MoveHotBarLeft_key));
-    Controls_MoveHotBarLeft_button.class("control-button");
-    Controls_MoveHotBarLeft_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 10;
-            key = Controls_MoveHotBarLeft_key;
-            lastKey = key;
-            Controls_MoveHotBarLeft_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_MoveHotBarLeft_button.parent(keysDiv);
-
-    Controls_Build_button = createButton(keyToVisualKey(Controls_Build_key));
-    Controls_Build_button.class("control-button");
-    Controls_Build_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 11;
-            key = Controls_Build_key;
-            lastKey = key;
-            Controls_Build_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Build_button.parent(keysDiv);
-
-    Controls_Space_button = createButton(keyToVisualKey(Controls_Space_key));
-    Controls_Space_button.class("control-button");
-    Controls_Space_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 12;
-            key = Controls_Space_key;
-            lastKey = key;
-            Controls_Space_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Space_button.parent(keysDiv);
-
-    Controls_Dash_button = createButton(keyToVisualKey(Controls_Dash_key));
-    Controls_Dash_button.class("control-button");
-    Controls_Dash_button.mousePressed(() => {
-        if (control_set == 0) {
-            control_set = 13;
-            key = Controls_Dash_key;
-            lastKey = key;
-            Controls_Dash_button.style("background-color", "var(--color-gold)");
-        }
-    });
-    Controls_Dash_button.parent(keysDiv);
-
-    Controls_ForceField_button = createButton("2");
-    Controls_ForceField_button.class("control-button");
-    Controls_ForceField_button.attribute("disabled", "");
-    Controls_ForceField_button.style("opacity", "0.5");
-    Controls_ForceField_button.parent(keysDiv);
-
-    Controls_Combustion_button = createButton("1");
-    Controls_Combustion_button.class("control-button");
-    Controls_Combustion_button.attribute("disabled", "");
-    Controls_Combustion_button.style("opacity", "0.5");
-    Controls_Combustion_button.parent(keysDiv);
-
-    Controls_Meditate_button = createButton("3");
-    Controls_Meditate_button.class("control-button");
-    Controls_Meditate_button.attribute("disabled", "");
-    Controls_Meditate_button.style("opacity", "0.5");
-    Controls_Meditate_button.parent(keysDiv);
+    // Add general spell key binding buttons (always 10 slots, mappable)
+    Controls_Spell_One_button   = makeBindableButton(typeof spell_one_key !== 'undefined' ? spell_one_key : '1', 101, typeof spell_one_key !== 'undefined' ? spell_one_key : '1');
+    Controls_Spell_Two_button   = makeBindableButton(typeof spell_two_key !== 'undefined' ? spell_two_key : '2', 102, typeof spell_two_key !== 'undefined' ? spell_two_key : '2');
+    Controls_Spell_Three_button = makeBindableButton(typeof spell_three_key !== 'undefined' ? spell_three_key : '3', 103, typeof spell_three_key !== 'undefined' ? spell_three_key : '3');
+    Controls_Spell_Four_button  = makeBindableButton(typeof spell_four_key !== 'undefined' ? spell_four_key : '4', 104, typeof spell_four_key !== 'undefined' ? spell_four_key : '4');
+    Controls_Spell_Five_button  = makeBindableButton(typeof spell_five_key !== 'undefined' ? spell_five_key : '5', 105, typeof spell_five_key !== 'undefined' ? spell_five_key : '5');
+    Controls_Spell_Six_button   = makeBindableButton(typeof spell_six_key !== 'undefined' ? spell_six_key : '6', 106, typeof spell_six_key !== 'undefined' ? spell_six_key : '6');
+    Controls_Spell_Seven_button = makeBindableButton(typeof spell_seven_key !== 'undefined' ? spell_seven_key : '7', 107, typeof spell_seven_key !== 'undefined' ? spell_seven_key : '7');
+    Controls_Spell_Eight_button = makeBindableButton(typeof spell_eight_key !== 'undefined' ? spell_eight_key : '8', 108, typeof spell_eight_key !== 'undefined' ? spell_eight_key : '8');
+    Controls_Spell_Nine_button  = makeBindableButton(typeof spell_nine_key !== 'undefined' ? spell_nine_key : '9', 109, typeof spell_nine_key !== 'undefined' ? spell_nine_key : '9');
+    Controls_Spell_Ten_button   = makeBindableButton(typeof spell_ten_key !== 'undefined' ? spell_ten_key : '0', 110, typeof spell_ten_key !== 'undefined' ? spell_ten_key : '0');
 }
+

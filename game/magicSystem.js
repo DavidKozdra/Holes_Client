@@ -12,13 +12,14 @@ class MagicAbility {
         this.requiredLevel = requiredLevel;
     }
     canActivate(player) {
-        return player.statBlock.stats.mp >= this.manaCost && !this.isOnCooldown(player);
+        return player.statBlock.stats.mp >= this.manaCost && !this.isOnCooldown(player) && player.statBlock.level >= this.requiredLevel;
     }
     isOnCooldown(player) {
         if (!player.magicCooldowns) return false;
         return player.magicCooldowns[this.name] > 0;
     }
     activate(player, ...args) {
+
         if (!this.canActivate(player)) return false;
         player.statBlock.useMana(this.manaCost);
         if (!player.magicCooldowns) player.magicCooldowns = {};
