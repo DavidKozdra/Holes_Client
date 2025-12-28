@@ -497,10 +497,8 @@ function keyReleased() {
 }
 
 function keyPressed() { //prevents normal key related actions
-    // Cancel meditation if any button is pressed
-    if (curPlayer && curPlayer.spells && curPlayer.spells.meditate.active) {
-        curPlayer.endMeditate();
-    }
+    // Cancel meditation if any button is pressed (handled in modular magic system now)
+    // If you want to cancel meditate, call the appropriate method on the MeditateAbility instance.
     
     if (keyCode == 27) { //ESC
         // Allow escape to exit search state
@@ -716,21 +714,12 @@ function triggerMoveSlot(slotIdx) {
     const moveId = curPlayer.movesSlots[slotIdx];
     if (!moveId) return;
 
-    switch (moveId) {
-        case 'combustion':
-            curPlayer.activateCombustion();
-            break;
-        case 'forceField':
-            curPlayer.activateForceField();
-            break;
-        case 'meditate':
-            curPlayer.activateMeditate();
-            break;
-        case 'dash':
-            curPlayer.activateDash();
-            break;
-        default:
-            break;
+    // Find the ability in window.magicAbilities by id (case-insensitive, no spaces)
+    const ability = (window.magicAbilities || []).find(a =>
+        a.name.toLowerCase().replace(/\s+/g, '') === moveId.toLowerCase()
+    );
+    if (ability && typeof ability.activate === 'function') {
+        ability.activate(curPlayer);
     }
 }
 
@@ -753,7 +742,10 @@ function continousKeyBoardInput() {
 
         // Dash key
         if (keyIsDown(Controls_Dash_code)) {
-            curPlayer.activateDash();
+            const dashAbility = (window.magicAbilities || []).find(a => a.name.toLowerCase() === 'dash');
+            if (dashAbility && typeof dashAbility.activate === 'function') {
+                dashAbility.activate(curPlayer);
+            }
         }
 
         if (

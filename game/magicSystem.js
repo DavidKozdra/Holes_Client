@@ -3,12 +3,13 @@
 
 
 class MagicAbility {
-    constructor(name, type, manaCost, cooldown, desc) {
+    constructor(name, type, manaCost, cooldown, desc, requiredLevel = 1) {
         this.name = name;
         this.type = type; // e.g. 'projectile', 'buff', 'heal', etc.
         this.manaCost = manaCost;
         this.cooldown = cooldown; // in frames
         this.desc = desc;
+        this.requiredLevel = requiredLevel;
     }
     canActivate(player) {
         return player.statBlock.stats.mp >= this.manaCost && !this.isOnCooldown(player);
@@ -33,7 +34,7 @@ class MagicAbility {
 // Dash Ability
 class DashAbility extends MagicAbility {
     constructor() {
-        super('Dash', 'mobility', 20, 60, 'Quickly dash in the direction you are moving.');
+        super('Dash', 'mobility', 20, 60, 'Quickly dash in the direction you are moving.', 1);
     }
     onActivate(player) {
         player.isDashing = true;
@@ -72,7 +73,7 @@ class DashAbility extends MagicAbility {
 // Combustion Ability
 class CombustionAbility extends MagicAbility {
     constructor() {
-        super('Combustion', 'attack', 30, 750, 'Ignite enemies around you with a burst of fire damage.');
+        super('Combustion', 'attack', 30, 750, 'Ignite enemies around you with a burst of fire damage.', 8);
         this.flashTimer = 0;
         this.particles = [];
     }
@@ -133,7 +134,7 @@ class CombustionAbility extends MagicAbility {
 // Force Field Ability
 class ForceFieldAbility extends MagicAbility {
     constructor() {
-        super('ForceField', 'buff', 40, 450, 'Create a protective barrier that blocks damage and projectiles.');
+        super('ForceField', 'buff', 40, 450, 'Create a protective barrier that blocks damage and projectiles.', 3);
         this.active = false;
         this.timer = 0;
         this.duration = 1200;
@@ -195,7 +196,7 @@ class ForceFieldAbility extends MagicAbility {
 // Meditate Ability
 class MeditateAbility extends MagicAbility {
     constructor() {
-        super('Meditate', 'regen', 5, 1200, 'Channel magic to restore mana over time.');
+        super('Meditate', 'regen', 5, 1200, 'Channel magic to restore mana over time.', 14);
         this.active = false;
         this.timer = 0;
         this.duration = 600;

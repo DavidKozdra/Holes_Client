@@ -254,6 +254,9 @@ function draw() {
 
             curPlayer.render();
             curPlayer.update();
+            if (typeof renderHotbarUI === 'function') {
+                renderHotbarUI();
+            }
             if(renderGhost && ghostBuild){
                 ghostBuild.pos.x = mouseX + camera.pos.x - width / 2;
                 ghostBuild.pos.y = mouseY + camera.pos.y - height / 2;

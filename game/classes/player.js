@@ -50,11 +50,8 @@ class Player {
         this.dashSpeedMultiplier = 2.5; // How much faster during dash
         this.dashManaCost = 20; // Mana cost per dash
 
-        this.spells = {
-            combustion: { level: 8, cooldown: 0, cooldownMax: 750, manaCost: 30, flashTimer: 0, particles: [] },
-            forceField: { level: 3, active: false, timer: 0, duration: 1200, cooldown: 0, cooldownMax: 450, manaCost: 40, bonusMR: 3, regenPerSec: 2.5, auraTimer: 0 },
-            meditate: { level: 14, active: false, timer: 0, duration: 600, cooldown: 0, cooldownMax: 1200, manaCost: 5, manaPerSec: 2.5 }
-        };
+        // All spell state is now managed in the magic system, not on the player object.
+        this.spells = {};
 
         // Move slots (0-9) for spell/ability assignment
         this.movesSlots = [
@@ -207,6 +204,16 @@ class Player {
 
         let collisionChecks = [];
         this.moving = (this.holding.w || this.holding.a || this.holding.s || this.holding.d);
+
+        // Decrement magic cooldowns for all abilities by name
+        if (window.magicAbilities && this.magicCooldowns) {
+            for (const ability of window.magicAbilities) {
+                const key = ability.name;
+                if (this.magicCooldowns[key] > 0) {
+                    this.magicCooldowns[key]--;
+                }
+            }
+        }
 
         // Update all magic abilities (active or equipped)
         const abilities = Array.isArray(this.magicAbilities) ? this.magicAbilities : (window.magicAbilities || []);
@@ -440,149 +447,4 @@ class Player {
         this.animationType = anim;
     }
 
-    // Activate dash ability`
-    // Dash mechanic: Hold Shift while moving to dash
-    // - Costs: 20 mana
-    // - Speed: 2.5x normal movement speed
-    // - Duration: 0.5 seconds (15 frames)
-    // - Cooldown: 2 seconds (60 frames)`
-    // - Requirements: Must be moving and have enough mana
-    activateDash() {
-        // Check if can dash (not on cooldown, has mana, is moving)
-        if (this.dashCooldown <= 0 && 
-            !this.isDashing && 
-            this.statBlock.stats.mp >= this.dashManaCost &&
-            this.moving) {
-            
-            // Consume mana
-            this.statBlock.useMana(this.dashManaCost);
-            
-            // Activate dash
-            this.isDashing = true;
-            this.dashTimer = this.dashDuration;
-            this.dashCooldown = this.dashCooldownMax;
-            
-            // Emit to server
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp"],
-                update_values: [this.statBlock.stats.mp]
-            });
-            
-            //console.log('[Dash] Activated! MP:', this.statBlock.stats.mp);
-            return true;
-        }
-        return false;
-    }
-
-    activateCombustion() {
-        if (this.statBlock.level < this.spells.combustion.level) {
-            return false; // Spell locked by level
-        }
-        if (this.spells.combustion.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.combustion.manaCost) {
-            this.statBlock.useMana(this.spells.combustion.manaCost);
-
-            // Create explosion object with damage and damage to nearby objects
-            let origin = {
-                pos: this.pos.copy(),
-                size: { w: 100, h: 100 }
-            };
-            createExplosion(origin);
-
-            // Create animated explosion visual effect
-            spawnExplosion(this.pos.x, this.pos.y, 200, 200);
-
-            const explosionRadius = 180;
-            for (let i = 0; i < 60; i++) {
-                let angle = random(0, TWO_PI);
-                let distance = random(0, explosionRadius);
-                let x = this.pos.x + cos(angle) * distance;
-                let y = this.pos.y + sin(angle) * distance;
-                let size = random(15, 40);
-                this.spells.combustion.particles.push({
-                    x: x,
-                    y: y,
-                    size: size,
-                    life: 25
-                });
-            }
-
-            this.spells.combustion.cooldown = this.spells.combustion.cooldownMax;
-            this.spells.combustion.flashTimer = 30;
-
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp"],
-                update_values: [this.statBlock.stats.mp]
-            });
-            return true;
-        }
-        return false;
-    }
-
-    activateForceField() {
-        if (this.statBlock.level < this.spells.forceField.level) {
-            return false; // Spell locked by level
-        }
-        if (!this.spells.forceField.active && this.spells.forceField.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.forceField.manaCost) {
-            this.statBlock.useMana(this.spells.forceField.manaCost);
-            this.spells.forceField.active = true;
-            this.spells.forceField.timer = this.spells.forceField.duration;
-            this.spells.forceField.cooldown = this.spells.forceField.cooldownMax;
-            this.spells.forceField.auraTimer =this.spells.forceField.duration; 
-            this.statBlock.stats.magicResistance += this.spells.forceField.bonusMR;
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp", "stats.magicResistance"],
-                update_values: [this.statBlock.stats.mp, this.statBlock.stats.magicResistance]
-            });
-            return true;
-        }
-        return false;
-    }
-
-    endForceField() {
-        if (this.spells.forceField.active) {
-            this.spells.forceField.active = false;
-            this.statBlock.stats.magicResistance -= this.spells.forceField.bonusMR;
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.magicResistance"],
-                update_values: [this.statBlock.stats.magicResistance]
-            });
-        }
-    }
-
-    activateMeditate() {
-        if (this.statBlock.level < this.spells.meditate.level) {
-            return false; // Spell locked by level
-        }
-        if (!this.spells.meditate.active && this.spells.meditate.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.meditate.manaCost) {
-            this.statBlock.useMana(this.spells.meditate.manaCost);
-            this.spells.meditate.active = true;
-            this.spells.meditate.timer = this.spells.meditate.duration;
-            this.spells.meditate.cooldown = this.spells.meditate.cooldownMax;
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp"],
-                update_values: [this.statBlock.stats.mp]
-            });
-            return true;
-        }
-        return false;
-    }
-
-    endMeditate() {
-        this.spells.meditate.active = false;
-    }
 }
