@@ -143,7 +143,7 @@ function moveCamera(){
 
 function windowResized() {
     resizeCanvas(innerWidth - 10, innerHeight - 8);
-    updateResponsiveDesign();
+
 }
 
 function updatePlayerRegen(player) {

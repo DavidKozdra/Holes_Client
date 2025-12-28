@@ -297,7 +297,7 @@ function ensureMoveHotbarDOM() {
     for (let i = 0; i < 10; i++) {
       const slot = document.createElement("div");
       slot.className = "moveSlot";
-      slot.style.transform = "scale(0.7)";
+      slot.style.transform = "scale(0.9)";
 
       const icon = document.createElement("img");
       icon.className = "moveIcon";
@@ -316,7 +316,7 @@ function ensureMoveHotbarDOM() {
       key.style.left = "auto";
       key.style.transform = "none";
       key.style.background = "rgba(0,0,0,0.7)";
-      key.style.fontSize = "16px";
+      key.style.fontSize = "10px";
       key.style.padding = "2px 10px";
       key.style.borderRadius = "8px";
       key.style.minWidth = "unset";
@@ -333,7 +333,7 @@ function ensureMoveHotbarDOM() {
       name.style.transform = "translateX(-50%)";
       name.style.width = "90%";
       name.style.textAlign = "center";
-      name.style.fontSize = "15px";
+      name.style.fontSize = "10px";
       name.style.color = "rgba(230,230,230,0.95)";
       name.style.textShadow = "0 1px 2px rgba(0,0,0,0.65)";
       name.style.whiteSpace = "nowrap";
@@ -453,7 +453,7 @@ function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
   // Use slot index for label and spell number
   const mk = (o) => ({
     label: slotLabel, // hotkey label (1,2,3,4...)
-    nameLabel: o.nameLabel || `Spell ${slotLabel}`,
+    nameLabel: o.nameLabel || ` ${ability ? ability.name : 'Empty'} `,
     locked: !!o.locked,
     unlockLevel: o.unlockLevel ?? "",
     onCd: !!o.onCd,
@@ -468,7 +468,7 @@ function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
   if (!moveId || !ability) {
     // Empty slot or unknown move
     return mk({
-      nameLabel: `Spell ${slotLabel}`,
+      nameLabel: ` ${ability ? ability.name : 'Empty'} `,
       locked: true,
       unlockLevel: "",
       onCd: false,
@@ -515,7 +515,7 @@ function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
   if (ability.name === 'Meditate') iconUrl = icons.meditate;
 
   return mk({
-    nameLabel: `Spell ${slotLabel}`,
+    nameLabel: `${ability.name} `,
     locked,
     unlockLevel: ability.requiredLevel || 1,
     onCd: onCd && !locked,
@@ -536,52 +536,88 @@ function updateMoveHotbarDOM(curPlayer) {
   }
   dom.root.style.display = "block";
 
-    const slotLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
-    const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
-    const movesForHud = moves.slice(0, 10);
-    while (movesForHud.length < 10) movesForHud.push(null);
+  const slotLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+  const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
+  const movesForHud = moves.slice(0, 10);
+  while (movesForHud.length < 10) movesForHud.push(null);
 
-    for (let i = 0; i < 10; i++) {
-        const moveId = movesForHud[i];
-        const entry = getMoveEntryForDOM(curPlayer, moveId, slotLabels[i]);
+  for (let i = 0; i < 10; i++) {
+    const moveId = movesForHud[i];
+    const entry = getMoveEntryForDOM(curPlayer, moveId, slotLabels[i]);
+    const s = dom.slots[i];
 
-        const s = dom.slots[i];
-
-        // Hide slot if not filled
-        if (!moveId) {
-          continue;
-        } else {
-          s.slot.style.display = "";
-        }
-
-        // Classes
-        s.slot.classList.toggle("isLocked", entry.locked);
-        s.slot.classList.toggle("isOnCd", entry.onCd && !entry.locked);
-        s.slot.classList.toggle("isActive", entry.active && !entry.locked);
-        s.slot.classList.toggle("cantAfford", !entry.canAfford && !entry.locked);
-
-        // Icon
-        if (s.icon.src !== entry.iconUrl) s.icon.src = entry.iconUrl;
-
-        // Cooldown overlay height: p is ratio remaining -> overlay height = p*100%
-        if (entry.onCd && !entry.locked) {
-            s.cd.style.height = `${(entry.cooldownPct * 100).toFixed(2)}%`;
-            s.cd.style.display = "block";
-        } else {
-            s.cd.style.height = "0%";
-            s.cd.style.display = "none";
-        }
-
-        // Key label
-        const keyText = entry.locked ? `L${entry.unlockLevel}` : entry.label;
-        s.key.textContent = keyText;
-        s.key.classList.toggle("lockedKey", entry.locked);
-
-        // Name label
-        s.name.textContent = entry.locked ? `Unlocks Lv ${entry.unlockLevel}` : entry.nameLabel;
-        s.name.classList.toggle("lockedName", entry.locked);
+    // Hide slot if not filled
+    if (!moveId) {
+      s.slot.style.display = "none";
+      continue;
+    } else {
+      s.slot.style.display = "";
     }
+
+    const noMana = !entry.canAfford && !entry.locked;
+    const locked = entry.locked;
+    const onCd = entry.onCd && !locked;
+
+    // ======================
+    // STATE CLASSES
+    // ======================
+    s.slot.classList.toggle("isLocked", locked);
+    s.slot.classList.toggle("isOnCd", onCd);
+    s.slot.classList.toggle("isActive", entry.active && !locked);
+    s.slot.classList.toggle("cantAfford", noMana);
+
+    // ======================
+    // ICON
+    // ======================
+    if (s.icon.src !== entry.iconUrl) {
+      s.icon.src = entry.iconUrl;
+    }
+
+    // ======================
+    // COOLDOWN OVERLAY
+    // ======================
+    if (onCd) {
+      s.cd.style.height = `${(entry.cooldownPct * 100).toFixed(2)}%`;
+      s.cd.style.display = "block";
+    } else {
+      s.cd.style.height = "0%";
+      s.cd.style.display = "none";
+    }
+
+    // ======================
+    // KEY LABEL (BIG + OBVIOUS)
+    // ======================
+    if (locked) {
+      s.key.textContent = `🔒 L${entry.unlockLevel}`;
+      s.key.classList.add("lockedKey");
+      s.key.classList.remove("noManaKey");
+    } else if (noMana) {
+      s.key.textContent = "⛔";
+      s.key.classList.add("noManaKey");
+      s.key.classList.remove("lockedKey");
+    } else {
+      s.key.textContent = entry.label;
+      s.key.classList.remove("lockedKey", "noManaKey");
+    }
+
+    // ======================
+    // NAME LABEL
+    // ======================
+    if (locked) {
+      s.name.textContent = `Unlocks Lv ${entry.unlockLevel}`;
+      s.name.classList.add("lockedName");
+      s.name.classList.remove("noManaName");
+    } else if (noMana) {
+      s.name.textContent = "NO MANA";
+      s.name.classList.add("noManaName");
+      s.name.classList.remove("lockedName");
+    } else {
+      s.name.textContent = entry.nameLabel;
+      s.name.classList.remove("lockedName", "noManaName");
+    }
+  }
 }
+
 
 // Exported for use in main UI
 window.ensureMoveSlots = ensureMoveSlots;

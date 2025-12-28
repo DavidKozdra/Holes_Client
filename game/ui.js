@@ -1079,10 +1079,6 @@ function updateManaDisplay(mp, mmp) {
 }
 
 
-
-
-
-
 function renderPlayerCardUI() {
     push();
     fill(0);
