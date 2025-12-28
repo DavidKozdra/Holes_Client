@@ -2,10 +2,10 @@
 
 const BASE_SPEED = 5;
 
-var curPlayer; //Your player
-var players = {}; //other players
+var curPlayer; // Your player
+var players = {}; // Other players
 
-//player globals
+// Player globals
 var dirtInv = 0;
 var maxDirtInv = 600;
 var buildMode = false;
@@ -16,343 +16,195 @@ var DIGSPEED = 0.04;
 
 class Player {
     constructor(x, y, health, id, color, race, name) {
-        this.id = id; // socket ID
+        this.id = id;
         this.pos = createVector(x, y);
         this.vel = createVector(0, 0);
-        this.holding = { w: false, a: false, s: false, d: false }; // Movement keys state
-        this.race = race; // Race index
+        this.holding = { w: false, a: false, s: false, d: false };
+        this.race = race;
         this.name = name;
-        this.color = color; //team color index
+        this.color = color;
+
         this.statBlock = new StatBlock(this.race, health);
         this.invBlock = new InvBlock();
+
         this.alignment = 50;
         this.moving = false;
         this.kills = 0;
 
-        // Animation properties
-        this.currentFrame = 0; // Current frame for animation
-        this.direction = 'down'; // Default direction
+        // Animation
+        this.currentFrame = 0;
+        this.direction = 'down';
         this.animationFrame = 0;
-        this.animationType = ""; // Name of current animation
+        this.animationType = "";
 
+        // Regen
+        this.regenTimer = 0;
+        this.regenInterval = 3;
 
-        this.regenTimer = 0;         
-        this.regenInterval = 3 
+        this.attackingOBJ = {};
 
-        this.attackingOBJ = {}
-
-        // Dash mechanic properties
+        // Dash
         this.isDashing = false;
         this.dashTimer = 0;
-        this.dashDuration = 15; // frames (0.5 seconds at 30fps)
+        this.dashDuration = 15;
         this.dashCooldown = 0;
-        this.dashCooldownMax = 60; // frames (2 seconds at 30fps)
-        this.dashSpeedMultiplier = 2.5; // How much faster during dash
-        this.dashManaCost = 20; // Mana cost per dash
+        this.dashCooldownMax = 60;
+        this.dashSpeedMultiplier = 2.5;
+        this.dashManaCost = 20;
 
-        // All spell state is now managed in the magic system, not on the player object.
         this.spells = {};
 
-        // Move slots (0-9) for spell/ability assignment
         this.movesSlots = [
             'forceField',
             'combustion',
             'meditate',
             'dash',
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
+            null, null, null, null, null, null
         ];
     }
- newCollisionPoint(xOffset, yOffset, direction) {
-        let chunkPos = testMap.globalToChunk(this.pos.x + (xOffset * TILESIZE), this.pos.y + (yOffset * TILESIZE));
 
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) { //if you dont have that chunk assume there is dirt in the way
-            return {
-                dir: direction,
-                val: -1
-            };
-        }
+    /* ===============================
+       COLLISION HELPERS (STABLE)
+       =============================== */
 
-        let x = floor(this.pos.x / TILESIZE) - (chunkPos.x * CHUNKSIZE) + xOffset;
-        let y = floor(this.pos.y / TILESIZE) - (chunkPos.y * CHUNKSIZE) + yOffset;
-
-        let x2 = floor(this.pos.x / TILESIZE) - (chunkPos.x * CHUNKSIZE) + xOffset;
-        let y2 = floor(this.pos.y / TILESIZE) - (chunkPos.y * CHUNKSIZE) + yOffset;
-
-        if (direction == "up") {
-            y2 -= 1;
-        }
-        if (direction == "down") {
-            y2 += 1;
-        }
-        if (direction == "left") {
-            x2 -= 1;
-        }
-        if (direction == "right") {
-            x2 += 1;
-        }
-
-        let chunkPos2 = {};
-        chunkPos2.x = chunkPos.x;
-        chunkPos2.y = chunkPos.y;
-        if (x2 < 0) {
-            chunkPos2.x -= 1;
-            x2 = CHUNKSIZE - 1;
-        }
-        if (x2 >= CHUNKSIZE) {
-            chunkPos2.x += 1;
-            x2 = 0;
-        }
-        if (y2 < 0) {
-            chunkPos2.y -= 1;
-            y2 = CHUNKSIZE - 1;
-        }
-        if (y2 >= CHUNKSIZE) {
-            chunkPos2.y += 1;
-            y2 = 0;
-        }
-
-        if (testMap.chunks[chunkPos2.x + "," + chunkPos2.y] == undefined) { //if you dont have that chunk assume there is dirt in the way
-            return {
-                dir: direction,
-                val: -1
-            };
-        }
-
-        //MATH
-        let val = testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE];
-        let val2 = testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE];
-
-        if (val == -1 || val2 == -1) {
-            return {
-                dir: direction,
-                val: -1
-            };
-        }
-
-        val += 0.7;
-        val2 += 0.7;
-
-        let midpoint = { x: 0, y: 0 };
-        let amt = 0;
-        if (direction == "up" || direction == "down") {
-            midpoint.x = x;
-        }
-        if (direction == "left" || direction == "right") {
-            midpoint.y = y;
-        }
-
-        if (direction == "up") {
-            amt = (1 - val) / (val2 - val);
-            midpoint.y = lerp(y, y2, amt);
-        }
-        if (direction == "down") {
-            amt = (1 - val) / (val2 - val);
-            midpoint.y = lerp(y, y2, amt);
-        }
-        if (direction == "left") {
-            amt = (1 - val2) / (val - val2);
-            midpoint.x = lerp(x2, x, amt);
-        }
-        if (direction == "right") {
-            amt = (1 - val2) / (val - val2);
-            midpoint.x = lerp(x2, x, amt);
-        }
-        if(val == val2){
-            amt = 0.5;
-            if (direction == "up" || direction == "down") {
-                midpoint.y = lerp(y, y2, amt);
-            }
-            if (direction == "left" || direction == "right") {
-                midpoint.x = lerp(x2, x, amt);
-            }
-        }
-
-
-        if (Debuging) {
-            push();
-            fill(255);
-            circle(((x + (chunkPos.x * CHUNKSIZE)) * TILESIZE) - camera.pos.x + (width / 2), ((y + (chunkPos.y * CHUNKSIZE)) * TILESIZE) - camera.pos.y + (height / 2), 10);
-            circle(((x2 + (chunkPos2.x * CHUNKSIZE)) * TILESIZE) - camera.pos.x + (width / 2), ((y2 + (chunkPos2.y * CHUNKSIZE)) * TILESIZE) - camera.pos.y + (height / 2), 10);
-
-            fill(255, 0, 0);
-            circle(((midpoint.x + (chunkPos2.x * CHUNKSIZE)) * TILESIZE) - camera.pos.x + (width / 2), ((midpoint.y + (chunkPos2.y * CHUNKSIZE)) * TILESIZE) - camera.pos.y + (height / 2), 10);
-            pop();
-        }
-
-        return {
-            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE],
-            val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE],
-            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + y * CHUNKSIZE],
-            iron_val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].iron_data[x2 + y2 * CHUNKSIZE],
-            x: (midpoint.x + (chunkPos2.x * CHUNKSIZE)) * TILESIZE,
-            y: (midpoint.y + (chunkPos2.y * CHUNKSIZE)) * TILESIZE,
-            dir: direction
-        };
-
+    getColliderRadius() {
+        return 14.5;
     }
-    update() {
-        //dont update players not in your chunks
-        let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) return;
 
-        // Gather dirt collision checks for all four directions
-        let collisionChecks = [];
-        collisionChecks.push(this.newCollisionPoint(0, -1, "up"));
-        collisionChecks.push(this.newCollisionPoint(0, 1, "down"));
-        collisionChecks.push(this.newCollisionPoint(-1, 0, "left"));
-        collisionChecks.push(this.newCollisionPoint(1, 0, "right"));
-        this.moving = (this.holding.w || this.holding.a || this.holding.s || this.holding.d);
-
-        // Decrement magic cooldowns for all abilities by name
-        if (window.magicAbilities && this.magicCooldowns) {
-            for (const ability of window.magicAbilities) {
-                const key = ability.name;
-                if (this.magicCooldowns[key] > 0) {
-                    this.magicCooldowns[key]--;
-                }
+    getNeighborChunkKeys(wx, wy) {
+        const c = testMap.globalToChunk(wx, wy);
+        const keys = [];
+        for (let y = c.y - 1; y <= c.y + 1; y++) {
+            for (let x = c.x - 1; x <= c.x + 1; x++) {
+                const k = x + "," + y;
+                if (testMap.chunks[k]) keys.push(k);
             }
         }
+        return keys;
+    }
 
-        // Update all magic abilities (active or equipped)
-        const abilities = Array.isArray(this.magicAbilities) ? this.magicAbilities : (window.magicAbilities || []);
-        for (const ability of abilities) {
-            if (typeof ability.update === 'function') ability.update(this);
-        }
+    isSolidTile(wx, wy) {
+        const c = testMap.globalToChunk(wx, wy);
+        const chunk = testMap.chunks[c.x + "," + c.y];
 
-        // Calculate speed multiplier based on dash state
-        let speedMultiplier = this.isDashing ? this.dashSpeedMultiplier : 1;
+        // Missing chunk = solid (your original behavior)
+        if (!chunk) return true;
 
-        if (this.holding.w) {
-            this.vel.y += -BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'up';
-        }
-        if (this.holding.a) {
-            this.vel.x += -BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'left';
-        }
-        if (this.holding.s) {
-            this.vel.y += BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'down';
-        }
-        if (this.holding.d) {
-            this.vel.x += BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'right';
-        }
+        let tx = floor(wx / TILESIZE) - c.x * CHUNKSIZE;
+        let ty = floor(wy / TILESIZE) - c.y * CHUNKSIZE;
 
-        // ...existing code for movement/collision/animation...
-        let oldPos = this.pos.copy();
-        let movement = this.vel.copy().mult(deltaTime/33);
-        const maxStepSize = TILESIZE * 0.25;
-        const movementMag = movement.mag();
-        if (movementMag > maxStepSize) {
-            const steps = Math.ceil(movementMag / maxStepSize);
-            const stepVec = movement.copy().div(steps);
-            for (let step = 0; step < steps; step++) {
-                let testPos = this.pos.copy().add(stepVec);
-                let collision = false;
-                let testChunkPos = testMap.globalToChunk(testPos.x, testPos.y);
-                let testChunk = testMap.chunks[testChunkPos.x + "," + testChunkPos.y];
-                if (testChunk) {
-                    for (let j = 0; j < testChunk.objects.length; j++) {
-                        if (testChunk.objects[j].z == 2) {
-                            let d = testChunk.objects[j].pos.dist(testPos);
-                            if (d * 2 < (testChunk.objects[j].size.w + testChunk.objects[j].size.h) / 2 + 29) {
-                                if (testChunk.objects[j].objName == "Door") {
-                                    if (testChunk.objects[j].alpha == 255) {
-                                        collision = true;
-                                        break;
-                                    }
-                                } else {
-                                    collision = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if (!collision) {
-                        for (let i = 0; i < collisionChecks.length; i++) {
-                            let check = collisionChecks[i];
-                            if (check.val == -1) {
-                                collision = true;
-                                break;
-                            }
-                            if (check.val2 > 0 || check.iron_val2 > 0) {
-                                if (check.dir == "up" || check.dir == "down") {
-                                    if (createVector(check.x, testPos.y).dist(createVector(check.x, check.y)) < TILESIZE) {
-                                        collision = true;
-                                        break;
-                                    }
-                                }
-                                if (check.dir == "left" || check.dir == "right") {
-                                    if (createVector(testPos.x, check.y).dist(createVector(check.x, check.y)) < TILESIZE) {
-                                        collision = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                if (!collision) {
+        if (tx < 0 || ty < 0 || tx >= CHUNKSIZE || ty >= CHUNKSIZE) return true;
+
+        const idx = tx + ty * CHUNKSIZE;
+
+        const dirt = chunk.data[idx];
+        const iron = chunk.iron_data ? chunk.iron_data[idx] : 0;
+
+        if (dirt === -1) return true;
+        if (dirt > 0) return true;
+        if (iron > 0) return true;
+
+        return false;
+    }
+
+    collidesWithTiles(pos) {
+        const r = this.getColliderRadius();
+        const samples = [
+            { x: pos.x + r, y: pos.y },
+            { x: pos.x - r, y: pos.y },
+            { x: pos.x, y: pos.y + r },
+            { x: pos.x, y: pos.y - r },
+            { x: pos.x + r, y: pos.y + r },
+            { x: pos.x - r, y: pos.y + r },
+            { x: pos.x + r, y: pos.y - r },
+            { x: pos.x - r, y: pos.y - r },
+        ];
+
+        for (const p of samples) {
+            if (this.isSolidTile(p.x, p.y)) return true;
+        }
+        return false;
+    }
+
+    collidesWithObjects(pos) {
+        const r = this.getColliderRadius();
+        const keys = this.getNeighborChunkKeys(pos.x, pos.y);
+
+        for (const key of keys) {
+            const chunk = testMap.chunks[key];
+            if (!chunk) continue;
+
+            for (const obj of chunk.objects) {
+                if (obj.z !== 2) continue;
+
+                if (obj.objName === "Door" && obj.alpha !== 255) continue;
+
+                const objRadius = ((obj.size.w + obj.size.h) * 0.25) + r;
+                if (obj.pos.dist(pos) < objRadius) return true;
+            }
+        }
+        return false;
+    }
+
+    collidesAt(pos) {
+        if (this.collidesWithTiles(pos)) return true;
+        if (this.collidesWithObjects(pos)) return true;
+        return false;
+    }
+
+    /* ===============================
+       UPDATE
+       =============================== */
+
+    update() {
+        const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+        if (!testMap.chunks[chunkPos.x + "," + chunkPos.y]) return;
+
+        this.moving = this.holding.w || this.holding.a || this.holding.s || this.holding.d;
+
+        let speedMul = this.isDashing ? this.dashSpeedMultiplier : 1;
+        let accel = BASE_SPEED * this.statBlock.stats.runningSpeed * speedMul * (deltaTime / 30);
+
+        if (this.holding.w) { this.vel.y -= accel; this.direction = 'up'; }
+        if (this.holding.s) { this.vel.y += accel; this.direction = 'down'; }
+        if (this.holding.a) { this.vel.x -= accel; this.direction = 'left'; }
+        if (this.holding.d) { this.vel.x += accel; this.direction = 'right'; }
+
+        let movement = this.vel.copy().mult(deltaTime / 33);
+        const maxStep = TILESIZE * 0.25;
+
+        const moveAxis = (axis, amount) => {
+            let remaining = amount;
+            while (abs(remaining) > 0.001) {
+                let step = constrain(remaining, -maxStep, maxStep);
+                let testPos = this.pos.copy();
+                testPos[axis] += step;
+
+                if (!this.collidesAt(testPos)) {
                     this.pos = testPos;
+                    remaining -= step;
                 } else {
                     break;
                 }
             }
-        } else {
-            this.pos.add(movement);
-            let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
-            for (let j = 0; j < chunk.objects.length; j++) {
-                if (chunk.objects[j].z == 2) {
-                    let d = chunk.objects[j].pos.dist(this.pos);
-                    if (d * 2 < (chunk.objects[j].size.w + chunk.objects[j].size.h) / 2 + 29) {
-                        if (chunk.objects[j].objName == "Door") {
-                            if (chunk.objects[j].alpha == 255) {
-                                this.pos = oldPos;
-                            }
-                        } else {
-                            this.pos = oldPos;
-                        }
-                    }
-                }
-            }
-            for (let i = 0; i < collisionChecks.length; i++) {
-                let check = collisionChecks[i];
-                if (check.val == -1) this.pos = oldPos;
-                if (check.val2 > 0 || check.iron_val2 > 0) {
-                    if (check.dir == "up" || check.dir == "down") {
-                        if (createVector(check.x, this.pos.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.y = oldPos.y;
-                    }
-                    if (check.dir == "left" || check.dir == "right") {
-                        if (createVector(this.pos.x, check.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.x = oldPos.x;
-                    }
-                }
-            }
-        }
+        };
+
+        moveAxis("x", movement.x);
+        moveAxis("y", movement.y);
+
+        // Animation
         if (this.moving) {
-            this.animationFrame += (1 / 7);
-            this.currentFrame = 1 + (this.animationFrame) % 4;
+            this.animationFrame += 1 / 7;
+            this.currentFrame = 1 + (this.animationFrame % 4);
             if (this.currentFrame >= 4) this.currentFrame = 2;
-        } else if (this.animationType != "") {
-            switch (this.animationType) {
-                case "put": { this.currentFrame = 4; } break;
-            }
-            this.animationFrame -= 1;
-            if (this.animationFrame <= 0) {
-                this.animationFrame = 0;
-                this.animationType = "";
-            }
         } else {
             this.animationFrame = 0;
             this.currentFrame = 0;
         }
-        this.vel = createVector(0, 0);
+
+        this.vel.set(0, 0);
     }
+
 
     render() {
         //dont render players not in your chunks
