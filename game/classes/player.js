@@ -67,8 +67,7 @@ class Player {
             null
         ];
     }
-
-    newCollisionPoint(xOffset, yOffset, direction) {
+ newCollisionPoint(xOffset, yOffset, direction) {
         let chunkPos = testMap.globalToChunk(this.pos.x + (xOffset * TILESIZE), this.pos.y + (yOffset * TILESIZE));
 
         if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) { //if you dont have that chunk assume there is dirt in the way
@@ -196,7 +195,6 @@ class Player {
         };
 
     }
-
     update() {
         //dont update players not in your chunks
         let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);

@@ -107,12 +107,17 @@ class StatBlock{
     setXP(amount) {
         this.xp += amount;
 
-        while(this.xp >= this.xpNeeded) {
-            //console.log("level up")
+        // Improved XP scaling: base + quadratic growth
+        function xpForLevel(level) {
+            // Example: base 10, +10 per level, +2 per level^2
+            return 10 + 10 * (level - 1) + 2 * Math.pow(level - 1, 2);
+        }
 
-            this.xpNeeded = Math.floor(this.xpNeeded * 1.5);
+        while (this.xp >= this.xpNeeded) {
+            this.xp -= this.xpNeeded;
             this.level++;
-            this.xp =0
+            this.xpNeeded = xpForLevel(this.level);
+
             socket.emit("update_player", {
                 id: curPlayer.id,
                 pos: curPlayer.pos,
@@ -120,7 +125,6 @@ class StatBlock{
                 update_names: ["statBlock.level"],
                 update_values: [curPlayer.statBlock.level]
             });
-
 
             // Apply growth per level
             const growth = BASE_STATS[this.race].growth;
@@ -138,7 +142,6 @@ class StatBlock{
                 }
             }
         }
-
         //console.log("my xp currently", this.xp, "xp required", this.xpNeeded)
     }
 

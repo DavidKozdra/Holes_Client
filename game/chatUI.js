@@ -21,7 +21,7 @@ function renderChatUI() {
     chatContainer.style('position', 'fixed');
     chatContainer.style('bottom', '24px');
     chatContainer.style('left', '24px');
-    chatContainer.style('width', '340px');
+    chatContainer.style('width', '25dvw');
     chatContainer.style('max-width', '90vw');
     chatContainer.style('background', 'rgba(30,30,30,0.95)');
     chatContainer.style('border-radius', '10px');

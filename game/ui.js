@@ -454,7 +454,7 @@ function updateItemList() {
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
             highlightItemList();
-            perfTimed('updatecurItemDiv', () => updatecurItemDiv());
+            updatecurItemDiv();
         });
         let itemInfoDiv = createDiv().parent(itemDiv);
         itemInfoDiv.style("width", "80%");
@@ -2534,7 +2534,7 @@ function updateCraftList() {
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
             highlightCraftList();
-            perfTimed('updatecurCraftItemDiv', () => updatecurCraftItemDiv());
+            updatecurCraftItemDiv();
         });
         let itemInfoDiv = createDiv().parent(itemDiv);
         applyStyle(itemInfoDiv, {
