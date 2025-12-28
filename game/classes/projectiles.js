@@ -143,8 +143,9 @@ class SimpleProjectile{
             }
         }
 
-        //check collision with curPlayer
-        if((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color){
+        // Prevent projectiles from hurting their owner (AI or player)
+        let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
+        if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(this.pos.dist(curPlayer.pos) < 29){
                 this.deleteTag = true;
                 //if player collishion tell server to set delete tag to true
@@ -180,9 +181,9 @@ class SimpleProjectile{
 }
 
 class MeleeProjectile extends SimpleProjectile{
-    constructor(name, damage, knockback, x,y,a, lifespan, range, safeRange, angleWidth, ownerName, color, imgNum, isMagic){
-        super(name, damage, knockback, createFlightPath("Stay", x,y,a), 0, lifespan, ownerName, color, imgNum, isMagic);
-        
+    constructor(name, damage, knockback, x, y, a, lifespan, range, safeRange, angleWidth, ownerName, color, imgNum, isMagic, ownerEntity = null){
+        super(name, damage, knockback, createFlightPath("Stay", x, y, a), 0, lifespan, ownerName, color, imgNum, isMagic);
+
         this.range = range;
         this.safeRange = safeRange;
         this.angleWidth = angleWidth;
@@ -198,6 +199,7 @@ class MeleeProjectile extends SimpleProjectile{
 
         this.hitTargets = new Set(); // Track entities already hit
         this.type = "Melee";
+        this.ownerEntity = ownerEntity; // Reference to the entity that created this swing
     }
 
     render(){
@@ -342,6 +344,10 @@ class MeleeProjectile extends SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2 || chunk.objects[j].z == 0){
+                // Prevent melee swings from hitting the owner (self) by reference
+                if(this.ownerEntity && chunk.objects[j] === this.ownerEntity) continue;
+                // Fallback: Prevent by ownerName if available (legacy)
+                if(chunk.objects[j].ownerName && this.ownerName && chunk.objects[j].ownerName === this.ownerName) continue;
                 // Create unique identifier for this object
                 let objId = this.cPos.x + "," + this.cPos.y + "," + j;
                 if(this.hitTargets.has(objId)) continue; // Already hit this target
@@ -361,8 +367,9 @@ class MeleeProjectile extends SimpleProjectile{
             }
         }
 
-        //check collision with curPlayer
-        if((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color){
+        // Prevent projectiles from hurting their owner (AI or player)
+        let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
+        if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(!this.hitTargets.has("player")){ // Check if player already hit
                 // Use proper collision box detection with player hitbox radius
                 let playerRadius = 30; // Standard player hitbox size
@@ -518,8 +525,9 @@ class ObjProj extends SimpleProjectile{
             }
         }
 
-        //check collision with curPlayer
-        if((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color){
+        // Prevent projectiles from hurting their owner (AI or player)
+        let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
+        if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(this.pos.dist(curPlayer.pos) < 29){
                 this.spawnObj();
                 this.deleteTag = true;
@@ -536,18 +544,18 @@ class ObjProj extends SimpleProjectile{
     }
 }
 
-function createProjectile(name,owner,color, x,y,a){
-    if(projDic[name] == undefined){
+function createProjectile(name, owner, color, x, y, a, ownerEntity = null) {
+    if (projDic[name] == undefined) {
         throw new Error(`Projectile with name: ${name}, does not exist`);
     }
-    if(projDic[name].type == "SimpleProj"){
-        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x,y,a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic);
+    if (projDic[name].type == "SimpleProj") {
+        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x, y, a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic);
     }
-    if(projDic[name].type == "MeleeProj"){
-        return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x,y,a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum, projDic[name].isMagic);
+    if (projDic[name].type == "MeleeProj") {
+        return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x, y, a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
     }
-    if(projDic[name].type == "ObjProj"){
-        return new ObjProj(name, x,y,a, projDic[name].speed, projDic[name].lifespan, projDic[name].objName, projDic[name].r, owner, color);
+    if (projDic[name].type == "ObjProj") {
+        return new ObjProj(name, x, y, a, projDic[name].speed, projDic[name].lifespan, projDic[name].objName, projDic[name].r, owner, color);
     }
 }
 

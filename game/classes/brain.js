@@ -62,17 +62,20 @@ class Brain {
         let projType = projDic[this.obj.projName];
         let isRanged = projType && projType.type === "SimpleProj";
         let attackRange = isRanged ? projType.r * 6 : projType.sr; // Ranged entities attack from 6x projectile radius
-        
+
         if(this.obj.pos.dist(this.target) > attackRange){
             this.moveObjTowards(this.target.x,this.target.y, isRanged ? 4 : 6); // Ranged moves slower
         }
         else{ //if close enough spawn projectile and switch to space
             let chunkPos = testMap.globalToChunk(this.obj.pos.x, this.obj.pos.y);
             let toTarget = createVector(this.target.x,this.target.y).sub(this.obj.pos);
-            
+
+            // Use unique id or fallback to objName for owner
+            let ownerId = this.obj.id || this.obj.objName;
+
             if(isRanged) {
                 // Ranged projectile - fire straight at target
-                let proj = createProjectile(this.obj.projName, this.obj.objName, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading());
+                let proj = createProjectile(this.obj.projName, ownerId, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading());
                 if(testMap.chunks[chunkPos.x+','+chunkPos.y] != undefined){
                     testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(proj);
                     socket.emit("new_proj", proj);
@@ -80,11 +83,11 @@ class Brain {
             } else {
                 // Melee projectile - swing attack
                 toTarget.setMag(50);
-                let proj = createProjectile(this.obj.projName, this.obj.objName, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading());
+                let proj = createProjectile(this.obj.projName, ownerId, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading(), this.obj);
                 if(testMap.chunks[chunkPos.x+','+chunkPos.y] != undefined){
                     testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(proj);
                     socket.emit("new_proj", proj);
-        
+
                     let temp = new SoundObj("swing.wav", this.obj.pos.x, this.obj.pos.y);
                     testMap.chunks[chunkPos.x+','+chunkPos.y].soundObjs.push(temp);
                     socket.emit("new_sound", {sound: "swing.wav", cPos: chunkPos, pos: {x: this.obj.pos.x, y: this.obj.pos.y}, id: temp.id});
