@@ -44,6 +44,8 @@ function keyReleased() {
 
     }
     if (gameState == "playing") {
+        // Block all actions except movement/cancel if concentrating (Meditate)
+        if (curPlayer && curPlayer.isConcentrating) return;
         // Spells 1/2/3
         if (!getIsChatting()) {
             const slotFromKey = {
@@ -591,6 +593,7 @@ function mouseReleased() {
 function continousMouseInput() { //ran once every frame, good for anything like digging, or items
 
     if (isChatting || isElementVisible(pauseDiv)) return
+    if (curPlayer && curPlayer.isConcentrating) return;
     if (mouseIsPressed) {
         //converts screen space to global space
         let x = mouseX + camera.pos.x - width / 2;
@@ -711,6 +714,7 @@ function continousMouseInput() { //ran once every frame, good for anything like 
 // Cast or activate a move based on the configured movesSlots
 function triggerMoveSlot(slotIdx) {
     if (!curPlayer || !Array.isArray(curPlayer.movesSlots)) return;
+    if (curPlayer.isConcentrating) return;
     const moveId = curPlayer.movesSlots[slotIdx];
     if (!moveId) return;
 

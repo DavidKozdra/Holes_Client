@@ -545,6 +545,8 @@ function draw() {
         pop();
     }
 
+    // Cancel meditate on any key or mouse input
+    import('./inputCancelMeditate.js');
     continousKeyBoardInput();
     continousMouseInput();
 }

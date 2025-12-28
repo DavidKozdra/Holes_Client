@@ -502,7 +502,7 @@ class MeditateAbility extends MagicAbility {
         super('Meditate', 'regen', 5, 1200, 'Channel magic to restore mana over time.', 14);
         this.active = false;
         this.timer = 0;
-        this.duration = 600;
+        this.duration = 300; // Halved duration
         this.manaPerSec = 2.5;
     }
     onActivate(player) {
@@ -522,10 +522,11 @@ class MeditateAbility extends MagicAbility {
     }
     update(player) {
         if (player.meditateActive) {
-            // cancel meditation immediately if moving or mouse or key pressed
-            if (player.moving ) {
+            // cancel meditation if moving or cancel flag set (input or damage)
+            if (player.moving || player.meditateCancelFlag) {
                 player.meditateActive = false;
                 player.meditateTimer = 0;
+                player.meditateCancelFlag = false;
             } else {
                 player.meditateTimer--;
                 let m = (this.manaPerSec * (deltaTime/30));

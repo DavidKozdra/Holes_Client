@@ -102,8 +102,15 @@ class SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2){
-                // Prevent projectiles from hitting their owner (AI or player)
-                if(this.ownerName && chunk.objects[j].ownerName && this.ownerName === chunk.objects[j].ownerName) continue;
+                // Prevent projectiles from hitting their owner (AI or player) or same-race entity
+                let isSelf = false;
+                if(this.ownerName && chunk.objects[j].ownerName && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
+                // Extra: prevent same-race, same-objName self-hit (for AI like Skizzard/Gnome)
+                if(this.ownerRace && chunk.objects[j].race && this.ownerRace === chunk.objects[j].race && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
+                if(this.ownerEntity && chunk.objects[j] === this.ownerEntity) isSelf = true;
+                // Fallback: prevent by objName/race if available
+                if(this.ownerObjName && chunk.objects[j].objName && this.ownerObjName === chunk.objects[j].objName && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
+                if(isSelf) continue;
                 let d = chunk.objects[j].pos.dist(this.pos);
                 if(d < (chunk.objects[j].size.w+chunk.objects[j].size.h)/4){
                     if(chunk.objects[j].objName == "Door"){

@@ -47,7 +47,6 @@ class Brain {
             }
         }
 
-        console.log("Brain State:", this.state);
     }
 
     wander(){

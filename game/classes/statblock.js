@@ -174,21 +174,21 @@ class StatBlock{
     takeDamage(amount, isMagic = false) {
         const oldHP = this.stats.hp;
         let actualDamage = amount;
-        
         // Apply magic resistance if this is magic damage
         if (isMagic && this.stats.magicResistance) {
             actualDamage = Math.max(1, amount - this.stats.magicResistance);
         }
-        
         this.stats.hp -= actualDamage;
-        
+        // If meditating, set a flag to cancel on next update
+        if (this.owner && this.owner.meditateActive) {
+            this.owner.meditateCancelFlag = true;
+        }
         // Dispatch health change event
         if (typeof window !== 'undefined' && this.stats.hp !== oldHP) {
             window.dispatchEvent(new CustomEvent('playerHealthChange', {
                 detail: { hp: this.stats.hp, mhp: this.stats.mhp, change: -(actualDamage) }
             }));
         }
-        
         return actualDamage;
     }
 
