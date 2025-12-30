@@ -231,7 +231,7 @@ class CloakAbility extends MagicAbility {
 // Warp: Teleports you to a random chunk
 class WarpAbility extends MagicAbility {
     constructor() {
-        super('Warp', 'mobility', 30, 900, 'Teleport to a random place.', 1);
+        super('Warp', 'mobility', 30, 900, 'Teleport to a random place.', 7);
     }
     onActivate(player) {
         // Pick a random chunk in the map

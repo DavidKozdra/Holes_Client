@@ -1103,6 +1103,23 @@ class Entity extends Placeable {
         this.statBlock = new StatBlock(this.race, health);
         if (level !== undefined) {
             this.statBlock.level = level;
+                // Scale stats to level
+                for (let i = 2; i <= level; i++) {
+                    const growth = BASE_STATS[this.race].growth;
+                    if(!growth) {
+                        // flat health increase if no growth defined
+                        this.statBlock.stats.mhp += 10;
+                        this.statBlock.stats.hp += 10;
+                        this.statsBlock.stats.attack += 2;
+                        continue;
+                    }
+                    for (let key in growth) {
+                        if (this.statBlock.stats[key] !== undefined) {
+                            this.statBlock.stats[key] += growth[key];
+                        }
+                    }
+                    
+                }
         }
         if (xp !== undefined) {
             this.statBlock.xp = xp;
@@ -1136,31 +1153,49 @@ class Entity extends Placeable {
                 testMap.brains.push(b);
             }
         }
-    }
+        }
+
+        // Level up the entity, scale stats and optionally heal
+        levelUp() {
+            this.statBlock.level++;
+            const growth = BASE_STATS[this.race].growth;
+            for (let key in growth) {
+                if (this.statBlock.stats[key] !== undefined) {
+                    this.statBlock.stats[key] += growth[key];
+                }
+            }
+            // Optionally restore HP to max
+            if (this.statBlock.stats.mhp !== undefined) {
+                this.statBlock.stats.hp = this.statBlock.stats.mhp;
+            }
+        }
+    
 
     update() {
         if (this.hp <= 0) {
             this.deleteTag = true;
             let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-
-            let expOrb = createObject(
-                "ExpOrb",                         // name
-                this.pos.x + random(-10, 10), // x (add slight offset)
-                this.pos.y + random(-10, 10), // y (add slight offset)
-                0,                                 // rot
-                0,                                 // color/team
-                `xp_orb_${Date.now()}`,            // unique id
-                this.name                     // owner (optional)
-            );
-            expOrb.id = random(1000000);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(expOrb);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a, b) => a.z - b.z);
-
-            socket.emit("new_object", {
-                cx: chunkPos.x,
-                cy: chunkPos.y,
-                obj: expOrb
-            });
+            // Drop XP orbs based on level: 5 base + 2 per level
+            const orbCount = (this.statBlock.level/5 + 1);
+            for (let i = 0; i < orbCount; i++) {
+                let expOrb = createObject(
+                    "ExpOrb",
+                    this.pos.x + random(-10, 10),
+                    this.pos.y + random(-10, 10),
+                    0,
+                    0,
+                    `xp_orb_${Date.now()}_${i}`,
+                    this.name
+                );
+                expOrb.id = random(1000000);
+                testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(expOrb);
+                testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a, b) => a.z - b.z);
+                socket.emit("new_object", {
+                    cx: chunkPos.x,
+                    cy: chunkPos.y,
+                    obj: expOrb
+                });
+            }
 
             let cost = objDic[this.objName].cost;
             if (random() < 0.5) {
