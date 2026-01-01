@@ -2815,6 +2815,8 @@ craftAllButton.mousePressed(() => {
 }
 
 var deathDiv;
+var respawnButton;
+var hardcoreNotice;
 
 function defineDeathUI() {
     deathDiv = createDiv();
@@ -2837,9 +2839,27 @@ function defineDeathUI() {
     title.style("font-weight", "bold");
     title.style("color", "white");
 
-    let respawnButton = createButton("Respawn").parent(deathDiv);
+    hardcoreNotice = createP("");
+    hardcoreNotice.parent(deathDiv);
+    hardcoreNotice.style("font-size", "16px");
+    hardcoreNotice.style("color", "#ff5555");
+    hardcoreNotice.style("margin-bottom", "8px");
+    hardcoreNotice.hide();
+
+    respawnButton = createButton("Respawn").parent(deathDiv);
     styleButton(respawnButton);
     respawnButton.mousePressed(() => {
+        const hardcore = !!window.isHardcoreServer;
+        
+        if (hardcore) {
+            // Hardcore: redirect to main menu
+            deathDiv.hide();
+            gameState = "initial";
+            location.reload();
+            return;
+        }
+        
+        // Normal respawn
         curPlayer.pos.x = random(-200 * TILESIZE, 200 * TILESIZE);
         curPlayer.pos.y = random(-200 * TILESIZE, 200 * TILESIZE);
 
@@ -2913,6 +2933,24 @@ function defineDeathUI() {
         }
         deathDiv.hide();
     });
+}
+
+// Show death UI with hardcore-aware button
+function showDeathUI() {
+    if (!deathDiv) return;
+    const hardcore = !!window.isHardcoreServer;
+    
+    if (hardcore) {
+        respawnButton.html("☠ Restart");
+        hardcoreNotice.html("Permadeath server - character deleted");
+        hardcoreNotice.show();
+    } else {
+        respawnButton.html("Respawn");
+        hardcoreNotice.hide();
+    }
+    
+    respawnButton.show();
+    deathDiv.show();
 }
 
 var tutorialDiv;

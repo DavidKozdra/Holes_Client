@@ -196,6 +196,12 @@ function socketSetup(){
         } catch (e) {}
     });
 
+    // Permadeath notification from server
+    socket.on('PERMA_DEATH', () => {
+        window.isHardcoreServer = true;
+        // Death UI will handle the restart button
+    });
+
     // Socket event handlers
     socket.on('GIVE_MAP', (data) => {
         testMap.data = data;

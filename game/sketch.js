@@ -469,7 +469,7 @@ function draw() {
 
                 dirtInv = 0;
                 gameState = "dead";
-                deathDiv.show();
+                showDeathUI();
             }
         }
 

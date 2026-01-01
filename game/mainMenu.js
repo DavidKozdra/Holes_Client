@@ -26,6 +26,9 @@ let serverList = JSON.parse(localStorage.getItem("servers")) || [
 
 serverList[0] = { ip: "muddygame.net", name: "Holes Offical", status: "Online" };
 
+// Tracks whether the currently selected server is hardcore/permadeath
+window.isHardcoreServer = false;
+
 let selectedServer = null;
 let serverBrowserContainer, inputIP, inputStatus, addServerButton, serverListDiv;
 let renderedserverBrowserContainer = false;
@@ -377,6 +380,10 @@ function renderServerBrowser() {
                     }
                 }
 
+                // Set hardcore flag from fresh status response
+                window.isHardcoreServer = !!(data.hardcore || data.permaDeath);
+                selectedServer.hardcore = window.isHardcoreServer;
+
                 socket = io.connect(getServerUrl(selectedServer));
                 socketSetup();
                 testMap = new Map();
@@ -490,10 +497,13 @@ function renderSingleServerEntry(server, indexInFullList) {
 
     // Fetch server status
     fetchServerStatus(server, (data) => {
+        const isHardcore = !!(data.hardcore || data.permaDeath);
+        server.hardcore = isHardcore;
+
         serverStatus.html(`Status: ${data.status}`);
         serverStatus.style("color", data.status === "Online" ? "#4CAF50" : "#F44336");
         serverStatus.style("background-color", data.status === "Online" ? "black" : "white");
-        serverName.html(data.name || "Unnamed Server");
+        serverName.html(`${isHardcore ? "  ☠️  " : ""}${data.name || "Unnamed Server"}`);
         playerCount.html(`Players: ${data.playerCount}` + (!data.max ? `` : `/ ${data.max}`));
         serverLogo.attribute("src", data.image);
 
@@ -527,6 +537,7 @@ function renderSingleServerEntry(server, indexInFullList) {
         }
         serverEntry.style("background-color", "#4CAF50");
         selectedServer = server;
+        window.isHardcoreServer = !!server.hardcore;
     });
 
     serverEntry.parent(serverListDiv);
