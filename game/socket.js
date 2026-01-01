@@ -1121,6 +1121,41 @@ function socketSetup(){
         }
     })
 
+    // Handle new brain entities (e.g., from Queen's Kiss ability)
+    socket.on("NEW_BRAIN", (data) => {
+        if (!data || !data.id || !data.target) {
+            console.error('[NEW_BRAIN] Invalid brain data:', data);
+            return;
+        }
+        
+        // Create a proper Brain class instance with methods
+        const brain = new Brain(200, data.personality || 'swarm');
+        brain.id = data.id;
+        brain.target = createVector(data.target.x, data.target.y);
+        brain.teamId = data.teamId || null;
+        brain.ownerName = data.ownerName || null;
+        
+        testMap.brains.push(brain);
+        console.log(`[NEW_BRAIN] Added brain ${brain.id} at (${brain.target.x}, ${brain.target.y})`);
+        
+        // Try to spawn the entity immediately if we have the chunk loaded
+        const chunkPos = testMap.globalToChunk(brain.target.x, brain.target.y);
+        const chunkKey = getChunkKey(chunkPos.x, chunkPos.y);
+        const chunk = testMap.chunks[chunkKey];
+        
+        if (chunk) {
+            const entity = createObject("Ant", brain.target.x, brain.target.y, 0, data.color || 0, "", data.ownerName || "Server", brain.id);
+            // Set team on the entity
+            if (data.teamId) {
+                entity.teamId = data.teamId;
+            }
+            chunk.objects.push(entity);
+            chunk.objects.sort((a,b) => a.pos.y - b.pos.y);
+            chunk.objects.sort((a,b) => a.z - b.z);
+            console.log(`[NEW_BRAIN] Spawned entity for brain ${brain.id}`);
+        }
+    });
+
     socket.on("server_ended", () => {
 
         testMap.chunks = {};

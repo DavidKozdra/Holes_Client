@@ -126,6 +126,10 @@ function compassUse(x,y,mouseButton){
     if (nearbyPlayers.length === 0) {
         console.log('[Compass] No other players nearby');
         compassTarget = null;
+        // Show message to user
+        if (typeof spawnFloatingText === 'function') {
+            spawnFloatingText("No players found", curPlayer.pos.x, curPlayer.pos.y - 50, "info", false);
+        }
         return;
     }
     

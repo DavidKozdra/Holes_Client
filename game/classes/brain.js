@@ -19,6 +19,8 @@ class Brain {
         this.vision = (vision || 200) * behavior.visionMultiplier;
         this.deleteTag = false;
         this.lastChat = 0;
+        this.ownerName = null; // Track the owner who summoned this entity
+        this.teamId = null; // Track team affiliation
     }
 
     update(){
@@ -192,6 +194,12 @@ class Brain {
             const target = candidate.entity;
             if(!target || !target.pos) continue;
 
+            // Don't attack owner (for summoned entities)
+            if(this.ownerName && candidate.isPlayer && target.name === this.ownerName) continue;
+            
+            // Don't attack same team members
+            if(this.teamId && target.teamId === this.teamId) continue;
+
             // Personality rules
             if(candidate.isPlayer && !behavior.attackPlayers) continue;
             if(!candidate.isPlayer && !behavior.attackEntities) continue;
@@ -217,7 +225,22 @@ class Brain {
     isHostileEntity(target){
         if(!target || target === this.obj) return false;
         if(target.type !== "Entity") return false;
+        
+        // If this entity has a team, check team affiliation
+        if(this.teamId) {
+            // Target server-spawned entities (no teamId or teamId is null)
+            if(!target.teamId) return true;
+            
+            // Target entities from other teams
+            if(target.teamId !== this.teamId) return true;
+            
+            // Don't target same team entities
+            return false;
+        }
+        
+        // Original logic for server-spawned entities: don't attack same type/race
         if(target.objName && this.obj.objName && target.objName === this.obj.objName && target.race === this.obj.race) return false;
+        
         return true;
     }
 

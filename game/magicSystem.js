@@ -24,13 +24,14 @@ function batchMagicUpdate(player, fieldNames, fieldValues) {
 }
 
 class MagicAbility {
-    constructor(name, type, manaCost, cooldown, desc, requiredLevel = 1) {
+    constructor(name, type, manaCost, cooldown, desc, requiredLevel = 1, renderLocalOnly = false) {
         this.name = name;
         this.type = type; // e.g. 'projectile', 'buff', 'heal', etc.
         this.manaCost = manaCost;
         this.cooldown = cooldown; // in frames
         this.desc = desc;
         this.requiredLevel = requiredLevel;
+        this.renderLocalOnly = renderLocalOnly; // If true, only render for curPlayer
     }
     canActivate(player) {
         return player.statBlock.stats.mp >= this.manaCost && !this.isOnCooldown(player) && player.statBlock.level >= this.requiredLevel;
@@ -229,7 +230,7 @@ class WarpAbility extends MagicAbility {
 // Dash Ability
 class DashAbility extends MagicAbility {
     constructor() {
-        super('Dash', 'mobility', 20, 60, 'Quickly dash in the direction you are moving.', 1);
+        super('Dash', 'mobility', 20, 60, 'Quickly dash in the direction you are moving.', 1, true);
     }
     onActivate(player) {
         player.isDashing = true;
@@ -264,8 +265,7 @@ class DashAbility extends MagicAbility {
         }
     }
     render(player) {
-        // Only render dash visual for the current player (not other players)
-        if (player.isDashing && player === curPlayer) {
+        if (player.isDashing) {
             push();
             let glowSize = 80 + Math.sin(frameCount * 0.5) * 10;
             fill(100, 200, 255, 50);
@@ -501,22 +501,24 @@ class ArrowCircleAbility extends MagicAbility {
         player.arrowCircleTimer = 0;
         player.arrowCircleRepeats = this.repeatCount;
         player.arrowCircleInterval = this.interval;
-        player.arrowCircleOrigin = player.pos.copy();
+        player.arrowCircleOrigin = {x: player.pos.x, y: player.pos.y}; // Plain object instead of p5.Vector
         this._spawnArrowCircle(player);
         batchMagicUpdate(player, ["arrowCircleActive", "arrowCircleTimer", "arrowCircleRepeats", "arrowCircleOrigin"], [true, 0, this.repeatCount, {x: player.pos.x, y: player.pos.y}]);
     }
     _spawnArrowCircle(player) {
-        const numArrows = 12;
-        const radius = 40;
+        const numArrows = 16;
+        const radius = 60; // Spawn at player perimeter
         for (let i = 0; i < numArrows; i++) {
-            // arrows go outward from the circle in all directions
+            // arrows go outward from the perimeter in different directions
             let angle = (2 * Math.PI * i) / numArrows;
             let px = player.pos.x + Math.cos(angle) * radius;
             let py = player.pos.y + Math.sin(angle) * radius;
-            let a = angle; // point outward (no + Math.PI)
+            // Add some variation to directions - spread out
+            let angleVariation = (Math.random() - 0.5) * 0.4;
+            let a = angle + angleVariation; // point outward with variation
 
             if (typeof createProjectile !== 'undefined') {
-                let proj = createProjectile("Arrow", player.name || player.id, player.color, px, py, a, player);
+                let proj = createProjectile("Arrow", player.name || player.id, player.color, px, py, a, null); // Pass null instead of player to avoid circular reference
                 if (typeof projectiles !== 'undefined') projectiles.push(proj);
                 // Add to correct chunk for rendering and updates
                 if (typeof testMap !== 'undefined' && typeof testMap.globalToChunk === 'function' && typeof testMap.chunks === 'object') {
@@ -568,6 +570,129 @@ class ArrowCircleAbility extends MagicAbility {
     }
 }
 
+// Hasty Work Ability
+class HastyWorkAbility extends MagicAbility {
+    constructor() {
+        super('HastyWork', 'buff', 50, 900, 'Double your digging speed for 20 seconds.', 10);
+        this.duration = 1200; // 20 seconds at 60fps
+    }
+    onActivate(player) {
+        player.hastyWorkActive = true;
+        player.hastyWorkTimer = this.duration;
+        // Store original dig speed and double it
+        if (!player.originalDigSpeed) {
+            player.originalDigSpeed = player.statBlock.stats.handDigSpeed;
+        }
+        player.statBlock.stats.handDigSpeed *= 2;
+        batchMagicUpdate(player, ["hastyWorkActive", "hastyWorkTimer", "stats.handDigSpeed"], [true, this.duration, player.statBlock.stats.handDigSpeed]);
+    }
+    update(player) {
+        if (player.hastyWorkActive) {
+            player.hastyWorkTimer--;
+            if (player.hastyWorkTimer <= 0) {
+                player.hastyWorkActive = false;
+                player.hastyWorkTimer = 0;
+                // Restore original dig speed
+                if (player.originalDigSpeed) {
+                    player.statBlock.stats.handDigSpeed = player.originalDigSpeed;
+                }
+            }
+            batchMagicUpdate(player, ["hastyWorkActive", "hastyWorkTimer", "stats.handDigSpeed"], [player.hastyWorkActive, player.hastyWorkTimer, player.statBlock.stats.handDigSpeed]);
+        }
+    }
+    render(player) {
+        if (player.hastyWorkActive) {
+            push();
+            noFill();
+            stroke(255, 200, 50, 150);
+            strokeWeight(3);
+            let s = 100 + Math.sin(frameCount * 0.3) * 5;
+            ellipse(player.pos.x, player.pos.y, s, s);
+            // Add sparkles
+            for (let i = 0; i < 3; i++) {
+                let angle = (frameCount * 0.1 + i * TWO_PI / 3);
+                let sparkX = player.pos.x + Math.cos(angle) * 50;
+                let sparkY = player.pos.y + Math.sin(angle) * 50;
+                fill(255, 255, 150, 200);
+                noStroke();
+                ellipse(sparkX, sparkY, 5, 5);
+            }
+            pop();
+        }
+    }
+}
+
+// Magic Missile Ability
+class MagicMissileAbility extends MagicAbility {
+    constructor() {
+        super('MagicMissile', 'attack', 15, 180, 'Fire a magic projectile that follows your cursor.', 5, true);
+    }
+    onActivate(player) {
+        // Calculate angle to mouse position
+        let worldMouseX = mouseX + camera.pos.x - width / 2;
+        let worldMouseY = mouseY + camera.pos.y - height / 2;
+        let toMouse = createVector(worldMouseX - player.pos.x, worldMouseY - player.pos.y);
+        let angle = toMouse.heading();
+        
+        // Create projectile
+        if (typeof createProjectile !== 'undefined') {
+            let proj = createProjectile("Fire Ball", player.name || player.id, player.color, player.pos.x, player.pos.y, angle, null); // Pass null to avoid circular reference
+            if (typeof projectiles !== 'undefined') projectiles.push(proj);
+            // Add to correct chunk for rendering and updates
+            if (typeof testMap !== 'undefined' && typeof testMap.globalToChunk === 'function' && typeof testMap.chunks === 'object') {
+                let chunkPos = testMap.globalToChunk(player.pos.x, player.pos.y);
+                let chunkKey = chunkPos.x + ',' + chunkPos.y;
+                if (testMap.chunks[chunkKey] && Array.isArray(testMap.chunks[chunkKey].projectiles)) {
+                    testMap.chunks[chunkKey].projectiles.push(proj);
+                }
+            }
+        }
+        if (typeof socket !== 'undefined') {
+            socket.emit("new_proj", {
+                name: "Fire Ball",
+                ownerName: player.name || player.id,
+                color: player.color,
+                x: player.pos.x,
+                y: player.pos.y,
+                a: angle
+            });
+        }
+        batchMagicUpdate(player, ["stats.mp"], [player.statBlock.stats.mp]);
+    }
+}
+
+// Queen's Kiss Ability
+class QueensKissAbility extends MagicAbility {
+    constructor() {
+        super('QueensKiss', 'summon', 40, 1800, 'Summon 3 ants to fight for your team.', 15);
+        this.numAnts = 3;
+    }
+    onActivate(player) {
+        const spawnRadius = 80;
+        for (let i = 0; i < this.numAnts; i++) {
+            let angle = (2 * Math.PI * i) / this.numAnts;
+            let spawnX = player.pos.x + Math.cos(angle) * spawnRadius;
+            let spawnY = player.pos.y + Math.sin(angle) * spawnRadius;
+            
+            // Emit to server to spawn ant
+            if (typeof socket !== 'undefined') {
+                socket.emit('spawn_entity', {
+                    name: "Ant",
+                    x: spawnX,
+                    y: spawnY,
+                    teamId: player.teamId,
+                    color: player.color,
+                    ownerName: player.name
+                });
+            }
+        }
+        batchMagicUpdate(player, ["stats.mp"], [player.statBlock.stats.mp]);
+    }
+    render(player) {
+        // No persistent visual needed, just spawn effect handled by server
+    }
+}
+
 const magicAbilities = [
     new DashAbility(),
     new CombustionAbility(),
@@ -578,7 +703,10 @@ const magicAbilities = [
     new LifeDrainAbility(),
     new CloakAbility(),
     new WarpAbility(),
-    new ArrowCircleAbility()
+    new ArrowCircleAbility(),
+    new HastyWorkAbility(),
+    new MagicMissileAbility(),
+    new QueensKissAbility()
 ];
 
 // Export for use in UI and player logic

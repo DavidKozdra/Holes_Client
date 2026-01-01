@@ -424,7 +424,11 @@ update() {
         // Render all magic abilities (auras, particles, etc)
         const abilities = Array.isArray(this.magicAbilities) ? this.magicAbilities : (window.magicAbilities || []);
         for (const ability of abilities) {
-            if (typeof ability.render === 'function') ability.render(this);
+            if (typeof ability.render === 'function') {
+                // Skip local-only effects for other players
+                if (ability.renderLocalOnly && this !== curPlayer) continue;
+                ability.render(this);
+            }
         }
 
         // ...existing code for name, health bar, and sprite...
