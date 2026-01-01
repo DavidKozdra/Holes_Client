@@ -1,7 +1,7 @@
 // sw.js
 
 // Change this when you update your assets
-const CACHE_NAME = 'holesgame-v2-fixed-items';
+const CACHE_NAME = 'holesgame-v4-cors-fix';
 
 // Pre-cache URLs - currently disabled as paths need to be verified
 // Enable these once you have the actual bundled files
@@ -52,11 +52,23 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
+  // Skip service worker for API endpoints, Socket.IO, WebSocket, and cross-origin requests
+  // Let the browser handle these normally without caching
+  if (url.pathname.startsWith('/status') || 
+      url.pathname.startsWith('/playerinfo') ||
+      url.pathname.startsWith('/save-player-data') ||
+      url.pathname.startsWith('/socket.io/') ||
+      event.request.url.includes('socket.io') ||
+      url.origin !== self.location.origin) {
+    // Don't intercept - let browser handle it
+    return;
+  }
+
   // Always serve same-origin HTML from network (for updates)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() =>
-        caches.match('/'))
+        caches.match('/') || Promise.resolve(new Response('Offline', { status: 503 })))
     );
     return;
   }

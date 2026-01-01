@@ -246,8 +246,10 @@ function keyReleased() {
             gameState = "playing";
             invDiv.hide();
             spaceBarDiv.hide();
-            if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed") {
-                ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
+            const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+            const heldItem = heldItemName ? curPlayer.invBlock.items[heldItemName] : null;
+            if (heldItem && heldItem.type == "Seed") {
+                ghostBuild = createObject(heldItem.plantName, 0, 0, 0, curPlayer.color, " ", " ");
                 renderGhost = true;
             }
         }
@@ -858,8 +860,9 @@ function updatePlayerHotBarOffset() {
 
         if (!buildMode) {
             if (curPlayer.invBlock.hotbar[slot] != "") {
-                if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]].type == "Seed") {
-                    ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
+                const heldItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]];
+                if (heldItem && heldItem.type == "Seed") {
+                    ghostBuild = createObject(heldItem.plantName, 0, 0, 0, curPlayer.color, " ", " ");
                     renderGhost = true; //this is seperate from buildMode, because this is a placable item, not something you can find in buildMode
                 }
                 else {

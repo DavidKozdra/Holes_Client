@@ -1029,6 +1029,9 @@ function socketSetup(){
         }
         if(data.projectiles){
             for(let i=0; i<data.projectiles.length; i++){
+                // Skip projectiles with invalid position data
+                if (!data.projectiles[i].pos || !data.projectiles[i].flightPath) continue;
+                
                 let temp = createProjectile(data.projectiles[i].name, data.projectiles[i].ownerName, data.projectiles[i].color, data.projectiles[i].pos.x, data.projectiles[i].pos.y, data.projectiles[i].flightPath.a);
                 temp.id = data.projectiles[i].id;
                 chunk.projectiles.push(temp);

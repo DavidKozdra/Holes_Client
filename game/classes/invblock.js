@@ -252,12 +252,19 @@ class InvBlock{
                 let slotIndex = slots[i];
                 let hotBarKey = this.hotbar[slotIndex];
                 if (hotBarKey !== "") {
+                    // Check if item actually exists in inventory
+                    let item = this.items[hotBarKey];
+                    if (!item) {
+                        // Item no longer exists, clear the hotbar slot
+                        this.hotbar[slotIndex] = "";
+                        continue;
+                    }
+                    
                     // Compute position based on your original logic
                     let x = width  - (cos(15 + 15*i + 15*this.animationTimer) * 300);
                     let y = height - (sin(15 + 15*i + 15*this.animationTimer) * 300);
             
                     // Draw the item image
-                    let item = this.items[hotBarKey];
                     item.renderImage(x, y);
             
                     // If there's more than one of this item, render the amount

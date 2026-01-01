@@ -824,13 +824,19 @@ function renderDirtBagUI() {
             dirtBagOpen = false;
         }
     }
-    else if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Shovel") {
-        if (dirtInv >= maxDirtInv - curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].digSpeed) {
+    else {
+        // Check if item exists before accessing its properties
+        const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+        const heldItem = curPlayer.invBlock.items[heldItemName];
+        
+        if (heldItem && heldItem.type == "Shovel") {
+            if (dirtInv >= maxDirtInv - heldItem.digSpeed) {
+                dirtBagOpen = false;
+            }
+        }
+        else if (dirtInv >= maxDirtInv - DIGSPEED) {
             dirtBagOpen = false;
         }
-    }
-    else if (dirtInv >= maxDirtInv - DIGSPEED) {
-        dirtBagOpen = false;
     }
 
     if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, 180, 186);
@@ -1198,7 +1204,7 @@ function renderPlayerCardUI() {
             curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]
         ];
 
-    if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "") {
+    if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "" || !heldItem) {
         let manaRatio = Math.min(
             curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
             1

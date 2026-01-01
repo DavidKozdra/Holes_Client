@@ -410,6 +410,12 @@ update() {
 
     // Clear velocity each frame (intentional, input-driven movement)
     this.vel.set(0, 0);
+    
+    // Sync position to server continuously when player is the local player
+    if (this === curPlayer && typeof playerStateBatcher !== 'undefined') {
+        playerStateBatcher.setPosition(this.pos);
+        playerStateBatcher.setHolding(this.holding);
+    }
 }
 
     render() {
