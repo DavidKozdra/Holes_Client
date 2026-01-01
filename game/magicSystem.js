@@ -264,7 +264,8 @@ class DashAbility extends MagicAbility {
         }
     }
     render(player) {
-        if (player.isDashing) {
+        // Only render dash visual for the current player (not other players)
+        if (player.isDashing && player === curPlayer) {
             push();
             let glowSize = 80 + Math.sin(frameCount * 0.5) * 10;
             fill(100, 200, 255, 50);
