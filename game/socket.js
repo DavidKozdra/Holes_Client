@@ -116,25 +116,25 @@ playerStateBatcher = new PlayerStateBatcher(100);
 // SOCKET LISTENERS - Now defined after batcher initialization
 // ============================================================
 
-// Listen for explosion events and spawn visuals for all clients
-socket.on('EXPLOSION', (data) => {
-    if (typeof createExplosion !== 'undefined') {
-        createExplosion({ pos: { x: data.x, y: data.y }, size: { w: data.w, h: data.h } });
-    }
-    if (typeof spawnExplosion !== 'undefined') {
-        spawnExplosion(data.x, data.y, data.w, data.h);
-    }
-});
-// Listen for explicit ability visual state events from the server
-socket.on('ABILITY_VISUAL', (data) => {
-    // data: { playerId, ability, value }
-    if (players && players[data.playerId]) {
-        // Set the visual state field directly
-        players[data.playerId][data.ability] = data.value;
-    }
-});
-
 function socketSetup(){
+    // Listen for explosion events and spawn visuals for all clients
+    socket.on('EXPLOSION', (data) => {
+        if (typeof createExplosion !== 'undefined') {
+            createExplosion({ pos: { x: data.x, y: data.y }, size: { w: data.w, h: data.h } });
+        }
+        if (typeof spawnExplosion !== 'undefined') {
+            spawnExplosion(data.x, data.y, data.w, data.h);
+        }
+    });
+    // Listen for explicit ability visual state events from the server
+    socket.on('ABILITY_VISUAL', (data) => {
+        // data: { playerId, ability, value }
+        if (players && players[data.playerId]) {
+            // Set the visual state field directly
+            players[data.playerId][data.ability] = data.value;
+        }
+    });
+    
     //all caps means it came from the server
     //all lower means it came from the client
 
