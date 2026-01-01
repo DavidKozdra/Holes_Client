@@ -412,6 +412,20 @@ class MeleeProjectile extends SimpleProjectile{
         let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
         if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(!this.hitTargets.has("player")){ // Check if player already hit
+                // Check if on same team - prevent friendly fire
+                let ownerPlayer = null;
+                for (let id in players) {
+                    if (players[id] && players[id].name === this.ownerName) {
+                        ownerPlayer = players[id];
+                        break;
+                    }
+                }
+                
+                // Prevent damage if both players are on same team
+                if (ownerPlayer && ownerPlayer.teamId && curPlayer.teamId && ownerPlayer.teamId === curPlayer.teamId) {
+                    return; // Don't hit teammates
+                }
+                
                 // Use proper collision box detection with player hitbox radius
                 let playerRadius = 30; // Standard player hitbox size
                 if(this.isPointInSwingArc(curPlayer.pos, playerRadius)){
@@ -576,6 +590,20 @@ class ObjProj extends SimpleProjectile{
         let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
         if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(this.pos.dist(curPlayer.pos) < 29){
+                // Check if on same team - prevent friendly fire
+                let ownerPlayer = null;
+                for (let id in players) {
+                    if (players[id] && players[id].name === this.ownerName) {
+                        ownerPlayer = players[id];
+                        break;
+                    }
+                }
+                
+                // Prevent hitting teammates
+                if (ownerPlayer && ownerPlayer.teamId && curPlayer.teamId && ownerPlayer.teamId === curPlayer.teamId) {
+                    return; // Don't hit teammates
+                }
+                
                 this.spawnObj();
                 this.deleteTag = true;
                 //if player collishion tell server to set delete tag to true
