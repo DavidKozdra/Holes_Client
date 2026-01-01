@@ -160,14 +160,8 @@ function updatePlayerRegen(player) {
 
         if (currentHP < mhp && regenAmount > 0) {
             player.statBlock.regenHealth(regenAmount);
-            // Sync with server
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["stats.hp"],
-                update_values: [player.statBlock.stats.hp]
-            });
+            // Batch with server using PlayerStateBatcher instead of individual socket.emit
+            playerStateBatcher.addUpdate("stats.hp", player.statBlock.stats.hp);
         } 
         // --- MP Regen ---
         let mmp = player.statBlock.stats.mmp || 100;
@@ -176,14 +170,8 @@ function updatePlayerRegen(player) {
             let mpRegen = (player.statBlock.stats.magic || 1) * 0.1; // Regen 10% of magic stat as MP
             player.statBlock.regenMana(mpRegen);
             //console.log(`✅ Regenerated ${mpRegen.toFixed(1)} MP. Current MP: ${player.statBlock.stats.mp.toFixed(1)}/${mmp}`);  
-            // Sync with server
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["stats.mp"],
-                update_values: [player.statBlock.stats.mp]
-            });
+            // Batch with server using PlayerStateBatcher instead of individual socket.emit
+            playerStateBatcher.addUpdate("stats.mp", player.statBlock.stats.mp);
         }
 
         // Reset timer

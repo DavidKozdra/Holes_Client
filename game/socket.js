@@ -1,3 +1,121 @@
+// ============================================================
+// PLAYER STATE BATCHING SYSTEM - Reduces network overhead
+// ============================================================
+var socket; //Connection to the server - declared first
+var curID = null; //The ID of the current player
+var playerStateBatcher; // Will be initialized immediately after class definition
+
+// Accumulates player updates and sends them in batches every 100ms
+class PlayerStateBatcher {
+    constructor(batchInterval = 100) {
+        this.batchInterval = batchInterval;
+        this.buffer = {
+            update_names: [],
+            update_values: [],
+            pos: null,
+            holding: null
+        };
+        this.flushTimer = null;
+        this.isDirty = false;
+        this.lastFlush = 0;
+    }
+
+    addUpdate(fieldName, fieldValue) {
+        // Check if field already exists in buffer
+        const existingIndex = this.buffer.update_names.indexOf(fieldName);
+        if (existingIndex >= 0) {
+            // Update existing value
+            this.buffer.update_values[existingIndex] = fieldValue;
+        } else {
+            // Add new field
+            this.buffer.update_names.push(fieldName);
+            this.buffer.update_values.push(fieldValue);
+        }
+        this.isDirty = true;
+        this._scheduleFlush();
+    }
+
+    setPosition(pos) {
+        this.buffer.pos = pos;
+        this.isDirty = true;
+        this._scheduleFlush();
+    }
+
+    setHolding(holding) {
+        this.buffer.holding = holding;
+        this.isDirty = true;
+        this._scheduleFlush();
+    }
+
+    _scheduleFlush() {
+        if (this.flushTimer) return; // Already scheduled
+        
+        const now = Date.now();
+        const timeSinceLastFlush = now - this.lastFlush;
+        
+        if (timeSinceLastFlush >= this.batchInterval) {
+            // Enough time passed, flush immediately
+            this.flush();
+        } else {
+            // Schedule flush for remaining time
+            const delay = this.batchInterval - timeSinceLastFlush;
+            this.flushTimer = setTimeout(() => this.flush(), delay);
+        }
+    }
+
+    flush() {
+        if (!this.isDirty || !socket || !socket.connected) {
+            this.flushTimer = null;
+            return;
+        }
+
+        if (typeof curPlayer === 'undefined' || !curPlayer) {
+            this.flushTimer = null;
+            return;
+        }
+
+        const updateData = {
+            id: curPlayer.id,
+            pos: this.buffer.pos || curPlayer.pos,
+            holding: this.buffer.holding || curPlayer.holding,
+            update_names: this.buffer.update_names.slice(),
+            update_values: this.buffer.update_values.slice()
+        };
+
+        // Only send if there's something to send
+        if (updateData.update_names.length > 0 || this.buffer.pos || this.buffer.holding) {
+            socket.emit('update_player', updateData);
+        }
+
+        // Reset buffer
+        this.buffer = {
+            update_names: [],
+            update_values: [],
+            pos: null,
+            holding: null
+        };
+        this.isDirty = false;
+        this.lastFlush = Date.now();
+        this.flushTimer = null;
+    }
+
+    // Force immediate flush when needed (e.g., on critical events)
+    flushImmediate() {
+        if (this.flushTimer) {
+            clearTimeout(this.flushTimer);
+            this.flushTimer = null;
+        }
+        this.flush();
+    }
+}
+
+// Initialize batcher immediately - this must happen before any code tries to use it
+playerStateBatcher = new PlayerStateBatcher(100);
+
+// ============================================================
+// SOCKET LISTENERS - Now defined after batcher initialization
+// ============================================================
+
 // Listen for explosion events and spawn visuals for all clients
 socket.on('EXPLOSION', (data) => {
     if (typeof createExplosion !== 'undefined') {
@@ -15,8 +133,6 @@ socket.on('ABILITY_VISUAL', (data) => {
         players[data.playerId][data.ability] = data.value;
     }
 });
-var socket; //Connection to the server
-var curID = null; //The ID of the current player
 
 function socketSetup(){
     //all caps means it came from the server

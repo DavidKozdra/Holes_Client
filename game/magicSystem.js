@@ -1,6 +1,27 @@
 // magicSystem.js
 // Modular magic system for Holes Client
 
+// Helper function to batch magic updates instead of sending individual socket.emit calls
+function batchMagicUpdate(player, fieldNames, fieldValues) {
+    if (typeof playerStateBatcher === 'undefined') {
+        // Fallback if batcher not available (for compatibility)
+        if (typeof socket !== 'undefined' && socket.connected) {
+            socket.emit("update_player", {
+                id: player.id,
+                pos: player.pos,
+                holding: player.holding,
+                update_names: fieldNames,
+                update_values: fieldValues
+            });
+        }
+        return;
+    }
+    
+    // Use batching for efficiency
+    for (let i = 0; i < fieldNames.length; i++) {
+        playerStateBatcher.addUpdate(fieldNames[i], fieldValues[i]);
+    }
+}
 
 class MagicAbility {
     constructor(name, type, manaCost, cooldown, desc, requiredLevel = 1) {
@@ -38,15 +59,7 @@ class GoblinModeAbility extends MagicAbility {
     onActivate(player) {
         player.goblinModeActive = true;
         player.goblinModeTimer = 300; // 5 seconds at 60fps
-        if (typeof socket !== 'undefined') {
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["goblinModeActive", "goblinModeTimer", "stats.mp"],
-                update_values: [true, 300, player.statBlock.stats.mp]
-            });
-        }
+        batchMagicUpdate(player, ["goblinModeActive", "goblinModeTimer", "stats.mp"], [true, 300, player.statBlock.stats.mp]);
     }
     update(player) {
         if (player.goblinModeActive) {
@@ -55,15 +68,7 @@ class GoblinModeAbility extends MagicAbility {
                 player.goblinModeActive = false;
                 player.goblinModeTimer = 0;
             }
-            if (typeof socket !== 'undefined') {
-                socket.emit("update_player", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding,
-                    update_names: ["goblinModeActive", "goblinModeTimer"],
-                    update_values: [player.goblinModeActive, player.goblinModeTimer]
-                });
-            }
+            batchMagicUpdate(player, ["goblinModeActive", "goblinModeTimer"], [player.goblinModeActive, player.goblinModeTimer]);
         }
     }
     render(player) {
@@ -86,15 +91,7 @@ class GodModeAbility extends MagicAbility {
     onActivate(player) {
         player.godModeActive = true;
         player.godModeTimer = player.statBlock.level * 60; // X seconds, X = level
-        if (typeof socket !== 'undefined') {
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["godModeActive", "godModeTimer"],
-                update_values: [true, player.godModeTimer]
-            });
-        }
+        batchMagicUpdate(player, ["godModeActive", "godModeTimer"], [true, player.godModeTimer]);
     }
     update(player) {
         if (player.godModeActive) {
@@ -103,15 +100,7 @@ class GodModeAbility extends MagicAbility {
                 player.godModeActive = false;
                 player.godModeTimer = 0;
             }
-            if (typeof socket !== 'undefined') {
-                socket.emit("update_player", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding,
-                    update_names: ["godModeActive", "godModeTimer"],
-                    update_values: [player.godModeActive, player.godModeTimer]
-                });
-            }
+            batchMagicUpdate(player, ["godModeActive", "godModeTimer"], [player.godModeActive, player.godModeTimer]);
         }
     }
     render(player) {
@@ -152,20 +141,10 @@ class LifeDrainAbility extends MagicAbility {
             if (best.statBlock.stats.hp < 0) best.statBlock.stats.hp = 0;
             player.statBlock.stats.mp += drain;
             if (typeof socket !== 'undefined') {
-                socket.emit("update_player", {
-                    id: best.id,
-                    pos: best.pos,
-                    holding: best.holding,
-                    update_names: ["stats.hp"],
-                    update_values: [best.statBlock.stats.hp]
-                });
-                socket.emit("update_player", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding,
-                    update_names: ["stats.mp"],
-                    update_values: [player.statBlock.stats.mp]
-                });
+                if (typeof playerStateBatcher !== 'undefined') {
+                    playerStateBatcher.addUpdate("stats.hp", best.statBlock.stats.hp);
+                    playerStateBatcher.addUpdate("stats.mp", player.statBlock.stats.mp);
+                }
             }
             if (typeof spawnFloatingText !== 'undefined') {
                 spawnFloatingText(drain, best.pos.x, best.pos.y, "damage", false);
@@ -188,15 +167,7 @@ class CloakAbility extends MagicAbility {
         player.statBlock.stats.mp -= manaCost;
         player.cloakActive = true;
         player.cloakTimer = seconds * 60;
-        if (typeof socket !== 'undefined') {
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["cloakActive", "cloakTimer", "stats.mp"],
-                update_values: [true, player.cloakTimer, player.statBlock.stats.mp]
-            });
-        }
+        batchMagicUpdate(player, ["cloakActive", "cloakTimer", "stats.mp"], [true, player.cloakTimer, player.statBlock.stats.mp]);
     }
     update(player) {
         if (player.cloakActive) {
@@ -205,15 +176,7 @@ class CloakAbility extends MagicAbility {
                 player.cloakActive = false;
                 player.cloakTimer = 0;
             }
-            if (typeof socket !== 'undefined') {
-                socket.emit("update_player", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding,
-                    update_names: ["cloakActive", "cloakTimer"],
-                    update_values: [player.cloakActive, player.cloakTimer]
-                });
-            }
+            batchMagicUpdate(player, ["cloakActive", "cloakTimer"], [player.cloakActive, player.cloakTimer]);
         }
     }
     render(player) {
@@ -297,13 +260,7 @@ class DashAbility extends MagicAbility {
             changed = true;
         }
         if (changed && typeof socket !== 'undefined') {
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["isDashing", "dashTimer", "dashCooldown"],
-                update_values: [player.isDashing, player.dashTimer, player.dashCooldown]
-            });
+            batchMagicUpdate(player, ["isDashing", "dashTimer", "dashCooldown"], [player.isDashing, player.dashTimer, player.dashCooldown]);
         }
     }
     render(player) {
@@ -362,15 +319,9 @@ class CombustionAbility extends MagicAbility {
                         p.statBlock.stats.hp -= damage;
                         // Clamp HP to 0
                         if (p.statBlock.stats.hp < 0) p.statBlock.stats.hp = 0;
-                        // Sync damage to server
-                        if (typeof socket !== 'undefined') {
-                            socket.emit("update_player", {
-                                id: p.id,
-                                pos: p.pos,
-                                holding: p.holding,
-                                update_names: ["stats.hp"],
-                                update_values: [p.statBlock.stats.hp]
-                            });
+                        // Sync damage to server via batcher
+                        if (typeof playerStateBatcher !== 'undefined') {
+                            playerStateBatcher.addUpdate("stats.hp", p.statBlock.stats.hp);
                         }
                         // Optional: show floating text
                         if (typeof spawnFloatingText !== 'undefined') {
@@ -381,13 +332,7 @@ class CombustionAbility extends MagicAbility {
             });
         }
         if (typeof socket !== 'undefined') {
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["stats.mp", "flashTimer", "particles"],
-                update_values: [player.statBlock.stats.mp, player.flashTimer, player.particles]
-            });
+            batchMagicUpdate(player, ["stats.mp", "flashTimer", "particles"], [player.statBlock.stats.mp, player.flashTimer, player.particles]);
         }
     }
     update(player) {
@@ -406,13 +351,7 @@ class CombustionAbility extends MagicAbility {
             }
         }
         if (changed && typeof socket !== 'undefined') {
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["flashTimer", "particles"],
-                update_values: [player.flashTimer, player.particles]
-            });
+            batchMagicUpdate(player, ["flashTimer", "particles"], [player.flashTimer, player.particles]);
         }
     }
     render(player) {
@@ -451,15 +390,7 @@ class ForceFieldAbility extends MagicAbility {
             player.forcefieldActive = true;
             player.auraTimer = this.duration;
             player.statBlock.stats.magicResistance += this.bonusMR;
-            if (typeof socket !== 'undefined') {
-                socket.emit("update_player", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding,
-                    update_names: ["stats.mp", "stats.magicResistance", "forcefieldActive", "auraTimer"],
-                    update_values: [player.statBlock.stats.mp, player.statBlock.stats.magicResistance, true, this.duration]
-                });
-            }
+            batchMagicUpdate(player, ["stats.mp", "stats.magicResistance", "forcefieldActive", "auraTimer"], [player.statBlock.stats.mp, player.statBlock.stats.magicResistance, true, this.duration]);
         }
     }
     update(player) {
@@ -476,15 +407,7 @@ class ForceFieldAbility extends MagicAbility {
             if (player.auraTimer <= 0) {
                 player.forcefieldActive = false;
                 player.statBlock.stats.magicResistance -= this.bonusMR;
-                if (typeof socket !== 'undefined') {
-                    socket.emit("update_player", {
-                        id: player.id,
-                        pos: player.pos,
-                        holding: player.holding,
-                        update_names: ["stats.magicResistance", "forcefieldActive", "auraTimer"],
-                        update_values: [player.statBlock.stats.magicResistance, false, 0]
-                    });
-                }
+                batchMagicUpdate(player, ["stats.magicResistance", "forcefieldActive", "auraTimer"], [player.statBlock.stats.magicResistance, false, 0]);
             }
         }
     }
@@ -523,15 +446,7 @@ class MeditateAbility extends MagicAbility {
         if (!player.meditateActive) {
             player.meditateActive = true;
             player.meditateTimer = this.duration;
-            if (typeof socket !== 'undefined') {
-                socket.emit("update_player", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding,
-                    update_names: ["stats.mp", "meditateActive", "meditateTimer"],
-                    update_values: [player.statBlock.stats.mp, true, this.duration]
-                });
-            }
+            batchMagicUpdate(player, ["stats.mp", "meditateActive", "meditateTimer"], [player.statBlock.stats.mp, true, this.duration]);
         }
     }
     update(player) {
@@ -551,13 +466,7 @@ class MeditateAbility extends MagicAbility {
                 }
             }
             if (typeof socket !== 'undefined') {
-                socket.emit("update_player", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding,
-                    update_names: ["meditateActive", "meditateTimer"],
-                    update_values: [player.meditateActive, player.meditateTimer]
-                });
+                batchMagicUpdate(player, ["meditateActive", "meditateTimer"], [player.meditateActive, player.meditateTimer]);
             }
         }
     }
@@ -593,15 +502,7 @@ class ArrowCircleAbility extends MagicAbility {
         player.arrowCircleInterval = this.interval;
         player.arrowCircleOrigin = player.pos.copy();
         this._spawnArrowCircle(player);
-        if (typeof socket !== 'undefined') {
-            socket.emit("update_player", {
-                id: player.id,
-                pos: player.pos,
-                holding: player.holding,
-                update_names: ["arrowCircleActive", "arrowCircleTimer", "arrowCircleRepeats", "arrowCircleOrigin"],
-                update_values: [true, 0, this.repeatCount, {x: player.pos.x, y: player.pos.y}]
-            });
-        }
+        batchMagicUpdate(player, ["arrowCircleActive", "arrowCircleTimer", "arrowCircleRepeats", "arrowCircleOrigin"], [true, 0, this.repeatCount, {x: player.pos.x, y: player.pos.y}]);
     }
     _spawnArrowCircle(player) {
         const numArrows = 12;
@@ -644,29 +545,13 @@ class ArrowCircleAbility extends MagicAbility {
                 player.arrowCircleTimer = 0;
                 player.arrowCircleRepeats--;
                 this._spawnArrowCircle(player);
-                if (typeof socket !== 'undefined') {
-                    socket.emit("update_player", {
-                        id: player.id,
-                        pos: player.pos,
-                        holding: player.holding,
-                        update_names: ["arrowCircleRepeats", "arrowCircleTimer"],
-                        update_values: [player.arrowCircleRepeats, 0]
-                    });
-                }
+                batchMagicUpdate(player, ["arrowCircleRepeats", "arrowCircleTimer"], [player.arrowCircleRepeats, 0]);
             }
             if (player.arrowCircleRepeats <= 1) {
                 player.arrowCircleActive = false;
                 player.arrowCircleTimer = 0;
                 player.arrowCircleRepeats = 0;
-                if (typeof socket !== 'undefined') {
-                    socket.emit("update_player", {
-                        id: player.id,
-                        pos: player.pos,
-                        holding: player.holding,
-                        update_names: ["arrowCircleActive", "arrowCircleRepeats", "arrowCircleTimer"],
-                        update_values: [false, 0, 0]
-                    });
-                }
+                batchMagicUpdate(player, ["arrowCircleActive", "arrowCircleRepeats", "arrowCircleTimer"], [false, 0, 0]);
             }
         }
     }
