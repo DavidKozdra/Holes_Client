@@ -22,6 +22,43 @@ function socketSetup(){
     //all caps means it came from the server
     //all lower means it came from the client
 
+    // Handle page close/refresh - send player data to server
+    window.addEventListener('beforeunload', (event) => {
+        if (socket && socket.connected && curPlayer) {
+            // Prepare complete player data for persistence
+            const completeData = {
+                playerName: curPlayer.name,
+                pos: curPlayer.pos ? { x: curPlayer.pos.x, y: curPlayer.pos.y } : { x: 0, y: 0 },
+                race: curPlayer.race,
+                teamId: curPlayer.teamId || null,
+                color: curPlayer.color || 0,
+                // Stats
+                statBlock: curPlayer.statBlock ? {
+                    race: curPlayer.statBlock.race,
+                    level: curPlayer.statBlock.level,
+                    xp: curPlayer.statBlock.xp,
+                    xpNeeded: curPlayer.statBlock.xpNeeded,
+                    stats: curPlayer.statBlock.stats
+                } : null,
+                // Inventory
+                invBlock: curPlayer.invBlock ? {
+                    items: curPlayer.invBlock.items || {},
+                    hotbar: Array.isArray(curPlayer.invBlock.hotbar) ? curPlayer.invBlock.hotbar : ["","","","",""],
+                    selectedHotBar: typeof curPlayer.invBlock.selectedHotBar === 'number' ? curPlayer.invBlock.selectedHotBar : 0,
+                    equiped: curPlayer.invBlock.equiped || { head: "", neck: "", chest: "", legs: "", feet: "" }
+                } : null,
+                // Move slots
+                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
+            };
+            
+            // Send via sendBeacon (most reliable for unload events)
+            navigator.sendBeacon('/api/save-player-data', JSON.stringify(completeData));
+            
+            // Also emit socket event with short timeout as backup
+            socket.emit('player_saving', { playerName: curPlayer.name });
+        }
+    });
+
     // Server capacity notification
     socket.on('SERVER_FULL', (data) => {
         try {
@@ -68,6 +105,10 @@ function socketSetup(){
             players[data.id].statBlock.stats.healthRegen = baseRegen;
         }
 
+        // Sync team data if player is part of a team
+        if (data.teamId) {
+            players[data.id].teamId = data.teamId;
+        }
 
         //console.log("New player added: " + data.id);
     });
@@ -1047,5 +1088,18 @@ function socketSetup(){
         if (players[data.playerId]) {
             players[data.playerId].color = data.color;
         }
+    });
+
+    socket.on('TEAM_INVITE', (data) => {
+        // Show invite dialog
+        showTeamInvitePrompt(data.teamName, data.inviterName, data.teamId);
+    });
+
+    socket.on('TEAM_INVITE_SENT', (data) => {
+        alert(`Invitation sent to ${data.playerName}`);
+    });
+
+    socket.on('TEAM_INVITE_DECLINED', (data) => {
+        alert('The player declined your invitation');
     });
 }

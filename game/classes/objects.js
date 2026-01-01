@@ -915,16 +915,36 @@ update() {
                 id: temp.id
             });
 
-            // apply damage
-            if (t.statBlock && t.statBlock.stats) {
-                // Use centralized damage method for players
-                if (t === curPlayer) {
-                    let actualDamage = t.statBlock.takeDamage(this.damage, false);
-                } else {
-                    t.statBlock.stats.hp -= this.damage;
+            // Check if on same team - prevent friendly fire
+            let isTeammate = false;
+            if (this.ownerName && t.name) {
+                // Find owner player
+                let ownerPlayer = null;
+                for (let id in players) {
+                    if (players[id] && players[id].name === this.ownerName) {
+                        ownerPlayer = players[id];
+                        break;
+                    }
                 }
-            } else {
-                t.hp -= this.damage;
+                
+                // Prevent damage if both on same team
+                if (ownerPlayer && ownerPlayer.teamId && t.teamId && ownerPlayer.teamId === t.teamId) {
+                    isTeammate = true;
+                }
+            }
+            
+            // apply damage only if not a teammate
+            if (!isTeammate) {
+                if (t.statBlock && t.statBlock.stats) {
+                    // Use centralized damage method for players
+                    if (t === curPlayer) {
+                        let actualDamage = t.statBlock.takeDamage(this.damage, false);
+                    } else {
+                        t.statBlock.stats.hp -= this.damage;
+                    }
+                } else {
+                    t.hp -= this.damage;
+                }
             }
 
             // screen shake only for local player

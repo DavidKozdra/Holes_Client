@@ -71,8 +71,196 @@ function setupUI() {
 
 window.setupUI = setupUI;
 
+// Show invite player UI - displays list of players not in a team
+function showInvitePlayerUI() {
+    // Create modal overlay
+    let modalOverlay = createDiv();
+    modalOverlay.id('invite-modal-overlay');
+    modalOverlay.style('position', 'fixed');
+    modalOverlay.style('top', '0');
+    modalOverlay.style('left', '0');
+    modalOverlay.style('width', '100%');
+    modalOverlay.style('height', '100%');
+    modalOverlay.style('background', 'rgba(0, 0, 0, 0.5)');
+    modalOverlay.style('display', 'flex');
+    modalOverlay.style('justify-content', 'center');
+    modalOverlay.style('align-items', 'center');
+    modalOverlay.style('z-index', '1000');
+    
+    // Modal content
+    let modal = createDiv();
+    modal.style('background', '#333');
+    modal.style('padding', '30px');
+    modal.style('border-radius', '10px');
+    modal.style('border', '2px solid #4CAF50');
+    modal.style('max-height', '500px');
+    modal.style('overflow-y', 'auto');
+    modal.style('min-width', '400px');
+    modal.parent(modalOverlay);
+    
+    // Title
+    let title = createP('Invite Player');
+    title.style('font-size', '20px');
+    title.style('font-weight', 'bold');
+    title.style('margin-bottom', '20px');
+    title.parent(modal);
+    
+    // Get list of players not in a team
+    let availablePlayers = [];
+    for (let id in players) {
+        let player = players[id];
+        if (player && !player.teamId && player.name !== curPlayer.name) {
+            availablePlayers.push(player.name);
+        }
+    }
+    
+    if (availablePlayers.length === 0) {
+        let noPlayersMsg = createP('No available players to invite');
+        noPlayersMsg.style('color', '#888');
+        noPlayersMsg.parent(modal);
+    } else {
+        // List of players with invite buttons
+        for (let playerName of availablePlayers) {
+            let playerContainer = createDiv();
+            playerContainer.style('display', 'flex');
+            playerContainer.style('justify-content', 'space-between');
+            playerContainer.style('align-items', 'center');
+            playerContainer.style('padding', '10px');
+            playerContainer.style('margin', '5px 0');
+            playerContainer.style('background', '#444');
+            playerContainer.style('border-radius', '5px');
+            playerContainer.parent(modal);
+            
+            let nameText = createSpan(playerName);
+            nameText.style('color', '#fff');
+            nameText.style('flex', '1');
+            nameText.parent(playerContainer);
+            
+            let inviteBtn = createButton('Invite');
+            inviteBtn.style('padding', '5px 15px');
+            inviteBtn.style('background', '#4CAF50');
+            inviteBtn.style('color', 'white');
+            inviteBtn.style('border', 'none');
+            inviteBtn.style('border-radius', '3px');
+            inviteBtn.style('cursor', 'pointer');
+            inviteBtn.mousePressed(() => {
+                socket.emit('invite_player', {
+                    teamId: curPlayer.teamId,
+                    invitedPlayerName: playerName
+                });
+                // Close modal
+                modalOverlay.remove();
+                alert(`Invitation sent to ${playerName}`);
+            });
+            inviteBtn.parent(playerContainer);
+        }
+    }
+    
+    // Close button
+    let closeBtn = createButton('Close');
+    closeBtn.style('width', '100%');
+    closeBtn.style('padding', '10px');
+    closeBtn.style('margin-top', '15px');
+    closeBtn.style('background', '#f44336');
+    closeBtn.style('color', 'white');
+    closeBtn.style('border', 'none');
+    closeBtn.style('border-radius', '5px');
+    closeBtn.style('cursor', 'pointer');
+    closeBtn.mousePressed(() => {
+        modalOverlay.remove();
+    });
+    closeBtn.parent(modal);
+    
+    // Close on overlay click
+    modalOverlay.mousePressed(() => {
+        modalOverlay.remove();
+    });
+    modal.mousePressed((e) => {
+        e.stopPropagation();
+    });
+}
 
-
+// Show invite prompt - called when player receives an invite
+function showTeamInvitePrompt(teamName, inviterName, teamId) {
+    // Create modal overlay
+    let modalOverlay = createDiv();
+    modalOverlay.id('invite-prompt-overlay');
+    modalOverlay.style('position', 'fixed');
+    modalOverlay.style('top', '0');
+    modalOverlay.style('left', '0');
+    modalOverlay.style('width', '100%');
+    modalOverlay.style('height', '100%');
+    modalOverlay.style('background', 'rgba(0, 0, 0, 0.7)');
+    modalOverlay.style('display', 'flex');
+    modalOverlay.style('justify-content', 'center');
+    modalOverlay.style('align-items', 'center');
+    modalOverlay.style('z-index', '1000');
+    
+    // Modal content
+    let modal = createDiv();
+    modal.style('background', '#333');
+    modal.style('padding', '30px');
+    modal.style('border-radius', '10px');
+    modal.style('border', '2px solid #2196F3');
+    modal.style('text-align', 'center');
+    modal.style('min-width', '350px');
+    modal.parent(modalOverlay);
+    
+    // Title
+    let title = createP('Team Invitation');
+    title.style('font-size', '20px');
+    title.style('font-weight', 'bold');
+    title.style('color', '#2196F3');
+    title.style('margin-bottom', '15px');
+    title.parent(modal);
+    
+    // Message
+    let message = createP(`${inviterName} has invited you to join the team "${teamName}"`);
+    message.style('font-size', '16px');
+    message.style('margin-bottom', '20px');
+    message.parent(modal);
+    
+    // Button container
+    let buttonContainer = createDiv();
+    buttonContainer.style('display', 'flex');
+    buttonContainer.style('gap', '10px');
+    buttonContainer.style('justify-content', 'center');
+    buttonContainer.parent(modal);
+    
+    // Accept button
+    let acceptBtn = createButton('Accept');
+    acceptBtn.style('padding', '10px 30px');
+    acceptBtn.style('background', '#4CAF50');
+    acceptBtn.style('color', 'white');
+    acceptBtn.style('border', 'none');
+    acceptBtn.style('border-radius', '5px');
+    acceptBtn.style('cursor', 'pointer');
+    acceptBtn.style('font-size', '16px');
+    acceptBtn.mousePressed(() => {
+        socket.emit('accept_invite', {
+            teamId: teamId
+        });
+        modalOverlay.remove();
+    });
+    acceptBtn.parent(buttonContainer);
+    
+    // Decline button
+    let declineBtn = createButton('Decline');
+    declineBtn.style('padding', '10px 30px');
+    declineBtn.style('background', '#f44336');
+    declineBtn.style('color', 'white');
+    declineBtn.style('border', 'none');
+    declineBtn.style('border-radius', '5px');
+    declineBtn.style('cursor', 'pointer');
+    declineBtn.style('font-size', '16px');
+    declineBtn.mousePressed(() => {
+        socket.emit('decline_invite', {
+            teamId: teamId
+        });
+        modalOverlay.remove();
+    });
+    declineBtn.parent(buttonContainer);
+}
 
 var spaceBarDiv;
 function defineSpaceBarUI() {
@@ -1519,6 +1707,22 @@ function showCurrentTeam() {
             });
         });
         colorBtn.parent(creatorSection);
+    }
+
+    // Invite button (for leaders)
+    if ((team.leaders && team.leaders.includes(curPlayer.name)) || team.creator === curPlayer.name) {
+        let inviteBtn = createButton("Invite Player");
+        inviteBtn.style("padding", "10px 20px");
+        inviteBtn.style("background", "#4CAF50");
+        inviteBtn.style("color", "white");
+        inviteBtn.style("border", "none");
+        inviteBtn.style("border-radius", "5px");
+        inviteBtn.style("cursor", "pointer");
+        inviteBtn.style("margin-top", "10px");
+        inviteBtn.mousePressed(() => {
+            showInvitePlayerUI();
+        });
+        inviteBtn.parent(teamContainer);
     }
 
     // Leave team button
