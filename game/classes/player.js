@@ -430,10 +430,20 @@ update() {
         fill(0, 150);
         noStroke();
         rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4);
-        let displayColor = teamColors[this.color];
-        if (this.teamId && window.allTeams && window.allTeams[this.teamId]) {
+        
+        // Determine display color: use team color if available, otherwise use index-based color
+        let displayColor;
+        if (typeof this.color === 'object' && this.color !== null && this.color.r !== undefined) {
+            // Team color (RGB object)
+            displayColor = this.color;
+        } else if (this.teamId && window.allTeams && window.allTeams[this.teamId]) {
+            // Fall back to team data if color is an index
             displayColor = window.allTeams[this.teamId].color;
+        } else {
+            // Use index-based color
+            displayColor = teamColors[this.color] || teamColors[0];
         }
+        
         fill(displayColor.r, displayColor.g, displayColor.b);
         textStyle(BOLD);
         text(nameText, this.pos.x, this.pos.y - yOffset);

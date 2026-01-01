@@ -275,7 +275,8 @@ class InvBlock{
             }
 
             if(this.hotbar[this.selectedHotBar] != ""){
-                if(this.items[this.hotbar[this.selectedHotBar]].itemName == "Compass"){
+                const item = this.items[this.hotbar[this.selectedHotBar]];
+                if(item && item.itemName == "Compass"){
                     //COMPASS
                 }
             }
@@ -290,7 +291,10 @@ class InvBlock{
                 //render the buildOption[slotIndex]
                 let x = width  - (cos(15 + 15*i + 15*this.animationTimer) * 300);
                 let y = height - (sin(15 + 15*i + 15*this.animationTimer) * 300);
-                image(objImgs[buildOptions[slotIndex].images2][curPlayer.color % objImgs[buildOptions[slotIndex].images2].length], x, y, 60, 60);
+                
+                // Get color index: use numeric if available, otherwise use 0 for team colors
+                let colorIndex = typeof curPlayer.color === 'number' ? curPlayer.color : 0;
+                image(objImgs[buildOptions[slotIndex].images2][colorIndex % objImgs[buildOptions[slotIndex].images2].length], x, y, 60, 60);
             }
         }
     

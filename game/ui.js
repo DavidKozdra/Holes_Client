@@ -1208,9 +1208,16 @@ function renderPlayerCardUI() {
     updateMoveHotbarDOM(curPlayer);
 
     // Team color name
-    let displayColor = teamColors[curPlayer.color];
-    if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+    let displayColor;
+    if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
+        // Team color (RGB object)
+        displayColor = curPlayer.color;
+    } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+        // Fall back to team data
         displayColor = window.allTeams[curPlayer.teamId].color;
+    } else {
+        // Use index-based color
+        displayColor = teamColors[curPlayer.color] || teamColors[0];
     }
 
     fill(displayColor.r, displayColor.g, displayColor.b);
@@ -1303,7 +1310,7 @@ function updateTeamManagementUI() {
     // Show pending requests if creator
     if (curPlayer && curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {
         const team = window.allTeams[curPlayer.teamId];
-        if (team.creator === curPlayer.id && pendingRequests.length > 0) {
+        if (team.creator === curPlayer.name && team.requests && team.requests.length > 0) {
             showPendingRequests();
         }
     }
@@ -1342,17 +1349,83 @@ function showCurrentTeam() {
     membersTitle.style("margin", "15px 0 5px 0");
     membersTitle.parent(teamContainer);
 
-    team.members.forEach(memberId => {
-        if (players[memberId]) {
-            let memberP = createP(`• ${players[memberId].name}${team.creator === memberId ? ' (Leader)' : ''}`);
-            memberP.style("color", "white");
-            memberP.style("margin", "3px 0");
-            memberP.parent(teamContainer);
+    team.members.forEach(memberName => {
+        // Find the player by name
+        const memberPlayer = Object.values(players).find(p => p.name === memberName);
+        if (memberPlayer) {
+            // Check if this member is a leader
+            const isLeader = (team.leaders && team.leaders.includes(memberName)) || team.creator === memberName;
+            const currentPlayerIsLeader = (team.leaders && team.leaders.includes(curPlayer.name)) || team.creator === curPlayer.name;
+            
+            // Create member row container
+            let memberRowDiv = createDiv();
+            memberRowDiv.style("display", "flex");
+            memberRowDiv.style("align-items", "center");
+            memberRowDiv.style("justify-content", "space-between");
+            memberRowDiv.style("margin", "8px 0");
+            memberRowDiv.style("padding", "8px");
+            memberRowDiv.style("background", "rgba(255,255,255,0.05)");
+            memberRowDiv.style("border-radius", "5px");
+            memberRowDiv.parent(teamContainer);
+
+            // Member name with crown emoji
+            let memberInfoDiv = createDiv();
+            memberInfoDiv.style("display", "flex");
+            memberInfoDiv.style("align-items", "center");
+            memberInfoDiv.style("gap", "8px");
+            memberInfoDiv.parent(memberRowDiv);
+
+            let memberNameP = createP(`${isLeader ? '👑 ' : '• '}${memberName}`);
+            memberNameP.style("color", "white");
+            memberNameP.style("margin", "0");
+            memberNameP.parent(memberInfoDiv);
+
+            // Action buttons (only visible if current player is a leader)
+            if (currentPlayerIsLeader && memberName !== curPlayer.name) {
+                let actionsDiv = createDiv();
+                actionsDiv.style("display", "flex");
+                actionsDiv.style("gap", "5px");
+                actionsDiv.parent(memberRowDiv);
+
+                // Promote button
+                if (!isLeader) {
+                    let promoteBtn = createButton("Promote");
+                    promoteBtn.style("padding", "4px 10px");
+                    promoteBtn.style("background", "#FFD700");
+                    promoteBtn.style("color", "#000");
+                    promoteBtn.style("border", "none");
+                    promoteBtn.style("border-radius", "3px");
+                    promoteBtn.style("cursor", "pointer");
+                    promoteBtn.style("font-size", "12px");
+                    promoteBtn.mousePressed(() => {
+                        socket.emit('promote_member', { teamId: curPlayer.teamId, memberName: memberName });
+                    });
+                    promoteBtn.parent(actionsDiv);
+                }
+
+                // Remove button (only for non-leaders)
+                if (!isLeader) {
+                    let removeBtn = createButton("Remove");
+                    removeBtn.style("padding", "4px 10px");
+                    removeBtn.style("background", "#f44336");
+                    removeBtn.style("color", "white");
+                    removeBtn.style("border", "none");
+                    removeBtn.style("border-radius", "3px");
+                    removeBtn.style("cursor", "pointer");
+                    removeBtn.style("font-size", "12px");
+                    removeBtn.mousePressed(() => {
+                        if (confirm(`Remove ${memberName} from team?`)) {
+                            socket.emit('remove_member', { teamId: curPlayer.teamId, memberName: memberName });
+                        }
+                    });
+                    removeBtn.parent(actionsDiv);
+                }
+            }
         }
     });
 
     // Team creator controls
-    if (team.creator === curPlayer.id) {
+    if (team.creator === curPlayer.name) {
         let creatorSection = createDiv();
         creatorSection.style("margin-top", "20px");
         creatorSection.style("padding", "15px");
@@ -1449,7 +1522,7 @@ function showCurrentTeam() {
     }
 
     // Leave team button
-    let leaveBtn = createButton(team.creator === curPlayer.id ? "Disband Team" : "Leave Team");
+    let leaveBtn = createButton(team.creator === curPlayer.name ? "Disband Team" : "Leave Team");
     leaveBtn.style("padding", "10px 20px");
     leaveBtn.style("background", "#f44336");
     leaveBtn.style("color", "white");
@@ -1458,7 +1531,7 @@ function showCurrentTeam() {
     leaveBtn.style("cursor", "pointer");
     leaveBtn.style("margin-top", "20px");
     leaveBtn.mousePressed(() => {
-        if (confirm(team.creator === curPlayer.id ? "Disband team?" : "Leave team?")) {
+        if (confirm(team.creator === curPlayer.name ? "Disband team?" : "Leave team?")) {
             socket.emit('leave_team');
         }
     });
@@ -1503,6 +1576,16 @@ function showTeamCreationAndList() {
     colorInput.style("cursor", "pointer");
     colorInput.parent(createSection);
 
+    // Create color preview box
+    let colorPreview = createDiv();
+    colorPreview.style("width", "100px");
+    colorPreview.style("height", "40px");
+    colorPreview.style("background", "#ff0000");
+    colorPreview.style("margin", "5px auto");
+    colorPreview.style("border", "2px solid white");
+    colorPreview.style("border-radius", "5px");
+    colorPreview.style("display", "inline-block");
+    colorPreview.parent(createSection);
 
     // Update preview on color change
     colorInput.input(() => {
@@ -1592,6 +1675,9 @@ function showTeamCreationAndList() {
 }
 
 function showPendingRequests() {
+    const team = window.allTeams[curPlayer.teamId];
+    if (!team || !team.requests || team.requests.length === 0) return;
+
     let requestsSection = createDiv();
     requestsSection.style("background", "rgba(255,215,0,0.1)");
     requestsSection.style("padding", "15px");
@@ -1605,7 +1691,9 @@ function showPendingRequests() {
     requestsTitle.style("margin", "0 0 10px 0");
     requestsTitle.parent(requestsSection);
 
-    pendingRequests.forEach((request, idx) => {
+    team.requests.forEach((playerName) => {
+        // playerName is now directly the username (not socket ID)
+
         let reqDiv = createDiv();
         reqDiv.style("background", "rgba(255,255,255,0.1)");
         reqDiv.style("padding", "10px");
@@ -1616,7 +1704,7 @@ function showPendingRequests() {
         reqDiv.style("align-items", "center");
         reqDiv.parent(requestsSection);
 
-        let nameP = createP(request.playerName);
+        let nameP = createP(playerName);
         nameP.style("color", "white");
         nameP.style("margin", "0");
         nameP.parent(reqDiv);
@@ -1634,8 +1722,7 @@ function showPendingRequests() {
         acceptBtn.style("border-radius", "5px");
         acceptBtn.style("cursor", "pointer");
         acceptBtn.mousePressed(() => {
-            socket.emit('accept_team_request', { teamId: curPlayer.teamId, playerId: request.playerId });
-            pendingRequests.splice(idx, 1);
+            socket.emit('accept_team_request', { teamId: curPlayer.teamId, playerName: playerName });
             updateTeamManagementUI();
         });
         acceptBtn.parent(btnContainer);
@@ -1648,8 +1735,7 @@ function showPendingRequests() {
         denyBtn.style("border-radius", "5px");
         denyBtn.style("cursor", "pointer");
         denyBtn.mousePressed(() => {
-            socket.emit('deny_team_request', { teamId: curPlayer.teamId, playerId: request.playerId });
-            pendingRequests.splice(idx, 1);
+            socket.emit('deny_team_request', { teamId: curPlayer.teamId, playerName: playerName });
             updateTeamManagementUI();
         });
         denyBtn.parent(btnContainer);

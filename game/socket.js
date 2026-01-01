@@ -877,6 +877,15 @@ function socketSetup(){
         setTimeUI(data)
     });
 
+    // Receive full server summary including teams on connection or update
+    socket.on('SERVER_SUMMARY', (data) => {
+        if (data && data.teams) {
+            if (typeof window.allTeams === 'undefined') window.allTeams = {};
+            window.allTeams = data.teams;
+            console.log('[Socket] SERVER_SUMMARY received - teams synced:', Object.keys(data.teams).length);
+        }
+    });
+
     socket.on("HEAL_PLANTS", (data) => {
         //console.log("Healing plants");
         let keys = Object.keys(testMap.chunks);
@@ -942,6 +951,13 @@ function socketSetup(){
     socket.on('TEAMS_UPDATE', (data) => {
         if (typeof window.allTeams === 'undefined') window.allTeams = {};
         window.allTeams = data.teams;
+        // Update current player's color if they're in a team and color has changed
+        if (curPlayer && curPlayer.teamId && data.teams[curPlayer.teamId]) {
+            const teamColor = data.teams[curPlayer.teamId].color;
+            if (teamColor) {
+                curPlayer.color = teamColor;
+            }
+        }
         if (typeof updateTeamManagementUI === 'function') {
             updateTeamManagementUI();
         }
@@ -956,6 +972,8 @@ function socketSetup(){
         if (curPlayer) {
             curPlayer.teamId = data.teamId;
             curPlayer.teamData = data.team;
+            // Set player color to team color
+            curPlayer.color = data.team.color;
         }
         alert(`Joined team: ${data.team.name}`);
         if (typeof updateTeamManagementUI === 'function') {
@@ -987,8 +1005,17 @@ function socketSetup(){
     });
 
     socket.on('TEAM_REQUEST', (data) => {
-        if (typeof addTeamRequest === 'function') {
-            addTeamRequest(data);
+        // Update the team requests list in window.allTeams
+        if (window.allTeams && window.allTeams[data.teamId]) {
+            if (!window.allTeams[data.teamId].requests) {
+                window.allTeams[data.teamId].requests = [];
+            }
+            if (!window.allTeams[data.teamId].requests.includes(data.playerId)) {
+                window.allTeams[data.teamId].requests.push(data.playerId);
+            }
+        }
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
         }
     });
 
@@ -1002,5 +1029,16 @@ function socketSetup(){
 
     socket.on('TEAM_ERROR', (data) => {
         alert(data.message);
+    });
+
+    socket.on('TEAM_MEMBER_REMOVED', (data) => {
+        if (curPlayer) {
+            curPlayer.teamId = null;
+            curPlayer.color = 0;
+        }
+        alert('You have been removed from your team');
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
+        }
     });
 }

@@ -583,7 +583,18 @@ class Placeable {
         if (t == "green") tint(100, 200, 100, 100);
         if (t == "red") tint(200, 100, 100, 100);
         if (this.alpha < 255) tint(255, this.alpha);
-        image(objImgs[this.imgNum][this.color % (objImgs[this.imgNum].length)], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
+        
+        // Handle team color (object with {r, g, b}) vs numeric color index
+        let colorIndex = 0;
+        if (typeof this.color === 'number') {
+            colorIndex = this.color % (objImgs[this.imgNum].length);
+        } else if (this.color && typeof this.color === 'object' && this.color.r !== undefined) {
+            // Apply team color tint
+            colorIndex = 0;
+            tint(this.color.r, this.color.g, this.color.b);
+        }
+        
+        image(objImgs[this.imgNum][colorIndex], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
         pop();
 
         if (this.hp < this.mhp) {
@@ -1354,7 +1365,18 @@ class Entity extends Placeable {
 
         // Draw text without white outline
         noStroke();
-        fill(teamColors[this.color].r, teamColors[this.color].g, teamColors[this.color].b);
+        
+        // Determine text color: use team color if available (object), otherwise use index-based color
+        let textColor;
+        if (typeof this.color === 'object' && this.color !== null && this.color.r !== undefined) {
+            // Team color (RGB object)
+            textColor = this.color;
+        } else {
+            // Index-based color from teamColors array
+            textColor = teamColors[this.color] || teamColors[0];
+        }
+        
+        fill(textColor.r, textColor.g, textColor.b);
         textFont(gameUIFont);
         text(
             nameText, 
