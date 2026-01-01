@@ -313,6 +313,8 @@ function draw() {
             if(chunk != undefined){
                 let closest;
                 let closestDist;
+                let dirtBinHint;
+                let dirtBinHintDist;
                 const INTERACT_RANGE = 4*TILESIZE;
 
                 for(let i = 0; i < chunk.objects.length; i++){
@@ -323,6 +325,13 @@ function draw() {
                          obj.stage == (objImgs[obj.imgNum].length-1) &&
                          ((obj.color != 0 && obj.color == curPlayer.color) ||
                           (obj.ownerName == curPlayer.name && obj.color == 0)));
+                    if(obj.objName === "Dirt Bin"){
+                        const distToBin = mouseVec.dist(obj.pos);
+                        if(distToBin < INTERACT_RANGE && (dirtBinHintDist === undefined || distToBin < dirtBinHintDist)){
+                            dirtBinHint = obj;
+                            dirtBinHintDist = distToBin;
+                        }
+                    }
                     if(isInteractable){
                         let dist = mouseVec.dist(obj.pos);
                         if(closestDist === undefined || dist < closestDist){
@@ -377,6 +386,13 @@ function draw() {
                                         }
                                     }
                                 }
+                                if(obj.objName === "Dirt Bin"){
+                                    const distToBin = curPlayer.pos.dist(obj.pos);
+                                    if(distToBin < PLAYER_INTERACT && (dirtBinHintDist === undefined || distToBin < dirtBinHintDist)){
+                                        dirtBinHint = obj;
+                                        dirtBinHintDist = distToBin;
+                                    }
+                                }
                             }
 
                             if(closest != undefined){
@@ -400,6 +416,40 @@ function draw() {
                                 }
                             }
                         }
+                    }
+
+                    if(dirtBinHint){
+                        const bin = dirtBinHint;
+                        const binScreenX = bin.pos.x - camera.pos.x + (width/2);
+                        const binScreenY = bin.pos.y - bin.size.h * 0.9 - camera.pos.y + (height/2);
+                        const panelW = 150;
+                        const panelH = 90;
+                        const pad = 12;
+                        const row = 18;
+                        const panelX = binScreenX - panelW / 2;
+                        const panelY = binScreenY - panelH;
+                        const maxBinCap = Math.max(1, Math.floor(((bin.mhp !== undefined && bin.mhp > 1) ? bin.mhp : maxDirtInv * 3) - 1));
+                        const binStored = Math.max(0, Math.floor(bin.hp - 1));
+
+                        push();
+                        rectMode(CORNER);
+                        textFont(gameUIFont);
+                        noStroke();
+                        fill(18, 12, 10, 240);
+                        rect(panelX, panelY, panelW, panelH, 12);
+                        fill(255, 255, 255, 24);
+                        rect(panelX + 2, panelY + 2, panelW - 4, panelH - 4, 11);
+
+                        fill(250);
+                        textAlign(LEFT, TOP);
+                        textSize(14);
+                        textStyle(BOLD);
+                        text("Dirt Bin", panelX + pad, panelY + pad);
+                        textStyle(NORMAL);
+                        textSize(12.5);
+                        text("Left click: take dirt", panelX + pad, panelY + pad + row);
+                        text("Right click: drop dirt", panelX + pad, panelY + pad + row * 2 - 2);
+                        pop();
                     }
                 }
             }
