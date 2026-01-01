@@ -260,7 +260,7 @@ function definePauseUI() {
     serverSelectButton = createButton("Disconnect");
     styleButton(serverSelectButton);
     serverSelectButton.mousePressed(() => {
-        // Save player data before disconnecting
+        // Save player data and notify server before disconnecting
         if (curPlayer && socket && socket.connected) {
             const playerData = {
                 invBlock: curPlayer.invBlock ? {
@@ -279,6 +279,12 @@ function definePauseUI() {
             };
             console.log('[Disconnect] Saving player data:', playerData);
             socket.emit('save_player_state', playerData);
+            
+            // Send leave message to notify server
+            socket.emit('player_leave', {
+                playerId: socket.id,
+                playerName: curPlayer.name
+            });
             
             // Small delay to ensure data is sent before reload
             setTimeout(() => {
