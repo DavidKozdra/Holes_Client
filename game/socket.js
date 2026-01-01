@@ -615,12 +615,14 @@ function socketSetup(){
                     players[data.id][name] = value;
                 }
             }
-            // Store target position for smooth interpolation instead of instant snap
-            if (!players[data.id].targetPos) {
-                players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
-            } else {
-                players[data.id].targetPos.x = data.pos.x;
-                players[data.id].targetPos.y = data.pos.y;
+            // Store target position for smooth interpolation, but ONLY for other players (not local player)
+            if (players[data.id] !== curPlayer) {
+                if (!players[data.id].targetPos) {
+                    players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+                } else {
+                    players[data.id].targetPos.x = data.pos.x;
+                    players[data.id].targetPos.y = data.pos.y;
+                }
             }
             players[data.id].holding = data.holding;
         }
