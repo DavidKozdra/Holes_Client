@@ -1946,34 +1946,74 @@ function showPendingRequests() {
     });
 }
 
-var swapInvDiv;
-var itemListDivLeft;
-var itemListDivRight;
-var curSwapItemDiv;
+// Timer UI code - see below at line 2621
 
-function defineSwapInvUI() {
-    swapInvDiv = createDiv();
-    swapInvDiv.id("inventory");
-    swapInvDiv.class("container");
-    swapInvDiv.style("position", "absolute");
-    swapInvDiv.style("position", "absolute");
-    swapInvDiv.style("top", "50%");
-    swapInvDiv.style("left", "50%");
-    swapInvDiv.style("transform", "translate(-50%, -50%)");
+function setTimeUI(data) {
+    if (data && data.disabled) {
+        timerEnabled = false;
+        if (timerDiv) timerDiv.hide();
+        return;
+    }
+    timerEnabled = true;
+    if (data && typeof data.endsAt === "number") {
+        timerEndsAt = data.endsAt;
+        timerRemaining = Math.max(0, Math.round((timerEndsAt - Date.now()) / 1000));
+    } else {
+        timerRemaining = data.totalSeconds ?? (data.minutes * 60 + data.seconds);
+    }
+    updateTimerDisplay();
+}
 
-    swapInvDiv.style("z-index", "50");
-    let swapInvTitleBar = createDiv();
-    swapInvTitleBar.parent(swapInvDiv);
-    applyStyle(swapInvTitleBar, {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingBottom: "15px",
-        borderBottom: "2px solid black"
-    });
 
-    let swapInvYourInvTittle = createP("Your Inventory");
-    swapInvYourInvTittle.parent(swapInvTitleBar);
+function updateTimerDisplay() {
+    const years = Math.floor(timerRemaining / (365 * 24 * 3600));
+    const days = Math.floor((timerRemaining % (365 * 24 * 3600)) / (24 * 3600));
+    const hours = Math.floor((timerRemaining % (24 * 3600)) / 3600);
+    const minutes = Math.floor((timerRemaining % 3600) / 60);
+    const seconds = timerRemaining % 60;
+
+    // Optional: pad values
+    const pad = (v) => v.toString().padStart(2, '0');
+
+    let parts = [];
+    if (years > 0) parts.push(`${years}y`);
+    if (days > 0 || years > 0) parts.push(`${days}d`);
+    if (hours > 0 || days > 0 || years > 0) parts.push(`${pad(hours)}h`);
+    parts.push(`${pad(minutes)}m`, `${pad(seconds)}s`);
+
+    timerDisplay = parts.join(' ');
+    //console.log("Timer:", timerDisplay);
+
+    // PERF FIX #7: Only adjust font when thresholds change
+    adjustFontSize(timerRemaining);
+}
+
+function adjustFontSize(timerRemaining) {
+    if (!timerEnabled || !timerDiv) return;
+
+    let size;
+    if (timerRemaining >= 365 * 24 * 3600) {
+        size = "1.2rem"; // Years
+    } else if (timerRemaining >= 24 * 3600) {
+        size = "1.5rem"; // Days
+    } else if (timerRemaining >= 3600) {
+        size = "2rem"; // Hours
+    } else {
+        size = "2.5rem"; // MM:SS
+    }
+
+    if (size !== lastTimerFontSize) {
+        timerDiv.style("font-size", size);
+        lastTimerFontSize = size;
+    }
+}
+
+
+/**
+ * PERF FIX #9: Quickly update swap list highlighting without full DOM rebuild.
+ * Only updates background colors and font styles for selected rows.
+ */
+function fastHighlightSwapLists(leftSelected, rightSelected) {
     swapInvYourInvTittle.class("inventory-title");
     swapInvYourInvTittle.style("margin-left", "25px");
 
@@ -2008,6 +2048,46 @@ function defineSwapInvUI() {
     applyStyle(curSwapItemNone, {
         paddingTop: "7%",
         textDecoration: "none"
+    });
+
+    // Take All button
+    let takeAllButton = createButton("⬅ Take All").parent(curSwapItemDiv);
+    applyStyle(takeAllButton, {
+        padding: "10px 15px",
+        cursor: "pointer",
+        backgroundColor: "#4CAF50",
+        color: "white",
+        border: "none",
+        borderRadius: "5px",
+        fontWeight: "bold",
+        marginTop: "20px",
+        width: "90%"
+    });
+    takeAllButton.mousePressed(() => {
+        if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.invBlock) return;
+        const otherInv = curPlayer.otherInv.invBlock;
+        const otherItems = otherInv.items || {};
+        Object.keys(otherItems).forEach((itemName) => {
+            const itemData = otherItems[itemName];
+            if (itemData && itemData.amount > 0) {
+                curPlayer.invBlock.addItem(itemName, itemData.amount, true);
+                otherInv.decreaseAmount(itemName, itemData.amount);
+            }
+        });
+        curPlayer.invBlock.curItem = "";
+        otherInv.curItem = "";
+        updateSwapItemList();
+        if (curPlayer.otherInv.pos) {
+            const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
+            socket.emit("update_inv", {
+                cx: chunkPos.x, cy: chunkPos.y,
+                objName: curPlayer.otherInv.objName,
+                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
+                z: curPlayer.otherInv.z,
+                invId: otherInv.invId,
+                items: otherInv.items
+            });
+        }
     });
 
     //Right Item list
@@ -2125,190 +2205,6 @@ function hydrateBagItemImages(inv) {
 }
 
 /**
- * Rebuilds the two inventory columns for swapping between the current player and another inventory.
- * Never throws if an image/frame is missing; falls back to a text placeholder.
- *
- * @param {Inventory} otherInv
- */
-/**
- * DEPRECATED: Old updateSwapItemLists - kept for reference only
- * This function caused major performance issues:
- * - 17+ .style() calls per item causing reflows
- * - Full DOM rebuild with .html("")
- * - Heavy nested DOM structure per item
- * 
- * USE: updateSwapItemLists() from swapInventory.js module instead
- * The new version uses CSS classes and smart partial updates
- * 
- * THIS FUNCTION IS DISABLED - DO NOT USE
- */
-function updateSwapItemLists_DEPRECATED_FROZEN(otherInv) {
-    return;  // Disabled - use swapInventory.js version instead
-
-    // LEFT SIDE (current player)
-    // DISABLED - this entire block caused severe freezing
-    // The original code did 17+ .style() calls per item and full DOM rebuilds
-    // See swapInventory.js for the optimized version
-    /*
-    itemListDivLeft.html("");
-
-    /** @type {Record<string, ItemEntry>} */
-    const myItems = curPlayer.invBlock.items || {};
-    let arr = Object.keys(myItems);
-
-    for (let i = 0; i < arr.length; i++) {
-        const itemName = arr[i];
-        const entry = myItems[itemName] || { amount: 0 };
-
-        const itemDiv = createDiv();
-        itemDiv.attribute('data-item', itemName);
-        itemDiv.style("width", "100%");
-        itemDiv.style("height", "50px");
-        itemDiv.style("display", "flex");
-        itemDiv.style("align-items", "center");
-        itemDiv.style("justify-content", "center");
-        itemDiv.style("border-bottom", "2px solid black");
-        if (curPlayer.invBlock.curItem === itemName) {
-            itemDiv.style("background-color", "rgb(120, 120, 120)");
-            itemDiv.style("font-style", "italic");
-        }
-        itemDiv.style("cursor", "pointer");
-        itemDiv.parent(itemListDivLeft);
-        itemDiv.mousePressed(() => {
-            curPlayer.invBlock.curItem = itemName;
-            if (otherInv) otherInv.curItem = "";
-            // PERF FIX #9: Update only highlights, skip full rebuild
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, safeOther.curItem);
-            updatecurSwapItemDiv(otherInv);
-        });
-
-        const itemInfoDiv = createDiv();
-        itemInfoDiv.style("width", "80%");
-        itemInfoDiv.style("height", "50px");
-        itemInfoDiv.style("display", "flex");
-        itemInfoDiv.style("align-items", "center");
-        itemInfoDiv.style("justify-content", "space-between");
-        itemInfoDiv.parent(itemDiv);
-
-        const imgDiv = createDiv();
-        imgDiv.style("width", "32px");
-        imgDiv.style("height", "32px");
-        imgDiv.style("margin-right", "8px");
-        imgDiv.style("display", "flex");
-        imgDiv.style("align-items", "center");
-        imgDiv.parent(itemInfoDiv);
-
-        const urlLeft = resolveItemImgURL(itemName, entry);
-        let imgEl;
-        if (urlLeft) {
-            imgEl = createImg(urlLeft, "");
-            imgEl.style("width", "32px");
-            imgEl.style("height", "32px");
-            imgEl.style("image-rendering", "pixelated");
-            imgEl.parent(imgDiv);
-        } else {
-            // Simple fallback when there is no image
-            const placeholder = createDiv("•");
-            placeholder.style("width", "32px");
-            placeholder.style("height", "32px");
-            placeholder.style("display", "flex");
-            placeholder.style("align-items", "center");
-            placeholder.style("justify-content", "center");
-            placeholder.parent(imgDiv);
-        }
-
-        const itemNameP = createP((itemName === curPlayer.invBlock.curItem ? "* " : "") + itemName);
-        itemNameP.style("font-size", "20px");
-        itemNameP.style("color", rarityColorCSS(itemName));
-        itemNameP.parent(itemInfoDiv);
-
-        const itemAmount = createP(String(entry.amount ?? 0));
-        itemAmount.style("font-size", "20px");
-        itemAmount.style("color", "white");
-        itemAmount.parent(itemInfoDiv);
-    }
-
-    // RIGHT SIDE (other inventory)
-    itemListDivRight.html("");
-    /** @type {Inventory} */
-    const safeOther = normalizedOtherInv || /** @type {Inventory} */({ items: {}, curItem: "" });
-    const otherItems = safeOther.items || {};
-    arr = Object.keys(otherItems);
-
-    for (let i = 0; i < arr.length; i++) {
-        const itemName = arr[i];
-        const entry = otherItems[itemName] || { amount: 0 };
-
-        const itemDiv = createDiv();
-        itemDiv.attribute('data-item', itemName);
-        itemDiv.style("width", "100%");
-        itemDiv.style("height", "50px");
-        itemDiv.style("display", "flex");
-        itemDiv.style("align-items", "center");
-        itemDiv.style("justify-content", "center");
-        itemDiv.style("border-bottom", "2px solid black");
-        if (safeOther.curItem === itemName) {
-            itemDiv.style("background-color", "rgb(120, 120, 120)");
-            itemDiv.style("font-style", "italic");
-        }
-        itemDiv.style("cursor", "pointer");
-        itemDiv.parent(itemListDivRight);
-
-        itemDiv.mousePressed(() => {
-            curPlayer.invBlock.curItem = "";
-            safeOther.curItem = itemName;
-            // PERF FIX #9: Update only highlights, skip full rebuild
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, safeOther.curItem);
-            updatecurSwapItemDiv(safeOther);
-        });
-
-        const itemInfoDiv = createDiv();
-        itemInfoDiv.style("width", "80%");
-        itemInfoDiv.style("height", "50px");
-        itemInfoDiv.style("display", "flex");
-        itemInfoDiv.style("align-items", "center");
-        itemInfoDiv.style("justify-content", "space-between");
-        itemInfoDiv.parent(itemDiv);
-
-        const imgDiv = createDiv();
-        imgDiv.style("width", "32px");
-        imgDiv.style("height", "32px");
-        imgDiv.style("margin-right", "8px");
-        imgDiv.style("display", "flex");
-        imgDiv.style("align-items", "center");
-        imgDiv.parent(itemInfoDiv);
-
-        const urlRight = resolveItemImgURL(itemName, entry);
-        if (urlRight) {
-            const imgEl = createImg(urlRight, "");
-            imgEl.style("width", "32px");
-            imgEl.style("height", "32px");
-            imgEl.style("image-rendering", "pixelated");
-            imgEl.parent(imgDiv);
-        } else {
-            const placeholder = createDiv("•");
-            placeholder.style("width", "32px");
-            placeholder.style("height", "32px");
-            placeholder.style("display", "flex");
-            placeholder.style("align-items", "center");
-            placeholder.style("justify-content", "center");
-            placeholder.parent(imgDiv);
-        }
-
-        const itemNameP = createP((itemName === safeOther.curItem ? "* " : "") + itemName);
-        itemNameP.style("font-size", "20px");
-        itemNameP.style("color", rarityColorCSS(itemName));
-        itemNameP.parent(itemInfoDiv);
-
-        const itemAmount = createP(String(entry.amount ?? 0));
-        itemAmount.style("font-size", "20px");
-        itemAmount.style("color", "white");
-        itemAmount.parent(itemInfoDiv);
-    }
-    // End of commented-out old function
-}
-
-/**
  * @typedef {{ amount: number, imgNum?: number, itemName?: string, desc?: string, type?: string, durability?: number, maxDurability?: number }} ItemEntry
  * @typedef {{ items: Record<string, ItemEntry>, curItem?: string, getItemStats?: (name: string) => Array<[string, number|string]> }} Inventory
  */
@@ -2326,220 +2222,6 @@ function getItemFrameDataURL(imgNum) {
     return (canvas && typeof canvas.toDataURL === "function") ? canvas.toDataURL() : undefined;
 }
 
-/**
- * Renders the details panel for the currently selected item (from player or other inventory).
- * Robust to missing images, missing fields, and missing inventories.
- * @param {Inventory} otherInv
- */
-function updatecurSwapItemDiv(otherInv) {
-    if (!curPlayer || !curPlayer.invBlock) return;
-
-    const normalizedOther = hydrateBagItemImages(otherInv);
-
-    /** @type {Inventory} */
-    const safeOther = normalizedOther || /** @type {Inventory} */ ({ items: {}, curItem: "" });
-
-    let curSwapItem;
-    const myCur = curPlayer.invBlock.curItem || "";
-    const theirCur = safeOther.curItem || "";
-
-    if (myCur !== "") {
-        curSwapItem = (curPlayer.invBlock.items || {})[myCur];
-        if (curSwapItem && !curSwapItem.itemName) curSwapItem.itemName = myCur;
-    } else if (theirCur !== "") {
-        curSwapItem = (safeOther.items || {})[theirCur];
-        if (curSwapItem && !curSwapItem.itemName) curSwapItem.itemName = theirCur;
-    }
-
-    // Clear the div every time
-    curSwapItemDiv.html("");
-
-    if (!curSwapItem) {
-        // Show a clean "None Selected" state
-        const noneDiv = createDiv("No item selected");
-        noneDiv.style("width", "100%");
-        noneDiv.style("padding", "24px");
-        noneDiv.style("color", "#aaa");
-        noneDiv.style("text-align", "center");
-        noneDiv.style("font-size", "22px");
-        noneDiv.parent(curSwapItemDiv);
-        return;
-    }
-
-    // ---- Item card (image + name/desc) ----
-    const itemCardDiv = createDiv();
-    itemCardDiv.style("width", "100%");
-    itemCardDiv.style("height", "30%");
-    itemCardDiv.style("display", "flex");
-    itemCardDiv.style("margin-bottom", "20px");
-    itemCardDiv.parent(curSwapItemDiv);
-
-    const itemImgDiv = createDiv();
-    itemImgDiv.style("width", "50%");
-    itemImgDiv.style("border", "2px solid black");
-    itemImgDiv.style("border-radius", "10px");
-    const bgURL = resolveItemImgURL(curSwapItem.itemName, curSwapItem);
-    if (bgURL) {
-        itemImgDiv.style("background-image", "url('" + bgURL + "')");
-        itemImgDiv.style("image-rendering", "pixelated");
-    } else {
-        // subtle placeholder
-        itemImgDiv.style("display", "flex");
-        itemImgDiv.style("align-items", "center");
-        itemImgDiv.style("justify-content", "center");
-        const dot = createDiv("•");
-        dot.style("font-size", "28px");
-        dot.style("color", "#ccc");
-        dot.parent(itemImgDiv);
-    }
-    itemImgDiv.style("background-size", "contain");
-    itemImgDiv.style("background-repeat", "no-repeat");
-    itemImgDiv.style("background-position", "center");
-    itemImgDiv.parent(itemCardDiv);
-
-    const itemNameDescDiv = createDiv();
-    itemNameDescDiv.style("width", "calc(50% - 8px)");
-    itemNameDescDiv.style("height", "100%");
-    itemNameDescDiv.parent(itemCardDiv);
-
-    const itemNameDiv = createDiv();
-    itemNameDiv.style("width", "100%");
-    itemNameDiv.style("height", "20%");
-    itemNameDiv.style("border", "2px solid black");
-    itemNameDiv.style("border-radius", "10px");
-    itemNameDiv.parent(itemNameDescDiv);
-
-    const itemNameP = createP(String(curSwapItem.itemName || "Unknown Item"));
-    itemNameP.style("font-size", "20px");
-    itemNameP.style("color", rarityColorCSS(curSwapItem.itemName));
-    itemNameP.style("margin", "5px");
-    itemNameP.style("padding", "0");
-    itemNameP.style("word-wrap", "break-word");
-    itemNameP.style("overflow-wrap", "break-word");
-    itemNameP.style("white-space", "normal");
-    itemNameP.parent(itemNameDiv);
-
-    // Description
-    const itemDescDiv = createDiv();
-    itemDescDiv.style("width", "100%");
-    itemDescDiv.style("height", "calc(80% - 5px)");
-    itemDescDiv.style("border", "2px solid black");
-    itemDescDiv.style("border-radius", "10px");
-    itemDescDiv.parent(itemNameDescDiv);
-
-    const itemDescP = createP(String(curSwapItem.desc || "No description."));
-    itemDescP.style("font-size", "20px");
-    itemDescP.style("color", "white");
-    itemDescP.style("margin", "5px");
-    itemDescP.parent(itemDescDiv);
-
-    // ---- Stats area ----
-    const itemStatsDiv = createDiv();
-    itemStatsDiv.style("width", "100%");
-    itemStatsDiv.style("height", "calc(70% - 10px)");
-    itemStatsDiv.parent(curSwapItemDiv);
-
-    // Durability (only when applicable)
-    if (curSwapItem.type !== "Simple" && typeof curSwapItem.durability === "number" && typeof curSwapItem.maxDurability === "number" && curSwapItem.maxDurability > 0) {
-        const durabilityDiv = createDiv();
-        durabilityDiv.style("width", "calc(100% - 14px)");
-        durabilityDiv.style("height", "10%");
-        durabilityDiv.style("padding", "5px");
-        durabilityDiv.style("border", "2px solid black");
-        durabilityDiv.style("border-radius", "10px");
-        durabilityDiv.style("display", "flex");
-        durabilityDiv.style("align-items", "center");
-        durabilityDiv.style("justify-content", "center");
-        durabilityDiv.style("margin-bottom", "5px");
-        durabilityDiv.parent(itemStatsDiv);
-
-        const durabilityText = createP("Durability:");
-        durabilityText.style("font-size", "20px");
-        durabilityText.style("color", "white");
-        durabilityText.parent(durabilityDiv);
-
-        const durabilityBar = createDiv();
-        durabilityBar.style("width", "80%");
-        durabilityBar.style("height", "20px");
-        durabilityBar.style("background-color", "red");
-        durabilityBar.style("border", "2px solid black");
-        durabilityBar.style("border-radius", "10px");
-        durabilityBar.parent(durabilityDiv);
-
-        const pct = Math.max(0, Math.min(1, curSwapItem.durability / curSwapItem.maxDurability)) * 100;
-        const durabilityFill = createDiv();
-        durabilityFill.style("width", pct + "%");
-        durabilityFill.style("height", "100%");
-        durabilityFill.style("background-color", "green");
-        durabilityFill.style("border-radius", "10px");
-        durabilityFill.parent(durabilityBar);
-    }
-
-    const statsText = createDiv("Stats");
-    statsText.style("font-size", "20px");
-    statsText.style("color", "white");
-    statsText.style("text-align", "center");
-    statsText.style("border", "2px solid black");
-    statsText.style("border-radius", "10px");
-    statsText.style("padding", "10px");
-    statsText.style("margin-bottom", "5px");
-    statsText.parent(itemStatsDiv);
-
-    const statsList = createDiv();
-    statsList.style("width", "100%");
-    statsList.style("height", "calc(90% - 10px)");
-    statsList.style("overflow-y", "auto");
-    statsList.parent(itemStatsDiv);
-
-    // Safely fetch stats
-    /** @type {Array<[string, number|string]>|undefined} */
-    let stats;
-    if (myCur !== "" && typeof curPlayer.invBlock.getItemStats === "function") {
-        stats = curPlayer.invBlock.getItemStats(curSwapItem.itemName || myCur);
-    } else if (theirCur !== "" && typeof safeOther.getItemStats === "function") {
-        stats = safeOther.getItemStats(curSwapItem.itemName || theirCur);
-    }
-
-    if (Array.isArray(stats)) {
-        stats.forEach(stat => {
-            if (!Array.isArray(stat) || stat.length < 2) return;
-            if (stat[0] === "Durability") return;
-
-            const statDiv = createDiv();
-            statDiv.style("width", "100%");
-            statDiv.style("height", "20px");
-            statDiv.style("display", "flex");
-            statDiv.style("margin-bottom", "12px");
-            statDiv.parent(statsList);
-
-            const statNameDiv = createDiv(String(stat[0]) + ":");
-            statNameDiv.style("width", "50%");
-            statNameDiv.style("height", "100%");
-            statNameDiv.style("color", "white");
-            statNameDiv.style("text-align", "center");
-            statNameDiv.style("font-size", "20px");
-            statNameDiv.style("border", "2px solid black");
-            statNameDiv.style("border-radius", "10px");
-            statNameDiv.style("padding", "5px");
-            statNameDiv.parent(statDiv);
-
-            const statNumDiv = createDiv(String(stat[1]));
-            statNumDiv.style("width", "50%");
-            statNumDiv.style("height", "100%");
-            statNumDiv.style("color", "white");
-            statNumDiv.style("text-align", "center");
-            statNumDiv.style("font-size", "20px");
-            statNumDiv.style("border", "2px solid black");
-            statNumDiv.style("border-radius", "10px");
-            statNumDiv.style("padding", "5px");
-            statNumDiv.parent(statDiv);
-        });
-    }
-
-    if (typeof updateSpaceBarDiv === "function") {
-        updateSpaceBarDiv();
-    }
-}
 
 
 //render timer on the top of the screen 
