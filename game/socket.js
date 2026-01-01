@@ -1010,8 +1010,8 @@ function socketSetup(){
             if (!window.allTeams[data.teamId].requests) {
                 window.allTeams[data.teamId].requests = [];
             }
-            if (!window.allTeams[data.teamId].requests.includes(data.playerId)) {
-                window.allTeams[data.teamId].requests.push(data.playerId);
+            if (!window.allTeams[data.teamId].requests.includes(data.playerName)) {
+                window.allTeams[data.teamId].requests.push(data.playerName);
             }
         }
         if (typeof updateTeamManagementUI === 'function') {
@@ -1039,6 +1039,13 @@ function socketSetup(){
         alert('You have been removed from your team');
         if (typeof updateTeamManagementUI === 'function') {
             updateTeamManagementUI();
+        }
+    });
+
+    socket.on('PLAYER_COLOR_CHANGED', (data) => {
+        // Update another player's color when they join/leave a team
+        if (players[data.playerId]) {
+            players[data.playerId].color = data.color;
         }
     });
 }
