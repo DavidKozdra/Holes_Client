@@ -2826,13 +2826,17 @@ function defineDeathUI() {
     deathDiv.style("top", "50%");
     deathDiv.style("left", "50%");
     deathDiv.style("transform", "translate(-50%, -50%)");
-    deathDiv.style("display", "none");
     deathDiv.style("width", "25%");
     deathDiv.style("height", "20%");
     deathDiv.style("border", "2px solid black");
     deathDiv.style("border-radius", "10px");
     deathDiv.style("text-align", "center");
     deathDiv.style("padding", "20px");
+    deathDiv.style("display", "flex");
+    deathDiv.style("flex-direction", "column");
+    deathDiv.style("align-items", "center");
+    deathDiv.style("justify-content", "center");
+    deathDiv.style("background-color", "rgba(0, 0, 0, 0.8)");
 
     let title = createP("Dead").parent(deathDiv);
     title.style("font-size", "28px");
@@ -2847,7 +2851,22 @@ function defineDeathUI() {
     hardcoreNotice.hide();
 
     respawnButton = createButton("Respawn").parent(deathDiv);
-    styleButton(respawnButton);
+    respawnButton.class("system-button");
+    respawnButton.style("width", "80%");
+    respawnButton.style("padding", "12px");
+    respawnButton.style("margin-left", "45px");
+    respawnButton.style("font-size", "16px");
+    respawnButton.style("border-radius", "8px");
+    respawnButton.style("cursor", "pointer");
+    respawnButton.style("color", "white");
+    respawnButton.style("background-color", "#4CAF50");
+    respawnButton.style("border", "none");
+    respawnButton.style("transition", "background-color 0.3s");
+    respawnButton.mouseOver(() => respawnButton.style("background-color", "#45a049"));
+    respawnButton.mouseOut(() => {
+        const hardcore = !!window.isHardcoreServer;
+        respawnButton.style("background-color", hardcore ? "#d32f2f" : "#4CAF50");
+    });
     respawnButton.mousePressed(() => {
         const hardcore = !!window.isHardcoreServer;
         
@@ -2902,7 +2921,19 @@ function defineDeathUI() {
 
     //disconnect button
     let disconnectButton = createButton("Disconnect").parent(deathDiv);
-    styleButton(disconnectButton);
+    disconnectButton.class("system-button");
+    disconnectButton.style("width", "80%");
+    disconnectButton.style("padding", "12px");
+    disconnectButton.style("margin", "10px");
+    disconnectButton.style("font-size", "16px");
+    disconnectButton.style("border-radius", "8px");
+    disconnectButton.style("cursor", "pointer");
+    disconnectButton.style("color", "white");
+    disconnectButton.style("background-color", "#333");
+    disconnectButton.style("border", "none");
+    disconnectButton.style("transition", "background-color 0.3s");
+    disconnectButton.mouseOver(() => disconnectButton.style("background-color", "#555"));
+    disconnectButton.mouseOut(() => disconnectButton.style("background-color", "#333"));
     disconnectButton.mousePressed(() => {
         // Save player data before disconnecting
         if (curPlayer && socket && socket.connected) {
@@ -2942,10 +2973,12 @@ function showDeathUI() {
     
     if (hardcore) {
         respawnButton.html("☠ Restart");
+        respawnButton.style("background-color", "#d32f2f");
         hardcoreNotice.html("Permadeath server - character deleted");
         hardcoreNotice.show();
     } else {
         respawnButton.html("Respawn");
+        respawnButton.style("background-color", "#4CAF50");
         hardcoreNotice.hide();
     }
     

@@ -101,9 +101,11 @@ class InvBlock{
         }
     }
     let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(itemBag);
-
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+    let chunk = testMap.getChunk(chunkPos.x, chunkPos.y);
+    if (!chunk || !chunk.objects) return;
+    
+    chunk.objects.push(itemBag);
+    chunk.objects.sort((a,b) => a.z - b.z);
 
     socket.emit("new_object", {
         cx: chunkPos.x, 
@@ -121,8 +123,8 @@ class InvBlock{
         curPlayer.name                     // owner (optional)
     );
     expOrb.id = random(1000000);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(expOrb);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+    chunk.objects.push(expOrb);
+    chunk.objects.sort((a,b) => a.z - b.z);
 
     socket.emit("new_object", {
         cx: chunkPos.x,
