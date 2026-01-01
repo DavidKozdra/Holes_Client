@@ -101,7 +101,135 @@ defineSeed("Acorn", [[0,0]], [2,["Log", 1],["Mushroom Fiber",2]], 1, "Tree", 0.5
 defineSeed("Mushroom Seed", [[5,3]], [1,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores", ItemRarity.GOOD, true);
 defineSimpleItem("Mushroom Fiber", [[3,3]], [3,["Mushroom",1]], 1, "A stringy component of many tools", ItemRarity.BASIC, true);
 
-function compassUse(x,y,mouseButton){}
+// Global compass state for display
+var compassTarget = null;
+var compassDuration = 300; // frames to show compass info (5 seconds at 60 fps)
+
+function compassUse(x,y,mouseButton){
+    if (!curPlayer || !players || typeof players !== 'object' || !testMap) {
+        console.log('[Compass] No player data available');
+        return;
+    }
+    
+    // Get all nearby players (excluding yourself)
+    const playerIds = Object.keys(players);
+    const nearbyPlayers = [];
+    
+    for (let playerId of playerIds) {
+        const player = players[playerId];
+        if (player && player.pos && player.name && player.name !== curPlayer.name) {
+            nearbyPlayers.push({ id: playerId, data: player });
+        }
+    }
+    
+    if (nearbyPlayers.length === 0) {
+        console.log('[Compass] No other players nearby');
+        compassTarget = null;
+        return;
+    }
+    
+    // Find the nearest player
+    let nearest = null;
+    let minDistance = Infinity;
+    
+    for (let entry of nearbyPlayers) {
+        const p = entry.data;
+        const d = dist(curPlayer.pos.x, curPlayer.pos.y, p.pos.x, p.pos.y);
+        if (d < minDistance) {
+            minDistance = d;
+            nearest = entry;
+        }
+    }
+    
+    if (nearest) {
+        const p = nearest.data;
+        const dx = p.pos.x - curPlayer.pos.x;
+        const dy = p.pos.y - curPlayer.pos.y;
+        const angle = atan2(dy, dx);
+        let angleDegrees = angle * 180 / PI;
+        if (angleDegrees < 0) angleDegrees += 360;
+
+        const chunk = testMap.globalToChunk(p.pos.x, p.pos.y);
+
+        console.log(`[Compass] Nearest player: "${p.name}" - Distance: ${minDistance.toFixed(0)}px, Direction: ${angleDegrees.toFixed(0)}°`);
+        
+        // Store compass target for visual display
+        compassTarget = {
+            playerId: nearest.id,
+            playerName: p.name,
+            distance: minDistance,
+            angle: angle,
+            angleDegrees: angleDegrees,
+            chunk: chunk,
+            duration: compassDuration,
+            maxDuration: compassDuration
+        };
+    }
+}
+
+function drawCompass(){
+    if (!compassTarget) return;
+
+    // Refresh target info if player still exists
+    if (players && compassTarget.playerId && players[compassTarget.playerId] && players[compassTarget.playerId].pos) {
+        const p = players[compassTarget.playerId];
+        const dx = p.pos.x - curPlayer.pos.x;
+        const dy = p.pos.y - curPlayer.pos.y;
+        compassTarget.distance = dist(curPlayer.pos.x, curPlayer.pos.y, p.pos.x, p.pos.y);
+        compassTarget.angle = atan2(dy, dx);
+        compassTarget.angleDegrees = compassTarget.angle * 180 / PI;
+        if (compassTarget.angleDegrees < 0) compassTarget.angleDegrees += 360;
+        compassTarget.chunk = testMap.globalToChunk(p.pos.x, p.pos.y);
+    }
+
+    if (compassTarget.duration <= 0) {
+        compassTarget = null;
+        return;
+    }
+
+    compassTarget.duration--;
+    const alpha = map(compassTarget.duration, 0, compassTarget.maxDuration, 60, 200);
+
+    // Draw compass bezel
+    const centerX = width / 2;
+    const centerY = 80;
+    const radius = 70;
+
+    push();
+    translate(centerX, centerY);
+    stroke(255, 215, 0, alpha);
+    strokeWeight(2);
+    noFill();
+    circle(0, 0, radius * 2);
+
+    // Arrow
+    rotate(compassTarget.angle);
+    stroke(255, 215, 0, alpha);
+    strokeWeight(4);
+    line(0, 0, 0, -radius + 12);
+    fill(255, 215, 0, alpha);
+    noStroke();
+    triangle(0, -radius - 6, -10, -radius + 10, 10, -radius + 10);
+    pop();
+
+    // Info label
+    const chunkLabel = compassTarget.chunk ? `${compassTarget.chunk.x},${-compassTarget.chunk.y}` : "?";
+    const labelY = centerY + 55;
+    push();
+    fill(0, 0, 0, alpha * 0.6);
+    noStroke();
+    rectMode(CENTER);
+    rect(centerX, labelY + 20, 220, 65, 8);
+
+    fill(255, 215, 0, alpha + 40);
+    textAlign(CENTER);
+    textSize(16);
+    text(compassTarget.playerName, centerX, labelY);
+    textSize(14);
+    text(`${compassTarget.distance.toFixed(0)} px  •  ${compassTarget.angleDegrees.toFixed(0)}°`, centerX, labelY + 18);
+    text(`Chunk ${chunkLabel}`, centerX, labelY + 36);
+    pop();
+}
 defineCustomItem("Compass", [[1,1]], [1,["Metal", 1],["Tech", 1]], 1, 1, "A compass that points to the nearest player", compassUse, ItemRarity.GOOD, true);
 
 function mapUse(x,y,mouseButton){}

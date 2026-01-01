@@ -533,6 +533,11 @@ function draw() {
         pop();
     }
 
+    // Draw compass direction if active
+    if (typeof drawCompass === 'function') {
+        drawCompass();
+    }
+
     // Cancel meditate on any key or mouse input
     import('./inputCancelMeditate.js');
     continousKeyBoardInput();

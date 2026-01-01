@@ -277,7 +277,8 @@ class InvBlock{
             if(this.hotbar[this.selectedHotBar] != ""){
                 const item = this.items[this.hotbar[this.selectedHotBar]];
                 if(item && item.itemName == "Compass"){
-                    //COMPASS
+                    // Compass is selected - functionality is handled in compassUse() when item is used
+                    
                 }
             }
         }
