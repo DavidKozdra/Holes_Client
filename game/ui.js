@@ -67,6 +67,7 @@ function setupUI() {
 
     // Setup race selection UI from mainMenu
     setupRaceSelectionUI();
+    deathDiv.hide();
 }
 
 window.setupUI = setupUI;
@@ -2969,6 +2970,24 @@ function defineDeathUI() {
 // Show death UI with hardcore-aware button
 function showDeathUI() {
     if (!deathDiv) return;
+    
+    // Don't show death UI in main menu or other non-play states
+    if (!curPlayer) return;
+    const nonPlayStates = [
+        "initial",
+        "server_select",
+        "race_select",
+        "race_selection",
+        "settings",
+        undefined,
+        null
+    ];
+    if (nonPlayStates.includes(gameState)) {
+        // turn off
+        deathDiv.hide();
+        return;
+    };
+    
     const hardcore = !!window.isHardcoreServer;
     
     if (hardcore) {

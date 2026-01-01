@@ -130,6 +130,10 @@ class Chunk{
         for(let i = this.projectiles.length-1; i >= 0; i--){
             this.projectiles[i].update();
             if(this.projectiles[i].deleteTag){
+                // Release to pool if it's a poolable projectile
+                if (typeof projectilePool !== 'undefined' && this.projectiles[i].type === "Simple") {
+                    projectilePool.release(this.projectiles[i]);
+                }
                 this.projectiles.splice(i, 1);
             }
         }

@@ -70,13 +70,13 @@
   <meta name="twitter:image"
         content="https://yourdomain.com/game/images/title.png">
 
-  <!-- Defer all JS -->
-  <script defer src="p5-init.js"></script>
-  <script defer src="https://cdn.socket.io/4.4.1/socket.io.min.js"
-          integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
-          crossorigin="anonymous"></script>
+  <!-- Defer all JS (p5 core, then sound addon, then socket.io, then game bootstrap) -->
   <script defer src="https://cdn.jsdelivr.net/npm/p5@1.11.1/lib/p5.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.1/addons/p5.sound.min.js"></script>
+  <script defer src="https://cdn.socket.io/4.4.1/socket.io.min.js"
+        integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
+        crossorigin="anonymous"></script>
+  <script defer src="p5-init.js"></script>
 
   <!-- App code -->
   <script defer src="coreFunctions.js"></script>

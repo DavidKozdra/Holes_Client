@@ -21,12 +21,20 @@ defineObjProjectile("Dirt Bomb", "dirt", 40, 5, 2);
 
 class SimpleProjectile{
     constructor(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity = null){
+        if (arguments.length === 0) {
+            // Empty constructor for pooling
+            this.type = "Simple";
+            return;
+        }
+        this.init(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity);
+    }
+
+    init(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity = null){
         this.name = name;
         this.damage = damage;
         this.knockback = knockback;
-        this.isMagic = isMagic || false; // Is this magic damage?
+        this.isMagic = isMagic || false;
         this.flightPath = flightPath;
-        //this.flightPath.l = 1;
         this.pos = this.flightPath.calc(0);
         this.speed = speed;
         this.lifespan = lifespan;
@@ -35,11 +43,13 @@ class SimpleProjectile{
         this.color = color;
         this.imgNum = imgNum;
         this.cPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        this.ownerEntity = ownerEntity; // Reference to the entity that created this projectile
-
+        this.ownerEntity = ownerEntity;
         this.type = "Simple";
         this.deleteTag = false;
         this.id = floor(random()*100000);
+        this.overlayImgIndex = undefined;
+        this.overlaySize = undefined;
+        return this;
     }
 
     update(){
@@ -568,12 +578,39 @@ class ObjProj extends SimpleProjectile{
     }
 }
 
+// Projectile Pooling System
+class ProjectilePool {
+    constructor(size = 500) {
+        this.pool = [];
+        for (let i = 0; i < size; i++) {
+            this.pool.push(new SimpleProjectile());
+        }
+    }
+    
+    get(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity) {
+        const proj = this.pool.length > 0 ? this.pool.pop() : new SimpleProjectile();
+        return proj.init(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity);
+    }
+    
+    release(proj) {
+        if (proj.type === "Simple" && this.pool.length < 1000) {
+            proj.deleteTag = false;
+            proj.ownerEntity = null;
+            proj.overlayImgIndex = undefined;
+            proj.overlaySize = undefined;
+            this.pool.push(proj);
+        }
+    }
+}
+
+const projectilePool = new ProjectilePool(500);
+
 function createProjectile(name, owner, color, x, y, a, ownerEntity = null) {
     if (projDic[name] == undefined) {
         throw new Error(`Projectile with name: ${name}, does not exist`);
     }
     if (projDic[name].type == "SimpleProj") {
-        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x, y, a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
+        return projectilePool.get(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x, y, a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
     }
     if (projDic[name].type == "MeleeProj") {
         return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x, y, a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
