@@ -96,9 +96,10 @@ defineFood("Salad", [[5,5]], [1,["Mushroom",1],["Apple",1],["Log",1]], 1, 100, 5
 defineFood("Skizzard Tail", [[6,5]], [], 1, 100, 5, 5, "A raw tail", ItemRarity.BASIC, false);
 defineFood("Roasted Tail", [[7,5]], [1,["Skizzard Tail", 1]], 1, 100, 30, 15, "A roasted tail", ItemRarity.GOOD, false);
 
-defineSeed("Red Acorn", [[1,0]], [1,["Apple", 1]], 1, "AppleTree", 0.5, "Will grow into an apple tree", ItemRarity.GOOD, true);
+// Increase seed outputs to make tree and mushroom farming less grindy
+defineSeed("Red Acorn", [[1,0]], [2,["Apple", 1]], 1, "AppleTree", 0.5, "Will grow into an apple tree", ItemRarity.GOOD, true);
 defineSeed("Acorn", [[0,0]], [2,["Log", 1],["Mushroom Fiber",2]], 1, "Tree", 0.5, "Will grow into a tree", ItemRarity.GOOD, true);
-defineSeed("Mushroom Seed", [[5,3]], [1,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores", ItemRarity.GOOD, true);
+defineSeed("Mushroom Seed", [[5,3]], [3,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores", ItemRarity.GOOD, true);
 defineSimpleItem("Mushroom Fiber", [[3,3]], [3,["Mushroom",1]], 1, "A stringy component of many tools", ItemRarity.BASIC, true);
 
 // Global compass state for display

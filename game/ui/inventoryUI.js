@@ -736,13 +736,98 @@ function updatecurCraftItemDiv() {
         matDiv.parent(costDiv);
     });
 
+    const canCraft = curPlayer?.invBlock?.craftCheck?.(recipe.name);
+
     let craftButton = createButton("Craft").parent(curCraftItemDiv);
     craftButton.style("width", "100%");
     craftButton.style("padding", "10px");
     craftButton.style("font-size", "16px");
+    craftButton.style("background-color", canCraft ? "#2e8b57" : "#444");
+    craftButton.style("color", canCraft ? "white" : "#aaa");
+    craftButton.style("border", "1px solid black");
+    craftButton.elt.disabled = !canCraft;
     craftButton.mousePressed(() => {
         craftItem(recipe.name);
     });
+
+    let craftAllButton = createButton("Craft All").parent(curCraftItemDiv);
+    craftAllButton.style("width", "100%");
+    craftAllButton.style("padding", "10px");
+    craftAllButton.style("font-size", "16px");
+    craftAllButton.style("margin-top", "8px");
+    craftAllButton.style("background-color", canCraft ? "#3b7dd8" : "#444");
+    craftAllButton.style("color", canCraft ? "white" : "#aaa");
+    craftAllButton.style("border", "1px solid black");
+    craftAllButton.elt.disabled = !canCraft;
+    craftAllButton.mousePressed(() => {
+        craftItemAll(recipe.name);
+    });
+}
+
+/**
+ * Craft a specific item a given number of times (defaults to 1). Uses the recipe's
+ * cost[0] as the output quantity and subtracts ingredient costs safely.
+ */
+function craftItem(itemName, count = 1) {
+    if (!curPlayer?.invBlock || !itemDic?.[itemName]) return;
+
+    const recipe = itemDic[itemName];
+    const cost = Array.isArray(recipe.cost) ? recipe.cost : [];
+    if (cost.length < 1) return;
+
+    // Cap the craft count to the maximum possible with available resources
+    const maxCrafts = getMaxCrafts(itemName);
+    const craftCount = Math.max(1, Math.min(count, maxCrafts));
+    if (craftCount <= 0) return;
+
+    const outputAmount = (cost[0] || 1) * craftCount;
+    curPlayer.invBlock.addItem(itemName, outputAmount, true);
+
+    // Subtract ingredients starting at index 1 (index 0 is output quantity)
+    for (let i = 1; i < cost.length; i++) {
+        const ingredientName = cost[i][0];
+        const ingredientAmt = cost[i][1] * craftCount;
+        if (ingredientName === "Dirt") {
+            dirtInv -= ingredientAmt;
+        } else {
+            curPlayer.invBlock.decreaseAmount(ingredientName, ingredientAmt);
+        }
+    }
+
+    updateCraftList();
+    updatecurCraftItemDiv();
+}
+
+/**
+ * Craft as many items as possible with current resources.
+ */
+function craftItemAll(itemName) {
+    const maxCrafts = getMaxCrafts(itemName);
+    if (maxCrafts > 0) {
+        craftItem(itemName, maxCrafts);
+    }
+}
+
+/**
+ * Determine the maximum number of crafts possible with current resources.
+ */
+function getMaxCrafts(itemName) {
+    if (!curPlayer?.invBlock || !itemDic?.[itemName]) return 0;
+    const cost = itemDic[itemName].cost || [];
+    if (cost.length < 2) return 0; // need at least one ingredient
+
+    let maxCrafts = Infinity;
+    for (let i = 1; i < cost.length; i++) {
+        const ingredientName = cost[i][0];
+        const required = cost[i][1];
+        const available = (ingredientName === "Dirt")
+            ? dirtInv
+            : (curPlayer.invBlock.items[ingredientName]?.amount || 0);
+        const possible = Math.floor(available / required);
+        maxCrafts = Math.min(maxCrafts, possible);
+    }
+
+    return Number.isFinite(maxCrafts) ? maxCrafts : 0;
 }
 
 /**
