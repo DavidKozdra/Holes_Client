@@ -101,7 +101,7 @@ class Brain {
 
             if(isRanged) {
                 // Ranged projectile - fire straight at target
-                let proj = createProjectile(this.obj.projName, ownerId, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading());
+                let proj = createProjectile(this.obj.projName, ownerId, this.obj.color, this.obj.pos.x, this.obj.pos.y, toTarget.heading(), this.obj);
                 if(testMap.chunks[chunkPos.x+','+chunkPos.y] != undefined){
                     testMap.chunks[chunkPos.x+','+chunkPos.y].projectiles.push(proj);
                     socket.emit("new_proj", proj);

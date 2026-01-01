@@ -20,7 +20,7 @@ defineObjProjectile("Bomb", "PlacedBomb", 40, 5, 2);
 defineObjProjectile("Dirt Bomb", "dirt", 40, 5, 2);
 
 class SimpleProjectile{
-    constructor(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic){
+    constructor(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity = null){
         this.name = name;
         this.damage = damage;
         this.knockback = knockback;
@@ -35,6 +35,7 @@ class SimpleProjectile{
         this.color = color;
         this.imgNum = imgNum;
         this.cPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+        this.ownerEntity = ownerEntity; // Reference to the entity that created this projectile
 
         this.type = "Simple";
         this.deleteTag = false;
@@ -102,12 +103,14 @@ class SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2){
-                // Prevent projectiles from hitting their owner (AI or player) or same-race entity
+                // Prevent projectiles from hitting their owner entity by reference (primary check)
+                if(this.ownerEntity && chunk.objects[j] === this.ownerEntity) continue;
+                
+                // Fallback: Prevent projectiles from hitting their owner by name/id
                 let isSelf = false;
                 if(this.ownerName && chunk.objects[j].ownerName && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
                 // Extra: prevent same-race, same-objName self-hit (for AI like Skizzard/Gnome)
                 if(this.ownerRace && chunk.objects[j].race && this.ownerRace === chunk.objects[j].race && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
-                if(this.ownerEntity && chunk.objects[j] === this.ownerEntity) isSelf = true;
                 // Fallback: prevent by objName/race if available
                 if(this.ownerObjName && chunk.objects[j].objName && this.ownerObjName === chunk.objects[j].objName && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
                 if(isSelf) continue;
@@ -570,7 +573,7 @@ function createProjectile(name, owner, color, x, y, a, ownerEntity = null) {
         throw new Error(`Projectile with name: ${name}, does not exist`);
     }
     if (projDic[name].type == "SimpleProj") {
-        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x, y, a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic);
+        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x, y, a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
     }
     if (projDic[name].type == "MeleeProj") {
         return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x, y, a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
