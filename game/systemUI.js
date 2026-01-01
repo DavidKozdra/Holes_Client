@@ -150,14 +150,48 @@ function definePauseUI() {
             return;
         }
         
-        const hasPassword = confirm("Do you want to set/change your password?\n\nClick OK to set a new password\nClick Cancel to remove password protection");
+        const action = confirm("Do you want to set/change your password?\n\nClick OK to set a new password\nClick Cancel to remove password protection");
         
-        if (hasPassword) {
+        if (action) {
             const newPass = prompt("Enter your new password:", "");
             if (newPass !== null && newPass !== "") {
                 socket.emit("set_password", { password: newPass }, (resp) => {
                     if (resp && resp.ok) {
-                        alert("✓ Password set successfully!");
+                        alert("✓ Password set successfully!\n\nYou will now be logged out to apply the changes.");
+                        
+                        // Save player data before disconnect (same as disconnect button)
+                        if (curPlayer && socket && socket.connected) {
+                            const playerData = {
+                                invBlock: curPlayer.invBlock ? {
+                                    items: curPlayer.invBlock.items || {},
+                                    hotbar: curPlayer.invBlock.hotbar || ["","","","",""],
+                                    selectedHotBar: curPlayer.invBlock.selectedHotBar || 0,
+                                    equiped: curPlayer.invBlock.equiped || {}
+                                } : null,
+                                statBlock: curPlayer.statBlock || null,
+                                pos: curPlayer.pos || null,
+                                teamId: curPlayer.teamId || null,
+                                race: curPlayer.race || null,
+                                color: curPlayer.color || 0,
+                                name: curPlayer.name || null,
+                                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
+                            };
+                            console.log('[Password Set] Saving player data:', playerData);
+                            socket.emit('save_player_state', playerData);
+                            
+                            // Send leave message to notify server
+                            socket.emit('player_leave', {
+                                playerId: socket.id,
+                                playerName: curPlayer.name
+                            });
+                            
+                            // Small delay to ensure data is sent before reload
+                            setTimeout(() => {
+                                location.reload();
+                            }, 100);
+                        } else {
+                            setTimeout(() => location.reload(), 100);
+                        }
                     } else {
                         alert("✗ Failed to set password: " + (resp?.message || "Unknown error"));
                     }
@@ -165,13 +199,50 @@ function definePauseUI() {
             }
         } else {
             // Remove password by setting it to empty
-            socket.emit("set_password", { password: "" }, (resp) => {
-                if (resp && resp.ok) {
-                    alert("✓ Password protection removed!");
-                } else {
-                    alert("✗ Failed to remove password: " + (resp?.message || "Unknown error"));
-                }
-            });
+            const confirmRemove = confirm("Are you sure you want to remove password protection?\n\nYou will be logged out to apply the changes.");
+            if (confirmRemove) {
+                socket.emit("set_password", { password: "" }, (resp) => {
+                    if (resp && resp.ok) {
+                        alert("✓ Password protection removed!");
+                        
+                        // Save player data before disconnect (same as disconnect button)
+                        if (curPlayer && socket && socket.connected) {
+                            const playerData = {
+                                invBlock: curPlayer.invBlock ? {
+                                    items: curPlayer.invBlock.items || {},
+                                    hotbar: curPlayer.invBlock.hotbar || ["","","","",""],
+                                    selectedHotBar: curPlayer.invBlock.selectedHotBar || 0,
+                                    equiped: curPlayer.invBlock.equiped || {}
+                                } : null,
+                                statBlock: curPlayer.statBlock || null,
+                                pos: curPlayer.pos || null,
+                                teamId: curPlayer.teamId || null,
+                                race: curPlayer.race || null,
+                                color: curPlayer.color || 0,
+                                name: curPlayer.name || null,
+                                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
+                            };
+                            console.log('[Password Remove] Saving player data:', playerData);
+                            socket.emit('save_player_state', playerData);
+                            
+                            // Send leave message to notify server
+                            socket.emit('player_leave', {
+                                playerId: socket.id,
+                                playerName: curPlayer.name
+                            });
+                            
+                            // Small delay to ensure data is sent before reload
+                            setTimeout(() => {
+                                location.reload();
+                            }, 100);
+                        } else {
+                            setTimeout(() => location.reload(), 100);
+                        }
+                    } else {
+                        alert("✗ Failed to remove password: " + (resp?.message || "Unknown error"));
+                    }
+                });
+            }
         }
     });
 
