@@ -72,6 +72,8 @@ canvas {
   image-rendering: pixelated;
   width: 100%;
   height: 100%;
+  border-radius: 10px;
+  background-color: rgba(20, 20, 20, 0.9);
 }
 
 /* ===== Buttons ===== */
@@ -125,11 +127,9 @@ select {
   box-sizing: border-box;
 }
 
-input:focus,
 textarea:focus,
 select:focus {
   outline: 1px dotted var(--color-gold);
-  
 }
 
 /* ===== Inventory Panel ===== */
@@ -160,8 +160,10 @@ select:focus {
 /* Scrollable item list */
 .item-list {
   flex: 1;
-  overflow: hidden auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 4px;
+  height: 60vh;
 }
 
 .item-list ul {
@@ -208,9 +210,11 @@ select:focus {
 .tag-bar {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 5px;
   border-bottom: 2px solid var(--color-black);
   padding: 4px 0;
+  height: 2rem;
 }
 
 .tag-button {
@@ -222,6 +226,10 @@ select:focus {
   border: 1px solid var(--color-black);
   border-radius: 0;
   cursor: pointer;
+}
+
+.tag-button:hover {
+  background-color: var(--color-hover);
 }
 
 
@@ -237,16 +245,18 @@ select:focus {
 /* ===== Scrollbar Styling ===== */
 ::-webkit-scrollbar {
   width: 8px;
-  background: var(--color-black);
+  background: #111;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-ui-dark);
+  background: #111;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #555;
-  border: 1px solid var(--color-black);
+  border-radius: 4px;
+  border: 1px solid #222;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -284,27 +294,12 @@ body {
 }
 
 @keyframes scrollDirt {
-  from { background-position: 0 0; }
-  to { background-position: 512px 512px; }
-}
-
-@keyframes scrollDirt {
   0% {
     background-position: 0 0;
   }
   100% {
     background-position: 512px 512px;
   }
-}
-
-
-
-/* Futuristic Canvas */
-canvas {
-  width: 100%;
-  height: 100%;
-  border-radius: 10px;
-  background-color: rgba(20, 20, 20, 0.9);
 }
 
 
@@ -323,13 +318,6 @@ button:hover::before {
   0% { transform: scale(1) translateY(0); }
   50% { transform: scale(0.96) translateY(2px); }
   100% { transform: scale(0.95) translateY(2px); }
-}
-
-
-/* Input focus effect */
-input:focus {
-  font-size: 2em;
-  font-weight: 900;
 }
 
 
@@ -395,54 +383,6 @@ input:focus {
 
 }
 
-/* Set scrollbar width (and optional background for the track area) */
-::-webkit-scrollbar {
-  width: 8px;
-  /* Adjust for desired width */
-  background: #111;
-  /* Dark background for the scrollbar track */
-}
-
-/* Style of the scrollbar track (behind the draggable thumb) */
-::-webkit-scrollbar-track {
-  background: #111;
-  /* Match the main scrollbar background */
-  border-radius: 4px;
-  /* Gives a subtle rounded track */
-}
-
-/* The draggable scrollbar thumb */
-::-webkit-scrollbar-thumb {
-  background: #555;
-  /* Medium gray thumb for a futuristic vibe */
-  border-radius: 4px;
-  /* Slight rounding for a modern look */
-  border: 1px solid #222;
-  /* A subtle border that frames the thumb */
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #888;
-}
-
-
-
-
-/* Tag bar styling */
-.tag-bar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-  border-bottom: 2px solid black;
-  height: 2rem;
-  /* or auto */
-}
-
-tag-bar:hover {
-  background-color: var(--color-gold);
-}
-
 .tag-button.selected {
   background-color: var(--color-gold);
   color: var(--color-dirt-dark);
@@ -454,12 +394,6 @@ tag-bar:hover {
   align-items: stretch;
   gap: 1rem;
   flex: 1;
-}
-
-.item-list {
-  flex: 1;
-  overflow-y: auto;
-  height: 60vh;
 }
 
 .item-details {
@@ -762,22 +696,26 @@ input.fmt-italic-apply {
 /* SWAP INVENTORY UI - Modern Reactive */
 /* ═══════════════════════════════════════════════════════════════ */
 
+.swap-inv-container,
+.craft-container {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
+  border: 3px solid var(--color-dirt-dark);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .swap-inv-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 1200px;
-    height: 70vh;
-    background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
-    border: 3px solid var(--color-dirt-dark);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-    z-index: 1002;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  top: 50%;
+  left: 50%;
+  width: 90%;
+  max-width: 1200px;
+  height: 70vh;
 }
 
 .swap-inv-titlebar {
@@ -800,21 +738,24 @@ input.fmt-italic-apply {
     letter-spacing: 1px;
 }
 
-.swap-inv-close-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 28px;
-    padding: 0;
-    background: #d32f2f;
-    border: none;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s;
+
+.swap-inv-close-btn,
+.craft-close-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 28px;
+  padding: 0;
+  background: #d32f2f;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-.swap-inv-close-btn:hover {
-    background: #f44336;
+.swap-inv-close-btn:hover,
+.craft-close-btn:hover {
+  background: #f44336;
 }
 
 .swap-inv-content {
@@ -826,13 +767,14 @@ input.fmt-italic-apply {
     overflow: hidden;
 }
 
-.swap-inv-column {
-    display: flex;
-    flex-direction: column;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    overflow-y: auto;
+.swap-inv-column,
+.craft-column {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow-y: auto;
 }
 
 .swap-inv-column.swap-inv-middle {
@@ -842,46 +784,59 @@ input.fmt-italic-apply {
     background: rgba(0, 0, 0, 0.3);
 }
 
+.swap-inv-item-row,
+.craft-recipe-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
 .swap-inv-item-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
+  padding: 10px 8px;
 }
 
-.swap-inv-item-row:hover {
-    background: rgba(76, 175, 80, 0.2);
-    transform: translateX(4px);
+.craft-recipe-row {
+  padding: 10px;
 }
 
-.swap-inv-item-row.selected {
-    background: rgba(76, 175, 80, 0.4);
-    border-left: 4px solid var(--color-gold);
+.swap-inv-item-row:hover,
+.craft-recipe-row:hover {
+  background: rgba(76, 175, 80, 0.2);
+  transform: translateX(4px);
 }
 
-.swap-inv-item-image {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 4px;
-    flex-shrink: 0;
+.swap-inv-item-row.selected,
+.craft-recipe-row.selected {
+  background: rgba(76, 175, 80, 0.4);
+  border-left: 4px solid var(--color-gold);
 }
 
-.swap-inv-img {
-    width: 100%;
-    height: 100%;
-    image-rendering: pixelated;
+.swap-inv-item-image,
+.craft-recipe-image {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
-.swap-inv-placeholder {
-    font-size: 24px;
-    opacity: 0.5;
+.swap-inv-img,
+.craft-recipe-img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.swap-inv-placeholder,
+.craft-recipe-placeholder {
+  font-size: 24px;
+  opacity: 0.5;
 }
 
 .swap-inv-item-info {
@@ -909,27 +864,30 @@ input.fmt-italic-apply {
     margin-left: 8px;
 }
 
-.swap-inv-detail-image {
-    width: 100%;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
-    margin-bottom: 16px;
+.swap-inv-detail-image,
+.craft-detail-image {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
 
-.swap-inv-detail-img {
-    width: 100%;
-    height: 100%;
-    image-rendering: pixelated;
-    object-fit: contain;
+.swap-inv-detail-img,
+.craft-detail-img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  object-fit: contain;
 }
 
-.swap-inv-detail-placeholder {
-    font-size: 64px;
-    opacity: 0.3;
+.swap-inv-detail-placeholder,
+.craft-detail-placeholder {
+  font-size: 64px;
+  opacity: 0.3;
 }
 
 .swap-inv-detail-name {
@@ -955,11 +913,12 @@ input.fmt-italic-apply {
     text-align: center;
 }
 
-.swap-inv-empty {
-    color: #999;
-    font-style: italic;
-    text-align: center;
-    padding: 20px;
+.swap-inv-empty,
+.craft-empty {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -967,21 +926,11 @@ input.fmt-italic-apply {
 /* ═══════════════════════════════════════════════════════════════ */
 
 .craft-container {
-    position: absolute;
     top: 45%;
     left: 55%;
-    transform: translate(-50%, -50%);
     width: 85%;
     max-width: 1100px;
     height: 75vh;
-    background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
-    border: 3px solid var(--color-dirt-dark);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-    z-index: 1002;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
 }
 
 .craft-header {
@@ -1017,21 +966,7 @@ input.fmt-italic-apply {
 }
 
 .craft-close-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 28px;
-    padding: 0;
-    background: #d32f2f;
-    border: none;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: auto;
-    transition: background 0.2s;
-}
-
-.craft-close-btn:hover {
-    background: #f44336;
+  margin-left: auto;
 }
 
 /* Generic icon button hover/press effects for image-based buttons */
@@ -1112,59 +1047,8 @@ input.fmt-italic-apply {
     overflow: hidden;
 }
 
-.craft-column {
-    display: flex;
-    flex-direction: column;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    overflow-y: auto;
-}
-
 .craft-recipe-list {
     padding: 0;
-}
-
-.craft-recipe-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
-}
-
-.craft-recipe-row:hover {
-    background: rgba(76, 175, 80, 0.2);
-    transform: translateX(4px);
-}
-
-.craft-recipe-row.selected {
-    background: rgba(76, 175, 80, 0.4);
-    border-left: 4px solid var(--color-gold);
-}
-
-.craft-recipe-image {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 4px;
-    flex-shrink: 0;
-}
-
-.craft-recipe-img {
-    width: 100%;
-    height: 100%;
-    image-rendering: pixelated;
-}
-
-.craft-recipe-placeholder {
-    font-size: 24px;
-    opacity: 0.5;
 }
 
 .craft-recipe-name {
@@ -1177,29 +1061,6 @@ input.fmt-italic-apply {
 .craft-recipe-details {
     padding: 16px;
     background: rgba(0, 0, 0, 0.3);
-}
-
-.craft-detail-image {
-    width: 100%;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
-    margin-bottom: 16px;
-}
-
-.craft-detail-img {
-    width: 100%;
-    height: 100%;
-    image-rendering: pixelated;
-    object-fit: contain;
-}
-
-.craft-detail-placeholder {
-    font-size: 64px;
-    opacity: 0.3;
 }
 
 .craft-detail-name {
@@ -1272,9 +1133,5 @@ input.fmt-italic-apply {
 }
 
 .craft-empty {
-    color: #999;
-    font-style: italic;
-    text-align: center;
-    padding: 20px;
-    margin: auto;
+  margin: auto;
 }
