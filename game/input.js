@@ -528,6 +528,28 @@ function keyPressed() { //prevents normal key related actions
         return false; // Block all input
     }
     
+    // Handle 0-9 keys in moves editor to select slots
+    if (gameState === "inventory" && typeof movesEditorDiv !== 'undefined' && movesEditorDiv && movesEditorDiv.style('display') !== 'none') {
+        // Check if 0-9 key was pressed (48-57 are top row, 96-105 are numpad)
+        if ((keyCode >= 49 && keyCode <= 57) || keyCode === 48 || (keyCode >= 97 && keyCode <= 105) || keyCode === 96) {
+            let slotIndex;
+            if (keyCode >= 49 && keyCode <= 57) {
+                slotIndex = keyCode - 49; // 1-9 maps to 0-8
+            } else if (keyCode === 48) {
+                slotIndex = 9; // 0 maps to slot 9
+            } else if (keyCode >= 97 && keyCode <= 105) {
+                slotIndex = keyCode - 97; // Numpad 1-9 maps to 0-8
+            } else if (keyCode === 96) {
+                slotIndex = 9; // Numpad 0 maps to slot 9
+            }
+            
+            if (slotIndex !== undefined && typeof selectedMoveSlotIdx !== 'undefined' && typeof refreshMovesEditorUI === 'function') {
+                selectedMoveSlotIdx = slotIndex;
+                refreshMovesEditorUI();
+            }
+            return false;
+        }
+    }
    
     if (keyCode == 9) { //TAB
         return false;

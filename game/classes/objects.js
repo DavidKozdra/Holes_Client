@@ -217,7 +217,9 @@ function dirtBinUpdate() {
     //console.log(curPlayer);
     if (buildMode) return;
 
-    if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "" || curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Shovel") {
+    const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+    const heldItem = heldItemName ? curPlayer.invBlock.items[heldItemName] : null;
+    if (heldItemName == "" || (heldItem && heldItem.type == "Shovel")) {
         //convert mouse cords to world cords
         let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
         // check if the mouse is over the dirt bin

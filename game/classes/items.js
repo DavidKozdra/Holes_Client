@@ -126,9 +126,9 @@ function compassUse(x,y,mouseButton){
     if (nearbyPlayers.length === 0) {
         console.log('[Compass] No other players nearby');
         compassTarget = null;
-        // Show message to user
+        // Show message to user (using 'heal' type for green/neutral color)
         if (typeof spawnFloatingText === 'function') {
-            spawnFloatingText("No players found", curPlayer.pos.x, curPlayer.pos.y - 50, "info", false);
+            spawnFloatingText("No players", curPlayer.pos.x, curPlayer.pos.y - 50, "heal", false);
         }
         return;
     }

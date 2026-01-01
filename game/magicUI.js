@@ -60,10 +60,12 @@ function defineMovesEditorUI() {
     movesEditorDiv.html('');
     const panel = movesEditorDiv;
     panel.style("display", "grid");
-    panel.style("grid-template-columns", "1fr 1fr");
+    panel.style("grid-template-columns", "300px 1fr");
     panel.style("gap", "12px");
-    panel.style("width", "60vw");
-    panel.style("max-width", "85vw");
+    panel.style("width", "80vw");
+    panel.style("max-width", "1200px");
+    panel.style("max-height", "80vh");
+    
     const header = createDiv("<strong>Edit Moves (Slots 0-9)</strong>").parent(panel);
     header.style("grid-column", "1 / span 2");
     header.style("display", "flex");
@@ -71,6 +73,7 @@ function defineMovesEditorUI() {
     header.style("align-items", "center");
     header.style("margin-bottom", "12px");
     header.style("color", "yellow");
+    
     const backBtn = createButton("Back to Inventory").parent(header);
     backBtn.style("padding", "8px 16px");
     backBtn.style("cursor", "pointer");
@@ -87,23 +90,29 @@ function defineMovesEditorUI() {
         updateItemList();
         updatecurItemDiv();
     });
+    
     movesSlotList = createDiv().parent(panel);
     movesSlotList.style("border-radius", "8px");
-    movesSlotList.style("padding", "8px");
+    movesSlotList.style("padding", "12px");
     movesSlotList.style("overflow-y", "auto");
     movesSlotList.style("background", "#222");
+    movesSlotList.style("max-height", "calc(80vh - 100px)");
+    
     movesAllList = createDiv().parent(panel);
     movesAllList.style("border-radius", "8px");
-    movesAllList.style("padding", "8px");
+    movesAllList.style("padding", "12px");
     movesAllList.style("overflow-y", "auto");
     movesAllList.style("background", "#222");
+    movesAllList.style("max-height", "calc(80vh - 100px)");
 }
 
 function refreshMovesEditorUI() {
     if (!curPlayer) return;
     ensureMoveSlots();
     const slotKeys = ['1','2','3','4','5','6','7','8','9','0'];
-    movesSlotList.html('<div style="margin-bottom:8px; font-weight:bold; font-size:14px; color:#aef;">Slots</div>');
+    
+    // Left panel: Slots
+    movesSlotList.html('<div style="margin-bottom:12px; font-weight:bold; font-size:16px; color:#aef;">Your Slots</div>');
     for (let i = 0; i < 10; i++) {
         const moveId = curPlayer.movesSlots[i];
         const move = moveId ? ALL_MOVES.find(m => m.id === moveId) : null;
@@ -111,13 +120,17 @@ function refreshMovesEditorUI() {
         const slotBtn = createButton(`${slotKeys[i]}: ${displayName}`).parent(movesSlotList);
         slotBtn.style("width", "100%");
         slotBtn.style("margin-bottom", "6px");
-        slotBtn.style("padding", "8px");
-        slotBtn.style("background", i === selectedMoveSlotIdx ? "green" : "#333");
+        slotBtn.style("padding", "10px");
+        slotBtn.style("background", i === selectedMoveSlotIdx ? "#4a9eff" : "#333");
         slotBtn.style("color", i === selectedMoveSlotIdx ? "#fff" : (moveId ? "#aef" : "#888"));
-        slotBtn.style("border", i === selectedMoveSlotIdx ? "2px solid #fff" : "1px solid #555");
+        slotBtn.style("border", i === selectedMoveSlotIdx ? "3px solid #fff" : "1px solid #555");
         slotBtn.style("cursor", "pointer");
         slotBtn.style("text-align", "left");
+        slotBtn.style("font-size", "14px");
+        slotBtn.style("font-weight", i === selectedMoveSlotIdx ? "bold" : "normal");
+        slotBtn.style("transition", "all 0.2s");
         slotBtn.mousePressed(() => { selectedMoveSlotIdx = i; refreshMovesEditorUI(); });
+        
         const clearBtn = createImg("images/ui/x.png", "Clear").parent(slotBtn);
         clearBtn.style("width", "16px");
         clearBtn.style("height", "16px");
@@ -130,21 +143,92 @@ function refreshMovesEditorUI() {
             refreshMovesEditorUI();
         });
     }
-    let html = '<div style="margin-bottom:12px; font-weight:bold; font-size:14px; color:#aef;">Available Moves</div>';
+    
+    // Right panel: Available spells in a grid
+    let html = `<div style="margin-bottom:12px; font-weight:bold; font-size:16px; color:#aef;">Available Spells</div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px;">`;
+    
     for (const move of ALL_MOVES) {
-      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-        <span style="min-width:120px;display:inline-block;">${move.name} <span style='color:#ff8'>(Lv ${move.requiredLevel})</span></span>
-        <button class='assign-move-btn' data-moveid='${move.id}' style="padding:4px 10px;cursor:pointer;">Assign</button>
-      </div>`;
+        const ability = magicAbilities.find(a => a.name.toLowerCase().replace(/\s+/g, '') === move.id);
+        const iconKey = move.id + '_icon';
+        
+        // Generate spell icon
+        let iconDataUrl = '';
+        if (typeof getSpellIcon === 'function') {
+            const iconGraphics = getSpellIcon(iconKey, (g) => {
+                g.clear();
+                g.push();
+                g.translate(g.width / 2, g.height / 2);
+                // Simple colored circle for now - you can customize per spell
+                g.noStroke();
+                const col = move.color || { r: 120, g: 200, b: 255 };
+                g.fill(col.r, col.g, col.b);
+                g.ellipse(0, 0, 20, 20);
+                g.fill(255);
+                g.textAlign(g.CENTER, g.CENTER);
+                g.textSize(10);
+                g.text(move.name.substring(0, 2).toUpperCase(), 0, 0);
+                g.pop();
+            });
+            if (iconGraphics && iconGraphics.canvas) {
+                iconDataUrl = iconGraphics.canvas.toDataURL('image/png');
+            }
+        }
+        
+        html += `<div class='spell-card' data-moveid='${move.id}' style="
+            background:#333; 
+            border:2px solid #555; 
+            border-radius:8px; 
+            padding:8px; 
+            cursor:pointer; 
+            text-align:center;
+            transition: all 0.2s;
+            position:relative;
+        " 
+        onmouseover="this.style.background='#444';this.style.borderColor='#aef';" 
+        onmouseout="this.style.background='#333';this.style.borderColor='#555';">
+            ${iconDataUrl ? `<img src="${iconDataUrl}" style="width:48px;height:48px;image-rendering:pixelated;margin-bottom:6px;">` : ''}
+            <div style="font-size:12px;font-weight:bold;color:#aef;margin-bottom:4px;">${move.name}</div>
+            <div style="font-size:10px;color:#ff8;margin-bottom:4px;">Lv ${move.requiredLevel}</div>
+            <div style="font-size:10px;color:#8cf;">${move.manaCost} MP</div>
+            <div style="font-size:9px;color:#999;margin-top:4px;line-height:1.2;">${move.description}</div>
+            <button class='assign-move-btn' data-moveid='${move.id}' style="
+                margin-top:8px;
+                padding:6px 12px;
+                cursor:pointer;
+                background:#4a9eff;
+                color:white;
+                border:none;
+                border-radius:4px;
+                font-weight:bold;
+                font-size:11px;
+                width:100%;
+            ">Assign to [${slotKeys[selectedMoveSlotIdx]}]</button>
+        </div>`;
     }
+    
+    html += '</div>';
     movesAllList.html(html);
+    
     // Add event listeners for assign buttons
     movesAllList.elt.querySelectorAll('.assign-move-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        const moveId = btn.getAttribute('data-moveid');
-        curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
-        refreshMovesEditorUI();
-      };
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const moveId = btn.getAttribute('data-moveid');
+            curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
+            refreshMovesEditorUI();
+        };
+    });
+    
+    // Add event listeners for spell cards (click anywhere to assign)
+    movesAllList.elt.querySelectorAll('.spell-card').forEach(card => {
+        const assignBtn = card.querySelector('.assign-move-btn');
+        card.onclick = (e) => {
+            if (e.target === assignBtn) return; // Let button handle its own click
+            const moveId = card.getAttribute('data-moveid');
+            curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
+            refreshMovesEditorUI();
+        };
     });
 }
 
