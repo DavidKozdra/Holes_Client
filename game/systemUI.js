@@ -140,6 +140,41 @@ function definePauseUI() {
         updateSpellLockDisplay();
     });
 
+    // Password Management Button
+    let passwordButton = createButton("🔐 Manage Password");
+    passwordButton.parent(sliderContainer);
+    passwordButton.class("settings-button");
+    passwordButton.mousePressed(() => {
+        if (!curPlayer || !curPlayer.name) {
+            alert("You must be logged in to manage your password.");
+            return;
+        }
+        
+        const hasPassword = confirm("Do you want to set/change your password?\n\nClick OK to set a new password\nClick Cancel to remove password protection");
+        
+        if (hasPassword) {
+            const newPass = prompt("Enter your new password:", "");
+            if (newPass !== null && newPass !== "") {
+                socket.emit("set_password", { password: newPass }, (resp) => {
+                    if (resp && resp.ok) {
+                        alert("✓ Password set successfully!");
+                    } else {
+                        alert("✗ Failed to set password: " + (resp?.message || "Unknown error"));
+                    }
+                });
+            }
+        } else {
+            // Remove password by setting it to empty
+            socket.emit("set_password", { password: "" }, (resp) => {
+                if (resp && resp.ok) {
+                    alert("✓ Password protection removed!");
+                } else {
+                    alert("✗ Failed to remove password: " + (resp?.message || "Unknown error"));
+                }
+            });
+        }
+    });
+
     removeData_button = createButton("Remove Data");
     removeData_button.parent(sliderContainer);
     removeData_button.class("settings-button");

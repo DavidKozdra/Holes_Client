@@ -1,3 +1,4 @@
+// Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const candidates = ['sw.js', './sw.js', '/game/sw.js'];

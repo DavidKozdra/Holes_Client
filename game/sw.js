@@ -1,7 +1,7 @@
 // sw.js
 
 // Change this when you update your assets
-const CACHE_NAME = 'holesgame-v1';
+const CACHE_NAME = 'holesgame-v2-fixed-items';
 
 // Pre-cache URLs - currently disabled as paths need to be verified
 // Enable these once you have the actual bundled files

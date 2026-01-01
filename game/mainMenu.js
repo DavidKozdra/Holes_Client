@@ -667,9 +667,8 @@ function drawSelection() {
     });
     // Enable the "Go" button only when a race is selected and a name is entered
 }
-
+// Hide UI elements during gameplay
 function hideRaceSelect() {
-    // Hide UI elements during gameplay
     nameInput.hide();
     goButton.hide();
     raceButtons.forEach((card) => {
@@ -677,7 +676,6 @@ function hideRaceSelect() {
     });
     race_back_button.hide();
     raceContainer.style("display", "none"); // Hide the container
-    // If using raceTitle, hide it as well
     raceTitle.style("display", "none");
 }
 
@@ -911,14 +909,12 @@ function setupRaceSelectionUI() {
 // ─────────────────────────────────────────────────────────────────────
 
 function startGame() {
-    //console.log(raceSelected, "sasd")
     if (!selectedServer) {
         alert("Issue with server retry.");
         return;
     }
     if (!raceSelected) {
         alert("Pick a race.");
-        //console.log("SDSD")
         return;
     }
 
@@ -927,10 +923,8 @@ function startGame() {
         return;
     }
 
-    // 1) Pull the value from the name input.
     const nameVal = nameInput.value().trim();
 
-    // 2) Check length
     if (nameVal.length === 0) {
         alert("Name cannot be empty.");
         return;
@@ -939,20 +933,15 @@ function startGame() {
         alert("Name is too long (max 20 chars).");
         return;
     }
-
-    // 3) Disallow spaces
     if (/\s/.test(nameVal)) {
         alert("Name cannot contain spaces.");
         return;
     }
-
-    // 4) Letters and digits only
     if (!/^[A-Za-z0-9]+$/.test(nameVal)) {
         alert("Name can only contain letters and digits.");
         return;
     }
 
-    // 5) Check forbidden words
     const badWords = ["badword", "someoffensiveword"];
     for (let badWord of badWords) {
         if (nameVal.toLowerCase().includes(badWord)) {
@@ -961,54 +950,94 @@ function startGame() {
         }
     }
 
-    // If all checks pass, make their character and send it to the server
-    curPlayer = new Player(
-        200, //random(-200*TILESIZE, 200*TILESIZE)
-        200, //random(-200*TILESIZE, 200*TILESIZE)
+    const pendingPlayer = new Player(
+        200,
+        200,
         undefined,
         curID,
         0,
         curRace,
         nameVal
-    ); // Default race index 0
+    );
 
-    camera.pos = createVector(curPlayer.pos.x, curPlayer.pos.y);
+    const basePayload = {
+        id: pendingPlayer.id,
+        name: pendingPlayer.name,
+        race: pendingPlayer.race,
+        color: pendingPlayer.color,
+        pos: { x: pendingPlayer.pos.x, y: pendingPlayer.pos.y },
+        statBlock: {
+            level: pendingPlayer.statBlock.level,
+            xp: pendingPlayer.statBlock.xp,
+            xpNeeded: pendingPlayer.statBlock.xpNeeded,
+            stats: pendingPlayer.statBlock.stats
+        },
+        invBlock: null,
+        teamId: pendingPlayer.teamId || null
+    };
 
-    //load in some chunks for easy start
-    let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-    for (let yOff = -2; yOff < 3; yOff++) {
-        for (let xOff = -2; xOff < 3; xOff++) {
-            testMap.getChunk(chunkPos.x + xOff, chunkPos.y + yOff);
+    const tryJoin = (passwordAttempt = "") => {
+        const payload = { ...basePayload };
+        if (passwordAttempt) {
+            payload.password = passwordAttempt;
         }
-    }
 
-    // DON'T give default items yet - wait for server to check if we need them
-    // Server will respond with old kit OR tell us to give starter kit
+        socket.emit("new_player", payload, (resp) => {
+            if (!resp || resp.ok !== true) {
+                const code = resp?.code || "UNKNOWN";
+                if (code === "PASSWORD_REQUIRED" || code === "BAD_PASSWORD") {
+                    const promptMsg = resp?.message || "Enter password for this player:";
+                    const pw = prompt(promptMsg, "");
+                    if (pw === null) {
+                        alert("Join cancelled.");
+                        return;
+                    }
+                    tryJoin(pw);
+                    return;
+                } else if (code === "NAME_IN_USE") {
+                    alert("That name is already in use.");
+                } else {
+                    alert(resp?.message || "Unable to join.");
+                }
+                return;
+            }
 
-    document.getElementById("canvas-container").style.display = "block";
-    socket.emit("new_player", curPlayer);
+            curPlayer = pendingPlayer;
 
-    // Request items from server - it will restore old kit or tell us to give starter kit
-    socket.emit("request_my_items", { name: nameVal });
+            // Password can now be set/changed in Settings menu after login
 
-    // Request current teams list
-    socket.emit("get_teams");
+            camera.pos = createVector(curPlayer.pos.x, curPlayer.pos.y);
 
-    gameState = "playing";
-    hideRaceSelect();
+            let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
+            for (let yOff = -2; yOff < 3; yOff++) {
+                for (let xOff = -2; xOff < 3; xOff++) {
+                    testMap.getChunk(chunkPos.x + xOff, chunkPos.y + yOff);
+                }
+            }
 
-    if (localStorage.getItem("tut_seen") == "true") {
-        tutorialDiv.hide();
-    } else {
-        tutorialDiv.show();
-        localStorage.setItem("tut_seen", "true");
-    }
+            document.getElementById("canvas-container").style.display = "block";
 
-    // Clear a small area around the player (example logic)
-    for (let y = -5; y < 5; y++) {
-        for (let x = -5; x < 5; x++) {
-            dig(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
-            mine(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
-        }
-    }
+            socket.emit("request_my_items", { name: nameVal });
+            socket.emit("get_teams");
+
+            gameState = "playing";
+            hideRaceSelect();
+
+            if (localStorage.getItem("tut_seen") == "true") {
+                tutorialDiv.hide();
+            } else {
+                tutorialDiv.show();
+                localStorage.setItem("tut_seen", "true");
+            }
+
+            for (let y = -5; y < 5; y++) {
+                for (let x = -5; x < 5; x++) {
+                    dig(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
+                    mine(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
+                }
+            }
+        });
+    };
+
+    tryJoin();
 }

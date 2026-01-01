@@ -285,8 +285,9 @@ class SimpleItem{
         this.rarity = (itemDic[this.itemName] && itemDic[this.itemName].rarity) ? itemDic[this.itemName].rarity : ItemRarity.BASIC;
         this.rarityRGB = (itemDic[this.itemName] && itemDic[this.itemName].rarityRGB) ? itemDic[this.itemName].rarityRGB : getItemRarityRGB(this.rarity);
 
-        this.offset = createVector(0,0);
-        this.offVel = createVector(0,0); //offset velocity
+        // Use plain objects instead of p5.Vector to avoid circular reference issues during serialization
+        this.offset = { x: 0, y: 0 };
+        this.offVel = { x: 0, y: 0 }; //offset velocity
         this.shake = {intensity: 0, length: 0};
 
         this.amount = 1;
@@ -317,23 +318,50 @@ class SimpleItem{
         image(itemImgs[this.imgNum][0], x+this.offset.x,y+this.offset.y, 60, 60);
         
         if(this.shake.length > 0){
-            if(this.offVel.mag() < 1){
+            // Calculate magnitude (plain object version)
+            const getMag = (v) => Math.sqrt(v.x * v.x + v.y * v.y);
+            const setMag = (v, m) => {
+                const mag = getMag(v);
+                if (mag > 0) {
+                    v.x = (v.x / mag) * m;
+                    v.y = (v.y / mag) * m;
+                }
+            };
+            const rotate = (v, angle) => {
+                const rad = angle * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                const newX = v.x * cos - v.y * sin;
+                const newY = v.x * sin + v.y * cos;
+                v.x = newX;
+                v.y = newY;
+            };
+            
+            if(getMag(this.offVel) < 1){
                 this.offVel.x = this.shake.intensity;
             }
-            this.offVel.setMag(this.offVel.mag()+this.shake.intensity);
-            if(this.offVel.mag() > this.shake.intensity*5){
-                this.offVel.setMag(this.shake.intensity*5);
+            setMag(this.offVel, getMag(this.offVel) + this.shake.intensity);
+            if(getMag(this.offVel) > this.shake.intensity*5){
+                setMag(this.offVel, this.shake.intensity*5);
             }
-            this.offVel.rotate(random(45, 180));
+            rotate(this.offVel, random(45, 180));
             this.shake.length -= 1;
         }
         else{
             this.shake.intensity = 0;
             this.offVel.x = -1*this.offset.x;
             this.offVel.y = -1*this.offset.y;
-            this.offVel.setMag(this.offVel.mag()/10);
+            // Calculate magnitude and set velocity (plain object version)
+            const mag = Math.sqrt(this.offVel.x * this.offVel.x + this.offVel.y * this.offVel.y);
+            if (mag > 0) {
+                const targetMag = mag / 10;
+                this.offVel.x = (this.offVel.x / mag) * targetMag;
+                this.offVel.y = (this.offVel.y / mag) * targetMag;
+            }
         }
-        this.offset.add(this.offVel);
+        // Add velocity to offset (plain object version)
+        this.offset.x += this.offVel.x;
+        this.offset.y += this.offVel.y;
     }
 
     getStats(){
