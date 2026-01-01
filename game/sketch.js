@@ -261,7 +261,7 @@ function draw() {
                         const isSnappable = ghostBuild.objName == "Wall" || ghostBuild.objName == "Floor" || ghostBuild.objName == "Door" || ghostBuild.objName == "Thin Wall" || ghostBuild.objName == "Rug";
                         if (isSnappable) {
                             let chunkPos = testMap.globalToChunk(ghostBuild.pos.x, ghostBuild.pos.y);
-                            let chunkKey = chunkPos.x + "," + chunkPos.y;
+                            let chunkKey = getChunkKey(chunkPos.x, chunkPos.y);
                             let chunk = testMap.chunks[chunkKey];
                             if (chunk) for (let i = 0; i < chunk.objects.length; i++) {
                                 if (chunk.objects[i].pos.dist(ghostBuild.pos) < 5 + 128) {
@@ -308,7 +308,7 @@ function draw() {
                 // PERF FIX #3: cache chunk key string, use const for INTERACT_RANGE
                 let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
                 let chunkPos = testMap.globalToChunk(mouseVec.x, mouseVec.y);
-                let chunkKey = chunkPos.x + "," + chunkPos.y;
+                let chunkKey = getChunkKey(chunkPos.x, chunkPos.y);
                 let chunk = testMap.chunks[chunkKey];
                 if (chunk != undefined) {
                     let closest;
@@ -362,7 +362,7 @@ function draw() {
                         // PERF FIX #5: cache chunk key, cache const, cache distance calc
                         // PERF FIX #8: Call globalToChunk only once
                         let playerChunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-                        let playerChunkKey = playerChunkPos.x + "," + playerChunkPos.y;
+                        let playerChunkKey = getChunkKey(playerChunkPos.x, playerChunkPos.y);
                         let chunk = testMap.chunks[playerChunkKey];
                         if (chunk != undefined) {
                             closest = undefined;

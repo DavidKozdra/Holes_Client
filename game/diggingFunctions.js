@@ -73,12 +73,16 @@ function playerDig(x,y, amount){
         if(digSoundTimer <= 0){
             if(amount > 0){
                 let temp = new SoundObj("digging.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "digging.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             else{
                 let temp = new SoundObj("placing_dirt.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "placing_dirt.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             digSoundTimer = 1.3;
@@ -109,7 +113,10 @@ function dig(x, y, amt, playerDiging, rayStart) {
     y = floor(y / TILESIZE);
     
     let chunkPos = testMap.globalToChunk(x*TILESIZE,y*TILESIZE);
-    
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    chunkPos.key = chunkKey;
+    const chunk = testMap.chunks[chunkKey];
+
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
     let index = x + y * CHUNKSIZE;
@@ -223,26 +230,28 @@ function dig(x, y, amt, playerDiging, rayStart) {
     }
 
     if(playerDiging){
-        if(testMap.chunks[chunkPos.x+","+chunkPos.y] != undefined){
+        if(chunk != undefined){
             if(amt > 0){
                 dirtInv += amt;
             }
             else{
                 dirtInv += amt;
-                if (testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] > 1.3){
-                    dirtInv -= testMap.chunks[chunkPos.x+","+chunkPos.y].data[index]-1.3;
+                if (chunk.data[index] > 1.3){
+                    dirtInv -= chunk.data[index]-1.3;
                 }
             }
         }
     }
 
-    socket.emit("update_node", {chunkPos: (chunkPos.x+","+chunkPos.y), index: index, amt: amt });
+    socket.emit("update_node", {chunkPos: chunkKey, index: index, amt: amt });
 }
 
 
 function cast(x,y, angle, placeBool){
     let chunkPos = testMap.globalToChunk(x,y);
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y] == undefined) return;
+    chunkPos.key = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    let chunk = testMap.chunks[chunkPos.key];
+    if(chunk == undefined) return;
     
     x = floor(x / TILESIZE);
     y = floor(y / TILESIZE);
@@ -252,12 +261,12 @@ function cast(x,y, angle, placeBool){
     y = y-(chunkPos.y*CHUNKSIZE);
     let index = x + y * CHUNKSIZE;
 
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
+    if(chunk.data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
 
     let playerToMouse = (round(curPlayer.pos.dist(createVector((mouseX + camera.pos.x - (width / 2)), (mouseY + camera.pos.y - (height / 2))))/TILESIZE)+1)*TILESIZE;
     let playerToTile = curPlayer.pos.dist(createVector(((chunkPos.x*CHUNKSIZE+x)*TILESIZE), ((chunkPos.y*CHUNKSIZE+y)*TILESIZE)));
 
-    while(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] == 0){
+        while(chunk.data[index] == 0){
       x += cos(angle);
       y += sin(angle);
       
@@ -278,11 +287,14 @@ function cast(x,y, angle, placeBool){
             y = y + CHUNKSIZE;
             chunkPos.y -= 1;
           }
+        chunkPos.key = getChunkKey(chunkPos.x, chunkPos.y);
+        chunk = testMap.chunks[chunkPos.key];
+        if(!chunk) return;
           
         index = floor(x) + floor(y) * CHUNKSIZE;
         
         if(placeBool){
-            if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] >= 1.3){
+            if(chunk.data[index] >= 1.3){
                 x -= 1*cos(angle);
                 y -= 1*sin(angle);
                 return {cx: chunkPos.x, cy: chunkPos.y, x: floor(x), y: floor(y)};
@@ -351,12 +363,16 @@ function playerMine(x,y, amount){
         if(digSoundTimer <= 0){
             if(amount > 0){
                 let temp = new SoundObj("digging.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "digging.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             else{
                 let temp = new SoundObj("placing_dirt.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "placing_dirt.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             digSoundTimer = 1.3;
@@ -372,6 +388,9 @@ function mine(x, y, amt, playerDiging, rayStart) {
     y = floor(y / TILESIZE);
     
     let chunkPos = testMap.globalToChunk(x*TILESIZE,y*TILESIZE);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    chunkPos.key = chunkKey;
+    const chunk = testMap.chunks[chunkKey];
     
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
@@ -450,7 +469,7 @@ function mine(x, y, amt, playerDiging, rayStart) {
     }
 
     if(playerDiging){
-        if(testMap.chunks[chunkPos.x+","+chunkPos.y] != undefined){
+        if(chunk != undefined){
             if(amt > 0){
                 if(random() < 0.01){
                     curPlayer.invBlock.addItem("Raw Metal", 1, true);
@@ -459,12 +478,14 @@ function mine(x, y, amt, playerDiging, rayStart) {
         }
     }
 
-    socket.emit("update_iron_node", {chunkPos: (chunkPos.x+","+chunkPos.y), index: index, amt: amt });
+    socket.emit("update_iron_node", {chunkPos: chunkKey, index: index, amt: amt });
 }
 
 function ironCast(x,y, angle, placeBool){
     let chunkPos = testMap.globalToChunk(x,y);
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y] == undefined) return;
+    chunkPos.key = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    let chunk = testMap.chunks[chunkPos.key];
+    if(chunk == undefined) return;
     
     x = floor(x / TILESIZE);
     y = floor(y / TILESIZE);
@@ -474,12 +495,12 @@ function ironCast(x,y, angle, placeBool){
     y = y-(chunkPos.y*CHUNKSIZE);
     let index = x + y * CHUNKSIZE;
 
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
+    if(chunk.iron_data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
 
     let playerToMouse = (round(curPlayer.pos.dist(createVector((mouseX + camera.pos.x - (width / 2)), (mouseY + camera.pos.y - (height / 2))))/TILESIZE)+1)*TILESIZE;
     let playerToTile = curPlayer.pos.dist(createVector(((chunkPos.x*CHUNKSIZE+x)*TILESIZE), ((chunkPos.y*CHUNKSIZE+y)*TILESIZE)));
 
-    while(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] == 0){
+        while(chunk.iron_data[index] == 0){
       x += cos(angle);
       y += sin(angle);
       
@@ -500,11 +521,14 @@ function ironCast(x,y, angle, placeBool){
             y = y + CHUNKSIZE;
             chunkPos.y -= 1;
           }
+        chunkPos.key = getChunkKey(chunkPos.x, chunkPos.y);
+        chunk = testMap.chunks[chunkPos.key];
+        if(!chunk) return;
           
         index = floor(x) + floor(y) * CHUNKSIZE;
         
         if(placeBool){
-            if(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] >= 1.3){
+            if(chunk.iron_data[index] >= 1.3){
                 x -= 1*cos(angle);
                 y -= 1*sin(angle);
                 return {cx: chunkPos.x, cy: chunkPos.y, x: floor(x), y: floor(y)};

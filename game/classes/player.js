@@ -69,8 +69,10 @@ class Player {
     }
  newCollisionPoint(xOffset, yOffset, direction) {
         let chunkPos = testMap.globalToChunk(this.pos.x + (xOffset * TILESIZE), this.pos.y + (yOffset * TILESIZE));
+        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+        const chunk = testMap.chunks[chunkKey];
 
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) { //if you dont have that chunk assume there is dirt in the way
+        if (chunk == undefined) { //if you dont have that chunk assume there is dirt in the way
             return {
                 dir: direction,
                 val: -1
@@ -116,7 +118,10 @@ class Player {
             y2 = 0;
         }
 
-        if (testMap.chunks[chunkPos2.x + "," + chunkPos2.y] == undefined) { //if you dont have that chunk assume there is dirt in the way
+        const chunkKey2 = getChunkKey(chunkPos2.x, chunkPos2.y);
+        const chunk2 = testMap.chunks[chunkKey2];
+
+        if (chunk2 == undefined) { //if you dont have that chunk assume there is dirt in the way
             return {
                 dir: direction,
                 val: -1
@@ -124,8 +129,8 @@ class Player {
         }
 
         //MATH
-        let val = testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE];
-        let val2 = testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE];
+        let val = chunk.data[x + y * CHUNKSIZE];
+        let val2 = chunk2.data[x2 + y2 * CHUNKSIZE];
 
         if (val == -1 || val2 == -1) {
             return {
@@ -185,10 +190,10 @@ class Player {
         }
 
         return {
-            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE],
-            val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE],
-            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + y * CHUNKSIZE],
-            iron_val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].iron_data[x2 + y2 * CHUNKSIZE],
+            val: chunk.data[x + y * CHUNKSIZE],
+            val2: chunk2.data[x2 + y2 * CHUNKSIZE],
+            iron_val: chunk.iron_data[x + y * CHUNKSIZE],
+            iron_val2: chunk2.iron_data[x2 + y2 * CHUNKSIZE],
             x: (midpoint.x + (chunkPos2.x * CHUNKSIZE)) * TILESIZE,
             y: (midpoint.y + (chunkPos2.y * CHUNKSIZE)) * TILESIZE,
             dir: direction
@@ -208,7 +213,7 @@ getNeighborChunkKeysForWorldPos(wx, wy) {
     const keys = [];
     for (let cy = c.y - 1; cy <= c.y + 1; cy++) {
         for (let cx = c.x - 1; cx <= c.x + 1; cx++) {
-            const k = cx + "," + cy;
+            const k = getChunkKey(cx, cy);
             if (testMap.chunks[k]) keys.push(k);
         }
     }
@@ -217,9 +222,10 @@ getNeighborChunkKeysForWorldPos(wx, wy) {
 
 isSolidTileAtWorld(wx, wy) {
     const chunkPos = testMap.globalToChunk(wx, wy);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
 
     // Missing chunk = solid (your existing behavior)
-    const chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+    const chunk = testMap.chunks[chunkKey];
     if (!chunk) return true;
 
     // Local tile coords in chunk
@@ -303,7 +309,8 @@ collidesAt(pos) {
 update() {
     // Do not update if player is in unloaded space
     const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-    if (!testMap.chunks[chunkPos.x + "," + chunkPos.y]) return;
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    if (!testMap.chunks[chunkKey]) return;
 
     /* =========================
        INPUT / STATE
@@ -408,7 +415,8 @@ update() {
     render() {
         //dont render players not in your chunks
         let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) return;
+        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+        if (testMap.chunks[chunkKey] == undefined) return;
         push();
         // Move relative to the camera
         translate(-camera.pos.x + width / 2, -camera.pos.y + height / 2);

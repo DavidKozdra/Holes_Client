@@ -611,7 +611,7 @@ class Placeable {
         let touchingObjs = [];
 
         let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+        let chunk = getChunkFromPos(testMap.chunks, chunkPos);
         for (let j = 0; j < chunk.objects.length; j++) {
             if (this.z == chunk.objects[j].z) {
                 let d = chunk.objects[j].pos.dist(this.pos);
@@ -677,6 +677,7 @@ class Placeable {
 
     checkCollisions(xOffset, yOffset) {
         let chunkPos = testMap.globalToChunk(this.pos.x + (xOffset * TILESIZE), this.pos.y + (yOffset * TILESIZE));
+        const chunk = getChunkFromPos(testMap.chunks, chunkPos);
 
         let x = floor(this.pos.x / TILESIZE) - (chunkPos.x * CHUNKSIZE) + xOffset;
         let y = floor(this.pos.y / TILESIZE) - (chunkPos.y * CHUNKSIZE) + yOffset;
@@ -694,8 +695,8 @@ class Placeable {
             y: (y + 0.5) * TILESIZE,
             cx: chunkPos.x,
             cy: chunkPos.y,
-            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE],
-            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + y * CHUNKSIZE]
+            val: chunk.data[x + y * CHUNKSIZE],
+            iron_val: chunk.iron_data[x + y * CHUNKSIZE]
         };
 
     }
@@ -767,13 +768,15 @@ class Plant extends Placeable {
                     if (random() < 0.2) {
                         let spreadPos = createVector(this.pos.x + random(-100, 100), this.pos.y + random(-100, 100));
                         let chunkPos = testMap.globalToChunk(spreadPos.x, spreadPos.y);
-                        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] != undefined) {
+                        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                        const spreadChunk = testMap.chunks[chunkKey];
+                        if (spreadChunk != undefined) {
 
                             let index = floor((spreadPos.x - (chunkPos.x * CHUNKSIZE * TILESIZE)) / TILESIZE) + (floor((spreadPos.y - (chunkPos.y * CHUNKSIZE * TILESIZE)) / TILESIZE) / CHUNKSIZE);
                             //if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] == undefined) {console.log("undefined data")}
-                            if (testMap.chunks[chunkPos.x + "," + chunkPos.y].data[index] == 0 && testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[index] == 0) {
+                            if (spreadChunk.data[index] == 0 && spreadChunk.iron_data[index] == 0) {
                                 let newPlant = createObject(this.objName, spreadPos.x, spreadPos.y, 0, this.color, this.id, this.ownerName);
-                                testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(newPlant);
+                                spreadChunk.objects.push(newPlant);
                                 socket.emit("new_object", {
                                     cx: chunkPos.x,
                                     cy: chunkPos.y,
@@ -907,7 +910,8 @@ update() {
 
             // play sound
             let temp = new SoundObj("hit.ogg", t.pos.x, t.pos.y);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
+            const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+            testMap.chunks[chunkKey].soundObjs.push(temp);
             socket.emit("new_sound", {
                 sound: "hit.ogg",
                 cPos: chunkPos,
@@ -1015,9 +1019,10 @@ function createExplosion(origin) {
 
         //play hit noise and tell server
         let temp = new SoundObj("snd_bizarreexplode.ogg", curPlayer.pos.x, curPlayer.pos.y);
-        testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
+        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+        testMap.chunks[chunkKey].soundObjs.push(temp);
         socket.emit("new_sound", { sound: "snd_bizarreexplode.ogg", cPos: chunkPos, pos: { x: curPlayer.pos.x, y: curPlayer.pos.y }, id: temp.id });
-    let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+    let chunk = testMap.chunks[chunkKey];
     if (chunk != undefined) {
         for (let i = 0; i < chunk.objects.length; i++) {
             if (chunk.objects[i].pos.dist(origin.pos) < 33 + (6 * (origin.size.w + origin.size.h) / 4)) {
@@ -1219,8 +1224,10 @@ class Entity extends Placeable {
                     this.name
                 );
                 expOrb.id = random(1000000);
-                testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(expOrb);
-                testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a, b) => a.z - b.z);
+                const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                const chunk = testMap.chunks[chunkKey];
+                chunk.objects.push(expOrb);
+                chunk.objects.sort((a, b) => a.z - b.z);
                 socket.emit("new_object", {
                     cx: chunkPos.x,
                     cy: chunkPos.y,

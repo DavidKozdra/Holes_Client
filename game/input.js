@@ -145,7 +145,7 @@ function keyReleased() {
         if (keyCode == Controls_Interact_code) { //f
             let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
             let chunkPos = testMap.globalToChunk(mouseVec.x, mouseVec.y);
-            let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+            let chunk = getChunkFromPos(testMap.chunks, chunkPos);
             let closest;
             let closestDist;
 
@@ -191,7 +191,7 @@ function keyReleased() {
                 }
                 else {
                     let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-                    let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+                    let chunk = getChunkFromPos(testMap.chunks, chunkPos);
                     closest = undefined;
                     for (let i = 0; i < chunk.objects.length; i++) {
                         if (
@@ -656,9 +656,11 @@ function continousMouseInput() { //ran once every frame, good for anything like 
                                 }
                             }
                             let chunkPos = testMap.globalToChunk(x, y);
+                            const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                            const chunk = testMap.chunks[chunkKey];
                             let temp = createObject(ghostBuild.objName, ghostBuild.pos.x, ghostBuild.pos.y, ghostBuild.rot, curPlayer.color, curPlayer.id, curPlayer.name);
-                            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(temp);
-                            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a, b) => a.z - b.z);
+                            chunk.objects.push(temp);
+                            chunk.objects.sort((a, b) => a.z - b.z);
                             socket.emit("new_object", {
                                 cx: chunkPos.x,
                                 cy: chunkPos.y,
@@ -667,7 +669,7 @@ function continousMouseInput() { //ran once every frame, good for anything like 
 
                             //play placing_structure sound and tell server
                             let temp2 = new SoundObj("placing_structure.ogg", x, y);
-                            testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp2);
+                            chunk.soundObjs.push(temp2);
                             socket.emit("new_sound", { sound: "placing_structure.ogg", cPos: chunkPos, pos: { x: x, y: y }, id: temp.id });
                             curPlayer.animationCreate("put");
                             socket.emit("update_player", {
@@ -699,7 +701,7 @@ function continousMouseInput() { //ran once every frame, good for anything like 
                 }
                 else {
                     let chunkPos = testMap.globalToChunk(x, y);
-                    let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+                    let chunk = getChunkFromPos(testMap.chunks, chunkPos);
                     for (let i = 0; i < chunk.objects.length; i++) {
                         if (createVector(x, y).dist(chunk.objects[i].pos) < (chunk.objects[i].size.w + chunk.objects[i].size.h) / 4) {
                             if ((chunk.objects[i].color == 0 && chunk.objects[i].ownerName == curPlayer.name) || (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color)) { //only team members and you can delete your objects

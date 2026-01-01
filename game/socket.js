@@ -261,7 +261,7 @@ function socketSetup(){
     });
 
     socket.on('YOUR_ID', (data) => {
-        if(curID != null){
+        if(curID != null && curPlayer){
             //console.log("Your ID is already set to: " + curPlayer.id);
             //console.log("New ID received: " + data.id);
             //Reconnection
@@ -283,13 +283,7 @@ function socketSetup(){
     socket.on('receive_my_items', (data) => {
         if (!curPlayer) return;
         
-        console.log('[Items] Received response from server:', data.hasOldItems);
-        if (data.invBlock) {
-            console.log('[Items] Items to restore:', Object.keys(data.invBlock.items || {}));
-        }
-        
         if (data.hasOldItems) {
-            console.log('[Items] Restoring old inventory - you are a returning player');
             try {
                 const clampHP = (statsObj) => {
                     if (!statsObj || typeof statsObj.hp !== 'number' || typeof statsObj.mhp !== 'number') return;
@@ -333,7 +327,6 @@ function socketSetup(){
                             clampHP(curPlayer.statBlock.stats);
                         }
                     }
-                    console.log('[Stats] Restored stats with healthRegen:', curPlayer.statBlock.stats.healthRegen);
                 }
                 
                 // Restore inventory - inventory is already empty from constructor
@@ -342,13 +335,10 @@ function socketSetup(){
                     const itemsIn = inv.items || {};
                     const names = Object.keys(itemsIn);
                     
-                    console.log(`[Items] About to restore ${names.length} items:`, names);
-                    
                     for (let i = 0; i < names.length; i++) {
                         const name = names[i];
                         const rec = itemsIn[name];
                         const amt = (rec && typeof rec.amount === 'number') ? rec.amount : (typeof rec === 'number' ? rec : 1);
-                        console.log(`[Items] Adding: ${name} x${amt}`);
                         curPlayer.invBlock.addItem(name, amt, false);
                         const inst = curPlayer.invBlock.items[name];
                         if (rec && typeof rec === 'object') {
@@ -356,8 +346,6 @@ function socketSetup(){
                             if (typeof rec.maxDurability === 'number') inst.maxDurability = rec.maxDurability;
                         }
                     }
-                    
-                    console.log(`[Items] Current inventory after restore:`, Object.keys(curPlayer.invBlock.items))
                     
                     // Restore hotbar
                     if (Array.isArray(inv.hotbar)) {
@@ -395,10 +383,7 @@ function socketSetup(){
                     while (curPlayer.movesSlots.length < 10) {
                         curPlayer.movesSlots.push(null);
                     }
-                    console.log('[Moves] ✓ Restored move slots:', curPlayer.movesSlots);
                 }
-                
-                console.log('[Items] ✓ Old inventory restored successfully');
             } catch (e) {
                 console.error('[Items] Failed to restore old inventory:', e);
                 // Fallback to starter kit on error
@@ -408,7 +393,6 @@ function socketSetup(){
             }
         } else {
             // New player - give starter kit
-            console.log('[Items] You are a NEW player - giving starter kit');
             if (typeof giveDefaultItems === 'function') {
                 giveDefaultItems();
             }
@@ -527,7 +511,6 @@ function socketSetup(){
     });
 
     socket.on('REMOVE_PLAYER', (data) => {
-        console.log("Removing player: " + data);
         players[data] = {};
         delete players[data];
         updatePlayerCount();
@@ -538,7 +521,6 @@ function socketSetup(){
             let keys = Object.keys(players);
             for(let i= 0; i < keys.length; i++){
                 if(!data.ids.includes(keys[i])){
-                    console.log("Removing player: " + keys[i]);
                     players[keys[i]] = {};
                     delete players[keys[i]];
                 }
@@ -831,7 +813,8 @@ function socketSetup(){
         if(data.obj.brainID !== undefined) {
             console.log('[Client] NEW_OBJECT received:', data.obj.objName, 'at chunk', data.cx + ',' + data.cy, 'race:', data.obj.race, 'brainID:', data.obj.brainID);
         }
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             let temp = createObject(data.obj.objName, data.obj.pos.x, data.obj.pos.y, data.obj.rot, data.obj.color, data.obj.id, data.obj.ownerName, data.obj.brainID);
 
@@ -848,9 +831,6 @@ function socketSetup(){
             if(temp.objName == "Sign"){
                 temp.txt = data.obj.txt;
             }
-            if(temp.brainID !== undefined) {
-                console.log('[Client] ✅ Created ENTITY:', temp.objName, 'with race:', temp.race, 'direction:', temp.direction, 'brainID:', temp.brainID);
-            }
             chunk.objects.push(temp);
             chunk.objects.sort((a,b) => a.z - b.z);
         }
@@ -858,7 +838,8 @@ function socketSetup(){
 
     socket.on("DELETE_OBJ", (data) => {
         //console.log(data);
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
                 if(data.objName == "ExpOrb"){
@@ -881,7 +862,8 @@ function socketSetup(){
     });
 
     socket.on("UPDATE_OBJ", (data) =>{
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
                 if(data.objName == "ExpOrb"){
@@ -908,7 +890,8 @@ function socketSetup(){
     })
 
     socket.on("UPDATE_INV", (data) =>{
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
                 if(data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
@@ -926,13 +909,15 @@ function socketSetup(){
     socket.on("NEW_PROJECTILE", (data) =>{
         let proj = createProjectile(data.name, data.ownerName, data.color, data.pos.x, data.pos.y, data.flightPath.a);
         proj.id = data.id;
-        if(testMap.chunks[data.cPos.x+','+data.cPos.y] != undefined){
-            testMap.chunks[data.cPos.x+','+data.cPos.y].projectiles.push(proj);
+        const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+        if(testMap.chunks[chunkKey] != undefined){
+            testMap.chunks[chunkKey].projectiles.push(proj);
         }
     });
 
     socket.on("DELETE_PROJ", (data) =>{
-        let chunk = testMap.chunks[data.cPos.x+','+data.cPos.y];
+        const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i=chunk.projectiles.length-1; i>=0; i--){
                 if(
@@ -950,24 +935,22 @@ function socketSetup(){
     socket.on("NEW_SOUND", (data) =>{
         let sound = new SoundObj(data.sound, data.pos.x, data.pos.y);
         sound.id = data.id;
-        if(testMap.chunks[data.cPos.x+','+data.cPos.y] != undefined){
-            testMap.chunks[data.cPos.x+','+data.cPos.y].soundObjs.push(sound);
+        const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+        if(testMap.chunks[chunkKey] != undefined){
+            testMap.chunks[chunkKey].soundObjs.push(sound);
         }
     });
 
     socket.on("GIVE_CHUNK", (data) => {
-        console.log('[Client] GIVE_CHUNK received for chunk', data.x + ',' + data.y, 'with', data.objects.length, 'objects');
-        testMap.chunks[data.x+","+data.y] = new Chunk(data.x, data.y);
+        const chunkKey = getChunkKey(data.x, data.y);
+        testMap.chunks[chunkKey] = new Chunk(data.x, data.y);
+        const chunk = testMap.chunks[chunkKey];
         let keys = Object.keys(data.data);
-        for(let i=0; i<keys.length; i++) testMap.chunks[data.x+","+data.y].data[keys[i]] = data.data[keys[i]];
+        for(let i=0; i<keys.length; i++) chunk.data[keys[i]] = data.data[keys[i]];
         keys = Object.keys(data.iron_data);
-        for(let i=0; i<keys.length; i++) testMap.chunks[data.x+","+data.y].iron_data[keys[i]] = data.iron_data[keys[i]];
-        testMap.chunkBools[data.x+","+data.y] = true;
+        for(let i=0; i<keys.length; i++) chunk.iron_data[keys[i]] = data.iron_data[keys[i]];
+        testMap.chunkBools[chunkKey] = true;
         for(let i=0; i<data.objects.length; i++){
-            // Only log entities with brainID
-            if(data.objects[i].brainID !== undefined) {
-                console.log('[Client] Processing ENTITY from chunk:', data.objects[i].objName, 'race:', data.objects[i].race, 'brainID:', data.objects[i].brainID, 'at', data.objects[i].pos.x, data.objects[i].pos.y);
-            }
             let temp = createObject(
                 data.objects[i].objName, 
                 data.objects[i].pos.x, 
@@ -1012,20 +995,15 @@ function socketSetup(){
             }
             temp.hp = data.objects[i].hp;
             
-            // Only log entities
-            if(temp.brainID !== undefined) {
-                console.log('[Client] ✅ Created ENTITY from server data:', temp.objName, 'race:', temp.race, 'brainID:', temp.brainID, 'at', temp.pos.x, temp.pos.y);
-            }
-
-            testMap.chunks[data.x+","+data.y].objects.push(temp);
-            testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.pos.y - b.pos.y);
-            testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.z - b.z);
+            chunk.objects.push(temp);
+            chunk.objects.sort((a,b) => a.pos.y - b.pos.y);
+            chunk.objects.sort((a,b) => a.z - b.z);
         }
         if(data.projectiles){
             for(let i=0; i<data.projectiles.length; i++){
                 let temp = createProjectile(data.projectiles[i].name, data.projectiles[i].ownerName, data.projectiles[i].color, data.projectiles[i].pos.x, data.projectiles[i].pos.y, data.projectiles[i].flightPath.a);
                 temp.id = data.projectiles[i].id;
-                testMap.chunks[data.x+","+data.y].projectiles.push(temp);
+                chunk.projectiles.push(temp);
             }
         }
         
@@ -1038,9 +1016,9 @@ function socketSetup(){
                     testMap.brains[i].target.y < (data.y+1) * CHUNKSIZE * TILESIZE
                 ){
                     let temp = createObject("Ant", testMap.brains[i].target.x, testMap.brains[i].target.y, 0, 0, "", "Server", testMap.brains[i].id);
-                    testMap.chunks[data.x+","+data.y].objects.push(temp);
-                    testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.pos.y - b.pos.y);
-                    testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.z - b.z);
+                    chunk.objects.push(temp);
+                    chunk.objects.sort((a,b) => a.pos.y - b.pos.y);
+                    chunk.objects.sort((a,b) => a.z - b.z);
                 }
             }
         }
@@ -1065,7 +1043,6 @@ function socketSetup(){
         if (data && data.teams) {
             if (typeof window.allTeams === 'undefined') window.allTeams = {};
             window.allTeams = data.teams;
-            console.log('[Socket] SERVER_SUMMARY received - teams synced:', Object.keys(data.teams).length);
         }
     });
 

@@ -1,15 +1,16 @@
 function getPlayerChunk(){
     let temp = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-    return temp.x + "," + temp.y;
+    return temp.key || getChunkKey(temp.x, temp.y);
 }
 
 function cleanChunk(cx,cy){  //removes all dirt in a chunk
-    let chunk = testMap.chunks[cx+","+cy];
+    const chunkKey = getChunkKey(cx, cy);
+    let chunk = testMap.chunks[chunkKey];
     for (let x = 0; x < CHUNKSIZE; x++){
         for (let y = 0; y < CHUNKSIZE; y++){
             let index = x + y * CHUNKSIZE;
             chunk.data[index] = 0; 
-            //socket.emit("update_node", {chunkPos: (cx+","+cy), index: index, val: 0});
+            //socket.emit("update_node", {chunkPos: chunkKey, index: index, val: 0});
         }
     }
 }
@@ -67,12 +68,13 @@ function createTestChunk(cx, cy){ //makes the dirt in a specific way to test the
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ]
-    let chunk = testMap.chunks[cx+","+cy];
+    const chunkKey = getChunkKey(cx, cy);
+    let chunk = testMap.chunks[chunkKey];
     for (let x = 0; x < CHUNKSIZE; x++){
         for (let y = 0; y < CHUNKSIZE; y++){
             let index = x + y * CHUNKSIZE;
             chunk.data[index] = testChunk[y][x]/9; 
-            socket.emit("update_node", {chunkPos: (cx+","+cy), index: index, val: testChunk[y][x]/9});
+            socket.emit("update_node", {chunkPos: chunkKey, index: index, val: testChunk[y][x]/9});
         }
     }
 }
@@ -152,9 +154,11 @@ function giveDefaultItems(){
 
 function spawnObj(name, x, y, rot = 0, color = 0, id = "", ownerName = ""){
     let chunkPos = testMap.globalToChunk(x,y);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    const chunk = testMap.chunks[chunkKey];
     let temp = createObject(name, x, y, rot, color, id, ownerName);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(temp);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+    chunk.objects.push(temp);
+    chunk.objects.sort((a,b) => a.z - b.z);
     socket.emit("new_object", {
         cx: chunkPos.x, 
         cy: chunkPos.y, 

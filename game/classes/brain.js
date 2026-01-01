@@ -243,9 +243,11 @@ class Brain {
     moveObjTowards(x,y,speed){
         //TODO: collishion
         let oldChunkPos = testMap.globalToChunk(this.obj.pos.x, this.obj.pos.y);
+        const oldChunkKey = oldChunkPos.key || getChunkKey(oldChunkPos.x, oldChunkPos.y);
+        const oldChunk = testMap.chunks[oldChunkKey];
         let xTile = floor(this.obj.pos.x / TILESIZE) - (oldChunkPos.x * CHUNKSIZE);
         let yTile = floor(this.obj.pos.y / TILESIZE) - (oldChunkPos.y * CHUNKSIZE);
-        if(testMap.chunks[oldChunkPos.x+","+oldChunkPos.y].data[xTile + yTile * CHUNKSIZE] > 0){
+        if(oldChunk && oldChunk.data[xTile + yTile * CHUNKSIZE] > 0){
             speed = speed/2;
         }
         
@@ -309,9 +311,10 @@ class Brain {
             );
             temp.hp = oldHp;
 
-            let newChunk = testMap.chunks[newChunkPos.x+","+newChunkPos.y];
+            const newChunkKey = newChunkPos.key || getChunkKey(newChunkPos.x, newChunkPos.y);
+            let newChunk = testMap.chunks[newChunkKey];
             if(newChunk != undefined){
-                testMap.chunks[newChunkPos.x+","+newChunkPos.y].objects.push(temp);
+                newChunk.objects.push(temp);
                 socket.emit("new_object", {
                     cx: newChunkPos.x, 
                     cy: newChunkPos.y, 
@@ -349,7 +352,8 @@ function scareBrain(brainID, proj){
             if(proj.flightPath != undefined){
                 //check if turret is at proj.flightPath.origin
                 let chunkPos = testMap.globalToChunk(proj.flightPath.origin.x, proj.flightPath.origin.y);
-                let chunk = testMap.chunks[chunkPos.x+","+chunkPos.y];
+                    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                    let chunk = testMap.chunks[chunkKey];
                 if(chunk != undefined){
                     for(let j=0; j<chunk.objects.length; j++){
                         if(chunk.objects[j].objName == "Turret"){

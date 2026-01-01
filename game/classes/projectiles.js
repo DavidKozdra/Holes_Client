@@ -70,8 +70,10 @@ class SimpleProjectile{
 
             socket.emit("new_proj", newProj);
 
-            if(testMap.chunks[newCPos.x+","+newCPos.y] != undefined){
-                testMap.chunks[newCPos.x+","+newCPos.y].projectiles.push(newProj);
+            const newChunkKey = getChunkKey(newCPos.x, newCPos.y);
+            const newChunk = testMap.chunks[newChunkKey];
+            if(newChunk != undefined){
+                newChunk.projectiles.push(newProj);
             }
             
             this.deleteTag = true;
@@ -104,7 +106,9 @@ class SimpleProjectile{
         //check collision with dirt walls
         let x = floor(this.pos.x / TILESIZE) - (this.cPos.x*CHUNKSIZE);
         let y = floor(this.pos.y / TILESIZE) - (this.cPos.y*CHUNKSIZE);
-        let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
+        let chunk = getChunkFromPos(testMap.chunks, this.cPos);
+        if(!chunk) return;
+        if(!chunk) return;
         if(chunk.data[x + y * CHUNKSIZE] > 0 || chunk.iron_data[x + y * CHUNKSIZE] > 0){
             this.deleteTag = true;
             socket.emit("delete_proj", this);
@@ -134,7 +138,8 @@ class SimpleProjectile{
                             let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                             //play hit noise and tell server
                             let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                            testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                            const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                            testMap.chunks[hitChunkKey].soundObjs.push(temp);
                             socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
 
                             if(this.ownerName != chunk.objects[j].ownerName){
@@ -150,7 +155,8 @@ class SimpleProjectile{
                         let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                         //play hit noise and tell server
                         let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                        testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                        const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                        testMap.chunks[hitChunkKey].soundObjs.push(temp);
                         socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
 
                         if(this.ownerName != chunk.objects[j].ownerName){
@@ -187,7 +193,8 @@ class SimpleProjectile{
                 let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
                 //play hit noise and tell server
                 let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                const playerChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                testMap.chunks[playerChunkKey].soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
                 let tempV = createVector(this.knockback,0);
                 tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
@@ -369,7 +376,8 @@ class MeleeProjectile extends SimpleProjectile{
     }
 
     checkCollision(){
-        let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
+        const chunkKey = getChunkKey(this.cPos.x, this.cPos.y);
+        let chunk = testMap.chunks[chunkKey];
         
         // Safety check: if chunk doesn't exist, bail out
         if(!chunk || !chunk.objects) return;
@@ -382,7 +390,7 @@ class MeleeProjectile extends SimpleProjectile{
                 // Fallback: Prevent by ownerName if available (legacy)
                 if(chunk.objects[j].ownerName && this.ownerName && chunk.objects[j].ownerName === this.ownerName) continue;
                 // Create unique identifier for this object
-                let objId = this.cPos.x + "," + this.cPos.y + "," + j;
+                let objId = chunkKey + "," + j;
                 if(this.hitTargets.has(objId)) continue; // Already hit this target
                 
                 // Use proper collision box detection
@@ -391,7 +399,7 @@ class MeleeProjectile extends SimpleProjectile{
                     this.hitTargets.add(objId); // Mark as hit
                     //play hit noise and tell server
                     let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                    testMap.chunks[this.cPos.x+","+this.cPos.y].soundObjs.push(temp);
+                    chunk.soundObjs.push(temp);
                     socket.emit("new_sound", {sound: "hit.ogg", cPos: {x: this.cPos.x, y: this.cPos.y}, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
                     damageObj(chunk, chunk.objects[j], this.damage);
                     
@@ -411,7 +419,8 @@ class MeleeProjectile extends SimpleProjectile{
                     let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
                     //play hit noise and tell server
                     let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                    testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                    const playerChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                    testMap.chunks[playerChunkKey].soundObjs.push(temp);
                     socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
                     let tempV = createVector(this.knockback,0);
                     tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
@@ -493,8 +502,10 @@ class ObjProj extends SimpleProjectile{
 
             socket.emit("new_proj", newProj);
 
-            if(testMap.chunks[newCPos.x+","+newCPos.y] != undefined){
-                testMap.chunks[newCPos.x+","+newCPos.y].projectiles.push(newProj);
+            const newChunkKey = getChunkKey(newCPos.x, newCPos.y);
+            const newChunk = testMap.chunks[newChunkKey];
+            if(newChunk != undefined){
+                newChunk.projectiles.push(newProj);
             }
             
             this.deleteTag = true;
@@ -515,7 +526,7 @@ class ObjProj extends SimpleProjectile{
         //check collision with dirt walls
         let x = floor(this.pos.x / TILESIZE) - (this.cPos.x*CHUNKSIZE);
         let y = floor(this.pos.y / TILESIZE) - (this.cPos.y*CHUNKSIZE);
-        let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
+        let chunk = getChunkFromPos(testMap.chunks, this.cPos);
         if(x > 0 && x < CHUNKSIZE && y > 0 && y < CHUNKSIZE){
             if(chunk.data[x + y * CHUNKSIZE] > 0 || chunk.iron_data[x + y * CHUNKSIZE] > 0){
                 this.spawnObj();
@@ -540,7 +551,8 @@ class ObjProj extends SimpleProjectile{
                             let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                             //play hit noise and tell server
                             let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                            testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                            const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                            testMap.chunks[hitChunkKey].soundObjs.push(temp);
                             socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
                         }
                     }
@@ -552,7 +564,8 @@ class ObjProj extends SimpleProjectile{
                         let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                         //play hit noise and tell server
                         let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                        testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                        const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                        testMap.chunks[hitChunkKey].soundObjs.push(temp);
                         socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
                     }
                 }
@@ -571,7 +584,8 @@ class ObjProj extends SimpleProjectile{
                 let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
                 //play hit noise and tell server
                 let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                const playerChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                testMap.chunks[playerChunkKey].soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
             }
         }
@@ -831,14 +845,14 @@ class Explosion {
 
 function spawnFloatingText(value, x, y, kind, isCrit){
     const cpos = testMap.globalToChunk(x, y);
-    const chunk = testMap.chunks[cpos.x+","+cpos.y];
+    const chunk = getChunkFromPos(testMap.chunks, cpos);
     if(!chunk) return;
     chunk.floatingTexts.push(new FloatingText(value, x, y, kind, isCrit));
 }
 
 function spawnExplosion(x, y, sizeW, sizeH) {
     const cpos = testMap.globalToChunk(x, y);
-    const chunk = testMap.chunks[cpos.x+","+cpos.y];
+    const chunk = getChunkFromPos(testMap.chunks, cpos);
     if(!chunk) return;
     if (!chunk.explosions) chunk.explosions = [];
     chunk.explosions.push(new Explosion(x, y, sizeW, sizeH));
