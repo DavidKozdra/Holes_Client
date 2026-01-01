@@ -99,6 +99,8 @@ class StatBlock{
         this.race = race;
         this.stats = JSON.parse(JSON.stringify(BASE_STATS[this.race]));
         if(health != undefined) this.stats.hp = health;
+        if (this.stats.hp > this.stats.mhp) this.stats.hp = this.stats.mhp;
+        if (this.stats.hp < 0) this.stats.hp = 0;
         this.level = 1;
         this.xp = 0;
         this.xpNeeded = 10;

@@ -1309,15 +1309,18 @@ function renderPlayerCardUI() {
     rect(width - 530 + 304, 83, 34, 19);
     rect(width - 530 + 340, 83, 36, 19);
 
+    const maxHp = Math.max(1, curPlayer.statBlock.stats.mhp || 1);
+    const hpRatio = Math.min(1, Math.max(0, curPlayer.statBlock.stats.hp / maxHp));
+    const hpWidth = 281 * hpRatio;
     image(
         hpBarImg,
         width - 530 + 93,
         52,
-        281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp),
+        hpWidth,
         14,
         0,
         0,
-        281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp),
+        hpWidth,
         14
     );
 

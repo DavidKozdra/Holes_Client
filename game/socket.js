@@ -291,6 +291,12 @@ function socketSetup(){
         if (data.hasOldItems) {
             console.log('[Items] Restoring old inventory - you are a returning player');
             try {
+                const clampHP = (statsObj) => {
+                    if (!statsObj || typeof statsObj.hp !== 'number' || typeof statsObj.mhp !== 'number') return;
+                    if (statsObj.hp > statsObj.mhp) statsObj.hp = statsObj.mhp;
+                    if (statsObj.hp < 0) statsObj.hp = 0;
+                };
+
                 // Restore position first
                 if (data.pos && typeof data.pos.x === 'number' && typeof data.pos.y === 'number') {
                     curPlayer.pos.x = data.pos.x;
@@ -311,6 +317,7 @@ function socketSetup(){
                             const raceIndex = sb.race != null ? sb.race : curPlayer.race;
                             const baseStats = JSON.parse(JSON.stringify(BASE_STATS[raceIndex]));
                             curPlayer.statBlock.stats = Object.assign({}, baseStats, sb.stats);
+                            clampHP(curPlayer.statBlock.stats);
                         }
                     } else {
                         const health = (sb.stats && typeof sb.stats.hp === 'number') ? sb.stats.hp : undefined;
@@ -323,6 +330,7 @@ function socketSetup(){
                         if (sb.stats && typeof sb.stats === 'object') {
                             const baseStats = JSON.parse(JSON.stringify(BASE_STATS[raceIndex]));
                             curPlayer.statBlock.stats = Object.assign({}, baseStats, sb.stats);
+                            clampHP(curPlayer.statBlock.stats);
                         }
                     }
                     console.log('[Stats] Restored stats with healthRegen:', curPlayer.statBlock.stats.healthRegen);
@@ -412,6 +420,12 @@ function socketSetup(){
         if (!curPlayer) return;
         try {
             let hasOldKit = false;
+
+            const clampHP = (statsObj) => {
+                if (!statsObj || typeof statsObj.hp !== 'number' || typeof statsObj.mhp !== 'number') return;
+                if (statsObj.hp > statsObj.mhp) statsObj.hp = statsObj.mhp;
+                if (statsObj.hp < 0) statsObj.hp = 0;
+            };
             
             if (data.pos && typeof data.pos.x === 'number' && typeof data.pos.y === 'number') {
                 curPlayer.pos.x = data.pos.x;
@@ -425,7 +439,10 @@ function socketSetup(){
                     if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
                     if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
                     if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
-                    if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                    if (sb.stats && typeof sb.stats === 'object') {
+                        curPlayer.statBlock.stats = sb.stats;
+                        clampHP(curPlayer.statBlock.stats);
+                    }
                 } else {
                     // If somehow missing methods, rehydrate a new instance
                     const health = (sb.stats && typeof sb.stats.hp === 'number') ? sb.stats.hp : undefined;
@@ -434,7 +451,10 @@ function socketSetup(){
                     if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
                     if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
                     if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
-                    if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                    if (sb.stats && typeof sb.stats === 'object') {
+                        curPlayer.statBlock.stats = sb.stats;
+                        clampHP(curPlayer.statBlock.stats);
+                    }
                 }
             }
             if (data.invBlock) {
