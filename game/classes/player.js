@@ -416,6 +416,16 @@ update() {
         playerStateBatcher.setPosition(this.pos);
         playerStateBatcher.setHolding(this.holding);
     }
+    // For other players, smoothly interpolate towards target position from network updates
+    else if (this.targetPos) {
+        const lerpSpeed = 0.4; // Higher speed for 50ms updates (0.25 was for 100ms)
+        this.pos.x = lerp(this.pos.x, this.targetPos.x, lerpSpeed);
+        this.pos.y = lerp(this.pos.y, this.targetPos.y, lerpSpeed);
+        
+        // Update moving state based on distance to target
+        const distToTarget = dist(this.pos.x, this.pos.y, this.targetPos.x, this.targetPos.y);
+        this.moving = distToTarget > 1; // Consider moving if more than 1px away
+    }
 }
 
     render() {
