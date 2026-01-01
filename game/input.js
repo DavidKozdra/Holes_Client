@@ -9,14 +9,17 @@ function getIsChatting() {
 }
 
 function keyReleased() {
+    // Block all UI toggles (I, C, E, Q, etc.) if any input/textarea is focused
+    const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+    
     // Exit search state on ESC
     if (keyCode == 27 && gameState == "search") {
         gameState = lastGameState;
         blurActiveElement();
         return;
     }
-    // Ignore all other keys in search mode
-    if (gameState == "search") {
+    // Ignore all other keys in search mode or when input is focused
+    if (gameState == "search" || isInputFocused) {
         return;
     }
     if (keyCode == 27 && gameState != "pause" && gameState != "initial" && gameState != "race_selection" && gameState != "controls" && gameState != "search") { //ESC
@@ -505,9 +508,18 @@ function keyReleased() {
 function keyPressed() { //prevents normal key related actions
     // Cancel meditation if any button is pressed (handled in modular magic system now)
     // If you want to cancel meditate, call the appropriate method on the MeditateAbility instance.
-    
+     if (keyCode == 27) { //ESC
+        return false;
+    }
+
     // Block all keys if in search mode except ESC
     if (gameState == "search") {
+            // Block all keys if input/textarea is focused (prevents game keybinds from triggering while typing)
+        const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+        if (isInputFocused) {
+            return false; // Allow input element to handle the key normally
+        }
+    
         console.log("🔍 Key pressed in search mode - keyCode:", keyCode, "char:", String.fromCharCode(keyCode));
         if (keyCode == 27) { // ESC
             gameState = lastGameState;
@@ -516,9 +528,7 @@ function keyPressed() { //prevents normal key related actions
         return false; // Block all input
     }
     
-    if (keyCode == 27) { //ESC
-        return false;
-    }
+   
     if (keyCode == 9) { //TAB
         return false;
     }
