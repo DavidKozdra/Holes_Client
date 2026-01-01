@@ -443,17 +443,11 @@ class CombustionAbility extends MagicAbility {
 class ForceFieldAbility extends MagicAbility {
     constructor() {
         super('ForceField', 'buff', 40, 450, 'Create a protective barrier that blocks damage and projectiles.', 3);
-        this.active = false;
-        this.timer = 0;
         this.duration = 200;
-        this.auraTimer = 0;
         this.bonusMR = 3;
     }
     onActivate(player) {
         if (!player.forcefieldActive) {
-            this.active = true;
-            this.timer = this.duration;
-            this.auraTimer = this.duration;
             player.forcefieldActive = true;
             player.auraTimer = this.duration;
             player.statBlock.stats.magicResistance += this.bonusMR;
@@ -470,16 +464,17 @@ class ForceFieldAbility extends MagicAbility {
     }
     update(player) {
         if (player.forcefieldActive) {
-            this.timer--;
             player.auraTimer = Math.max(0, player.auraTimer - 1);
-            if (this.timer % 10 === 0) {
+            
+            // Heal player periodically
+            if (player.auraTimer % 10 === 0 && player.auraTimer > 0) {
                 let amt = ((player.statBlock.stats.magic * (deltaTime/30)) / 5) + 1;
                 player.statBlock.regenHealth(amt);
             }
-            if (this.timer <= 0) {
-                this.active = false;
+            
+            // End forcefield when timer reaches 0
+            if (player.auraTimer <= 0) {
                 player.forcefieldActive = false;
-                player.auraTimer = 0;
                 player.statBlock.stats.magicResistance -= this.bonusMR;
                 if (typeof socket !== 'undefined') {
                     socket.emit("update_player", {
