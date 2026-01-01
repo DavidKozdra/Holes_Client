@@ -15,6 +15,10 @@ function keyReleased() {
         blurActiveElement();
         return;
     }
+    // Ignore all other keys in search mode
+    if (gameState == "search") {
+        return;
+    }
     if (keyCode == 27 && gameState != "pause" && gameState != "initial" && gameState != "race_selection" && gameState != "controls" && gameState != "search") { //ESC
         if (gameState != "settings") {
             gameState = "playing";
@@ -343,7 +347,7 @@ function keyReleased() {
             spaceBarDiv.hide();
             curPlayer.otherInv = undefined;
         }
-        if (keyCode == 16) { //Shift
+        if (keyCode == 16 && gameState != "inventory" && gameState != "crafting" && gameState != "swap_inv") { //Shift
             updateSpaceBarDiv();
         }
     }
@@ -502,13 +506,17 @@ function keyPressed() { //prevents normal key related actions
     // Cancel meditation if any button is pressed (handled in modular magic system now)
     // If you want to cancel meditate, call the appropriate method on the MeditateAbility instance.
     
-    if (keyCode == 27) { //ESC
-        // Allow escape to exit search state
-        if (gameState == "search") {
+    // Block all keys if in search mode except ESC
+    if (gameState == "search") {
+        console.log("🔍 Key pressed in search mode - keyCode:", keyCode, "char:", String.fromCharCode(keyCode));
+        if (keyCode == 27) { // ESC
             gameState = lastGameState;
             blurActiveElement();
-            return false;
         }
+        return false; // Block all input
+    }
+    
+    if (keyCode == 27) { //ESC
         return false;
     }
     if (keyCode == 9) { //TAB
@@ -518,22 +526,17 @@ function keyPressed() { //prevents normal key related actions
     if (keyCode === 32 && (gameState == "inventory" || gameState == "crafting")) { // 32 = Space
         return false;
     }
-    // Block most keys if in search mode (allow only basic input/control keys)
-    if (gameState == "search") {
-        const allowedKeyCodes = [8, 13, 16, 17, 18, 27, 37, 38, 39, 40]; // Backspace, Enter, Shift, Ctrl, Alt, ESC, arrows
-        if (!allowedKeyCodes.includes(keyCode)) {
-            // Letter/number keys are allowed in input, just let them through
-            return true;
-        }
-    }
     if (keyCode === 13 && isChatting) { // 13 = Enter
         //console.log("dd");
         blurActiveElement();
         isChatting = false
         return false; // prevent default enter behavior (like form submit)
     }
+    // Ignore Shift key press in search mode or when in UI
     if (keyCode == 16) { //Shift
-        updateSpaceBarDiv();
+        if (gameState != "search" && gameState != "inventory" && gameState != "crafting" && gameState != "swap_inv") {
+            updateSpaceBarDiv();
+        }
     }
 }
 function blurActiveElement() {

@@ -63,6 +63,19 @@ function defineCraftingUI() {
     let searchBar = createInput().parent(craftDiv);
     searchBar.class("search-bar");
     searchBar.attribute("placeholder", "Search recipes...");
+    searchBar.elt.addEventListener("focus", () => {
+        console.log("🔍 Search focused - gameState was:", gameState);
+        lastGameState = gameState;
+        gameState = "search";
+        console.log("🔍 Search focused - gameState now:", gameState);
+    });
+    searchBar.elt.addEventListener("blur", () => {
+        console.log("🔍 Search blurred - gameState was:", gameState);
+        if (gameState === "search") {
+            gameState = lastGameState;
+        }
+        console.log("🔍 Search blurred - gameState now:", gameState);
+    });
     searchBar.input(() => {
         let searchTerm = searchBar.value().toLowerCase();
         curPlayer.invBlock.craftList.forEach((recipe) => {
