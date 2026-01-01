@@ -252,6 +252,21 @@ defineCustomItem("Teleport Receiver", [[3,5]], [1,["Metal", 1],["Tech", 2],["Phi
 function dirtBagUpgradeUse(x,y,mouseButton){
     if(curPlayer.invBlock.useTimer <= 0){
         maxDirtInv += 150;
+        // Keep server snapshot in sync so dirt capacity persists across reconnects
+        curPlayer.maxDirtInv = maxDirtInv;
+        if (typeof playerStateBatcher !== 'undefined' && playerStateBatcher) {
+            playerStateBatcher.addUpdate('maxDirtInv', maxDirtInv);
+            playerStateBatcher.setPosition(curPlayer.pos);
+            playerStateBatcher.setHolding(curPlayer.holding);
+        } else if (socket && socket.connected && curPlayer) {
+            socket.emit('update_player', {
+                id: curPlayer.id,
+                pos: curPlayer.pos,
+                holding: curPlayer.holding,
+                update_names: ['maxDirtInv'],
+                update_values: [maxDirtInv]
+            });
+        }
         curPlayer.invBlock.decreaseAmount("Dirt Bag Upgrade", 1);
         curPlayer.invBlock.useTimer = 30;
     }

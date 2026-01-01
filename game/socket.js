@@ -156,6 +156,7 @@ function socketSetup(){
                     xpNeeded: curPlayer.statBlock.xpNeeded,
                     stats: curPlayer.statBlock.stats
                 } : null,
+                maxDirtInv: maxDirtInv,
                 // Inventory
                 invBlock: curPlayer.invBlock ? {
                     items: curPlayer.invBlock.items || {},
@@ -376,6 +377,15 @@ function socketSetup(){
                 if (data.teamId) {
                     curPlayer.teamId = data.teamId;
                 }
+
+                // Restore dirt bag capacity (default 600 if missing)
+                if (typeof data.maxDirtInv === 'number') {
+                    maxDirtInv = data.maxDirtInv;
+                } else {
+                    maxDirtInv = maxDirtInv || 600;
+                }
+                if (curPlayer) curPlayer.maxDirtInv = maxDirtInv;
+                if (typeof dirtInv === 'number' && dirtInv > maxDirtInv) dirtInv = maxDirtInv;
                 
                 // Restore move slots
                 if (Array.isArray(data.movesSlots)) {
@@ -396,6 +406,10 @@ function socketSetup(){
             if (typeof giveDefaultItems === 'function') {
                 giveDefaultItems();
             }
+
+            // Reset dirt bag capacity for new players
+            maxDirtInv = 600;
+            if (curPlayer) curPlayer.maxDirtInv = maxDirtInv;
         }
     });
 
@@ -493,6 +507,15 @@ function socketSetup(){
             if (data.teamId) {
                 curPlayer.teamId = data.teamId;
             }
+
+            // Restore dirt bag capacity
+            if (typeof data.maxDirtInv === 'number') {
+                maxDirtInv = data.maxDirtInv;
+            } else {
+                maxDirtInv = maxDirtInv || 600;
+            }
+            curPlayer.maxDirtInv = maxDirtInv;
+            if (typeof dirtInv === 'number' && dirtInv > maxDirtInv) dirtInv = maxDirtInv;
             
             // If no old kit was restored, give default items now
             if (!hasOldKit && typeof giveDefaultItems === 'function') {
@@ -837,7 +860,7 @@ function socketSetup(){
     });
 
     socket.on("DELETE_OBJ", (data) => {
-        //console.log(data);
+        if(!data) return;
         const chunkKey = getChunkKey(data.cx, data.cy);
         let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
@@ -852,7 +875,7 @@ function socketSetup(){
                         chunk.objects[i].deleteTag = true;
                     }
                 }
-                else{
+                else if(data.pos && chunk.objects[i].pos){
                     if(data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
                         chunk.objects[i].deleteTag = true;
                     }
@@ -862,6 +885,7 @@ function socketSetup(){
     });
 
     socket.on("UPDATE_OBJ", (data) =>{
+        if(!data) return;
         const chunkKey = getChunkKey(data.cx, data.cy);
         let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
@@ -869,18 +893,22 @@ function socketSetup(){
                 if(data.objName == "ExpOrb"){
                     if(data.z == chunk.objects[i].z && data.id == chunk.objects[i].id){
                         chunk.objects[i][data.update_name] = data.update_value;
-                        chunk.objects[i].pos.x = data.pos.x;
-                        chunk.objects[i].pos.y = data.pos.y;
+                        if(data.pos && chunk.objects[i].pos){
+                            chunk.objects[i].pos.x = data.pos.x;
+                            chunk.objects[i].pos.y = data.pos.y;
+                        }
                     }
                 }
                 else if(data.brainID != undefined){
                     if(data.z == chunk.objects[i].z && data.brainID == chunk.objects[i].brainID){
                         chunk.objects[i][data.update_name] = data.update_value;
-                        chunk.objects[i].pos.x = data.pos.x;
-                        chunk.objects[i].pos.y = data.pos.y;
+                        if(data.pos && chunk.objects[i].pos){
+                            chunk.objects[i].pos.x = data.pos.x;
+                            chunk.objects[i].pos.y = data.pos.y;
+                        }
                     }
                 }
-                else{
+                else if(data.pos && chunk.objects[i].pos){
                     if(data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
                         chunk.objects[i][data.update_name] = data.update_value;
                     }
@@ -894,7 +922,7 @@ function socketSetup(){
         let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
-                if(data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
+                if(data.pos && chunk.objects[i].pos && data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
                     chunk.objects[i].invBlock.items = data.items;
                     if(curPlayer != undefined){
                         if(curPlayer.otherInv != undefined){

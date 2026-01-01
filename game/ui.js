@@ -788,10 +788,66 @@ function defineBuildUI() {
     buildDiv.style("max-height", "60vh");
 }
 
-// Fallback: prevent crashes if renderDirtBagUI is invoked before an implementation exists.
-// Note: original dirt bag rendering logic was not present; this keeps draw loop stable.
 function renderDirtBagUI() {
-    return; // no-op safeguard
+    // Dirt Inventory
+    push();
+
+    if (dirtBagUI.shake.length > 0) {
+        //dirt bag shake sound
+        if (!dirtBagShakeSound.isLooping()) dirtBagShakeSound.loop();
+        if (dirtBagUI.vel.mag() < 1) {
+            dirtBagUI.vel.x = dirtBagUI.shake.intensity;
+        }
+        dirtBagUI.vel.setMag(dirtBagUI.vel.mag() + dirtBagUI.shake.intensity);
+        if (dirtBagUI.vel.mag() > dirtBagUI.shake.intensity * 5) {
+            dirtBagUI.vel.setMag(dirtBagUI.shake.intensity * 5);
+        }
+        dirtBagUI.vel.rotate(random(45, 180));
+        dirtBagUI.shake.length -= 1;
+    }
+    else {
+        //stop dirt bag shake sound
+        dirtBagShakeSound.stop();
+        dirtBagUI.shake.intensity = 0;
+        dirtBagUI.vel.x = ((width - 180 - 10) - dirtBagUI.pos.x);
+        dirtBagUI.vel.y = ((height - 186 - 10) - dirtBagUI.pos.y);
+        dirtBagUI.vel.setMag(dirtBagUI.vel.mag() / 10);
+    }
+    dirtBagUI.pos.add(dirtBagUI.vel);
+
+    let dirtBagOpen = true;
+    if (buildMode) {
+        dirtBagOpen = true;
+    }
+    else if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "") {
+        if (dirtInv >= maxDirtInv - curPlayer.statBlock.stats.handDigSpeed) {
+            dirtBagOpen = false;
+        }
+    }
+    else if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Shovel") {
+        if (dirtInv >= maxDirtInv - curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].digSpeed) {
+            dirtBagOpen = false;
+        }
+    }
+    else if (dirtInv >= maxDirtInv - DIGSPEED) {
+        dirtBagOpen = false;
+    }
+
+    if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, 180, 186);
+    else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, 180, 186);
+
+    fill("#70443C");
+    rect(dirtBagUI.pos.x + 30, dirtBagUI.pos.y + 35 + (120 * (1 - (dirtInv / maxDirtInv))), 120, 120 * (dirtInv / maxDirtInv));
+
+    if (!dirtBagOpen) {
+        fill(255);
+        stroke(0);
+        strokeWeight(5);
+        textAlign(CENTER, CENTER);
+        textSize(50);
+        text("Full", dirtBagUI.pos.x + 90, dirtBagUI.pos.y + 100);
+    }
+    pop();
 }
 
 function renderBuildOptions() {

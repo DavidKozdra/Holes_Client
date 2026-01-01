@@ -1146,7 +1146,8 @@ class Entity extends Placeable {
                         // flat health increase if no growth defined
                         this.statBlock.stats.mhp += 10;
                         this.statBlock.stats.hp += 10;
-                        this.statsBlock.stats.attack += 2;
+                        // Fallback bump to attack when no growth table exists
+                        this.statBlock.stats.attack += 2;
                         continue;
                     }
                     for (let key in growth) {
