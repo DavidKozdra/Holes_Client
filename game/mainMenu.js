@@ -261,13 +261,10 @@ function renderServerBrowser() {
 
         searchInput.elt.addEventListener("focus", () => {
             lastGameState = gameState;
-            gameState = "search";
         });
 
         searchInput.elt.addEventListener("blur", () => {
-            if (gameState === "search") {
-                gameState = lastGameState;
-            }
+       
         });
 
         searchInput.elt.addEventListener("input", () => {
@@ -816,7 +813,7 @@ function setupRaceSelectionUI() {
     nameInput.style("left", "48%");
     nameInput.style("top", "85dvh");
     nameInput.style("transform", "translateX(-50%)");
-    nameInput.style("width", "15%");
+    nameInput.style("width", "14%");
 
     // Responsive base styling
     nameInput.style("font-size", width < 500 ? "14px" : "18px");
