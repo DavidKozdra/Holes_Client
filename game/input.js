@@ -605,11 +605,12 @@ function mouseReleased() {
                     curPlayer.pos.x = knownPortals[i].pos.x;
                     curPlayer.pos.y = knownPortals[i].pos.y + 128;
 
-                    socket.emit("update_pos", {
-                        id: curPlayer.id,
-                        pos: curPlayer.pos,
-                        holding: curPlayer.holding
-                    });
+                    // Sync teleport through the batcher immediately
+                    if (typeof playerStateBatcher !== 'undefined') {
+                        playerStateBatcher.setPosition(curPlayer.pos);
+                        playerStateBatcher.setHolding(curPlayer.holding);
+                        playerStateBatcher.flushImmediate();
+                    }
 
                     gameState = "playing";
                     curPlayer.invBlock.useTimer = 10;
@@ -797,11 +798,13 @@ function continousKeyBoardInput() {
             lastHolding.s !== curPlayer.holding.s ||
             lastHolding.d !== curPlayer.holding.d
         ) {
-            socket.emit("update_pos", {
-                id: curPlayer.id,
-                pos: curPlayer.pos,
-                holding: curPlayer.holding
-            });
+            // Force an immediate batcher flush on key change for responsiveness
+            // (no separate update_pos emit — the batcher is the single source of truth)
+            if (typeof playerStateBatcher !== 'undefined') {
+                playerStateBatcher.setPosition(curPlayer.pos);
+                playerStateBatcher.setHolding(curPlayer.holding);
+                playerStateBatcher.flushImmediate();
+            }
         }
     }
     else if (gameState == "inventory") {

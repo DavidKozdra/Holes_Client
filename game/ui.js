@@ -2628,18 +2628,13 @@ function defineDeathUI() {
 
         curPlayer.statBlock.stats.hp = 100;
 
-        socket.emit("update_pos", {
-            id: curPlayer.id,
-            pos: curPlayer.pos,
-            holding: curPlayer.holding
-        });
-        socket.emit("update_player", {
-            id: curPlayer.id,
-            pos: curPlayer.pos,
-            holding: curPlayer.holding,
-            update_names: ["stats.hp"],
-            update_values: [curPlayer.statBlock.stats.hp]
-        });
+        // Sync position through the batcher + send HP update
+        if (typeof playerStateBatcher !== 'undefined') {
+            playerStateBatcher.setPosition(curPlayer.pos);
+            playerStateBatcher.setHolding(curPlayer.holding);
+            playerStateBatcher.addUpdate("stats.hp", curPlayer.statBlock.stats.hp);
+            playerStateBatcher.flushImmediate();
+        }
 
         giveDefaultItems();
         curPlayer.invBlock.useTimer = 10;
@@ -2665,33 +2660,33 @@ function defineDeathUI() {
     disconnectButton.mouseOut(() => disconnectButton.style("background-color", "#333"));
     disconnectButton.mousePressed(() => {
         // Save player data before disconnecting
-        if (curPlayer && socket && socket.connected) {
-            const playerData = {
-                invBlock: curPlayer.invBlock ? {
-                    items: curPlayer.invBlock.items || {},
-                    hotbar: curPlayer.invBlock.hotbar || ["","","","",""],
-                    selectedHotBar: curPlayer.invBlock.selectedHotBar || 0,
-                    equiped: curPlayer.invBlock.equiped || {}
-                } : null,
-                statBlock: curPlayer.statBlock || null,
-                pos: curPlayer.pos || null,
-                teamId: curPlayer.teamId || null,
-                race: curPlayer.race || null,
-                color: curPlayer.color || 0,
-                name: curPlayer.name || null,
-                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
-            };
-            console.log('[Disconnect] Saving player data:', playerData);
-            socket.emit('save_player_state', playerData);
-            
-            // Small delay to ensure data is sent before reload
-            setTimeout(() => {
-                location.reload();
-            }, 100);
-        } else {
-            location.reload();
+        try {
+            if (curPlayer && socket && socket.connected) {
+                const playerData = {
+                    invBlock: curPlayer.invBlock ? {
+                        items: curPlayer.invBlock.items || {},
+                        hotbar: curPlayer.invBlock.hotbar || ["","","","",""],
+                        selectedHotBar: curPlayer.invBlock.selectedHotBar || 0,
+                        equiped: curPlayer.invBlock.equiped || {}
+                    } : null,
+                    statBlock: curPlayer.statBlock || null,
+                    pos: curPlayer.pos ? { x: curPlayer.pos.x, y: curPlayer.pos.y } : null,
+                    teamId: curPlayer.teamId || null,
+                    race: curPlayer.race || null,
+                    color: curPlayer.color || 0,
+                    name: curPlayer.name || null,
+                    movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
+                };
+                console.log('[Disconnect] Saving player data:', playerData);
+                socket.emit('save_player_state', playerData);
+                socket.disconnect();
+            }
+        } catch (e) {
+            console.error('[Disconnect] Error during save:', e);
         }
         deathDiv.hide();
+        // Always reload — delay lets the final packets flush
+        setTimeout(() => { location.reload(); }, 150);
     });
 }
 

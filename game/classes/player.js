@@ -312,6 +312,8 @@ update() {
     const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
     if (!testMap.chunks[chunkKey]) return;
 
+    const isLocal = (this === curPlayer);
+
     /* =========================
        INPUT / STATE
        ========================= */
@@ -342,8 +344,14 @@ update() {
         }
     }
 
+    // ─── Remote players: skip physics, only interpolate + animate ───
+    if (!isLocal) {
+        this.updateRemote();
+        return;
+    }
+
     /* =========================
-       VELOCITY BUILDUP
+       VELOCITY BUILDUP  (local player only)
        ========================= */
     let speedMultiplier = this.isDashing ? this.dashSpeedMultiplier : 1;
     let accel =
@@ -358,7 +366,7 @@ update() {
     if (this.holding.d) { this.vel.x += accel; this.direction = "right"; }
 
     /* =========================
-       STABLE COLLISION MOVEMENT
+       STABLE COLLISION MOVEMENT  (local player only)
        (axis separated)
        ========================= */
     let movement = this.vel.copy().mult(deltaTime / 33);
@@ -412,19 +420,42 @@ update() {
     this.vel.set(0, 0);
     
     // Sync position to server continuously when player is the local player
-    if (this === curPlayer && typeof playerStateBatcher !== 'undefined') {
+    if (typeof playerStateBatcher !== 'undefined') {
         playerStateBatcher.setPosition(this.pos);
         playerStateBatcher.setHolding(this.holding);
     }
-    // For other players, smoothly interpolate towards target position from network updates
-    else if (this.targetPos) {
-        const lerpSpeed = 0.4; // Higher speed for 50ms updates (0.25 was for 100ms)
+}
+
+// Separate lightweight update for remote players — called from the main update()
+// before the early-return so remote players still get interpolation + animation.
+updateRemote() {
+    // Smoothly interpolate towards target position from network updates
+    if (this.targetPos) {
+        const lerpSpeed = 0.4;
         this.pos.x = lerp(this.pos.x, this.targetPos.x, lerpSpeed);
         this.pos.y = lerp(this.pos.y, this.targetPos.y, lerpSpeed);
         
-        // Update moving state based on distance to target
         const distToTarget = dist(this.pos.x, this.pos.y, this.targetPos.x, this.targetPos.y);
-        this.moving = distToTarget > 1; // Consider moving if more than 1px away
+        this.moving = distToTarget > 1;
+    }
+
+    // Animation for remote players
+    if (this.moving) {
+        this.animationFrame += 1 / 7;
+        this.currentFrame = 1 + (this.animationFrame % 4);
+        if (this.currentFrame >= 4) this.currentFrame = 2;
+    } else if (this.animationType !== "") {
+        if (this.animationType === "put") {
+            this.currentFrame = 4;
+        }
+        this.animationFrame -= 1;
+        if (this.animationFrame <= 0) {
+            this.animationFrame = 0;
+            this.animationType = "";
+        }
+    } else {
+        this.animationFrame = 0;
+        this.currentFrame = 0;
     }
 }
 

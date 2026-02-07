@@ -884,7 +884,7 @@ update() {
 
                     continue;
                 }else{
-                    console.log(ob.type)
+                    //console.log(ob.type)
                 }
                 // ensure entity is actually standing on that tile
                 let ex = floor(ob.pos.x / TILE);

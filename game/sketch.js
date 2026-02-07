@@ -15,6 +15,15 @@ var Debuging = false;
 var MusicPlayer;
 
 function setup() {
+    // Cancel the preload safety timeout (assets loaded in time)
+    if (window._preloadTimer) {
+        clearTimeout(window._preloadTimer);
+        window._preloadTimer = null;
+    }
+    if (window._preloadTimedOut) {
+        console.warn('[Setup] Running after preload timeout — some assets may be missing');
+    }
+
     // Create a responsive canvas
     let cnv = createCanvas(innerWidth - 10, innerHeight - 8);
     cnv.parent("canvas-container");
@@ -231,6 +240,7 @@ function draw() {
             const keys = Object.keys(players);
             for (let i = 0; i < keys.length; i++) {
                 const p = players[keys[i]];
+                if (p === curPlayer) continue; // curPlayer updated separately below
                 if (p.pos.dist(curPlayer.pos) < RENDER_DISTANCE) {
                     p.render();
                     p.update();
@@ -503,6 +513,7 @@ function draw() {
         let keys = Object.keys(players);
         for (let i = 0; i < keys.length; i++) {
             if (curPlayer) {
+                if (players[keys[i]] === curPlayer) continue; // already updated above
                 if (players[keys[i]].pos.dist(curPlayer.pos) < TILESIZE * CHUNKSIZE * 2) {
                     players[keys[i]].render();
                     players[keys[i]].update();
@@ -591,7 +602,8 @@ function draw() {
     }
 
     // Cancel meditate on any key or mouse input
-    import('./inputCancelMeditate.js');
+    // (inputCancelMeditate.js is loaded once via a deferred <script> or top-level import,
+    //  NOT re-imported every frame)
     continousKeyBoardInput();
     continousMouseInput();
 }

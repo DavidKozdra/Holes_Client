@@ -18,6 +18,9 @@ class PlayerStateBatcher {
         this.flushTimer = null;
         this.isDirty = false;
         this.lastFlush = 0;
+        // Delta tracking — skip sending when nothing changed
+        this._lastSentPos = { x: null, y: null };
+        this._lastSentHolding = { w: false, a: false, s: false, d: false };
     }
 
     addUpdate(fieldName, fieldValue) {
@@ -36,7 +39,8 @@ class PlayerStateBatcher {
     }
 
     setPosition(pos) {
-        this.buffer.pos = pos;
+        // Clone position to avoid reference issues when position changes before flush
+        this.buffer.pos = { x: pos.x, y: pos.y };
         this.isDirty = true;
         this._scheduleFlush();
     }
@@ -82,9 +86,34 @@ class PlayerStateBatcher {
             update_values: this.buffer.update_values.slice()
         };
 
-        // Only send if there's something to send
-        if (updateData.update_names.length > 0 || this.buffer.pos || this.buffer.holding) {
+        // Delta detection: skip if only pos/holding and they haven't changed
+        const hasFieldUpdates = updateData.update_names.length > 0;
+        const curPos = updateData.pos;
+        const curHold = updateData.holding;
+        const posChanged = curPos && (
+            curPos.x !== this._lastSentPos.x ||
+            curPos.y !== this._lastSentPos.y
+        );
+        const holdChanged = curHold && (
+            curHold.w !== this._lastSentHolding.w ||
+            curHold.a !== this._lastSentHolding.a ||
+            curHold.s !== this._lastSentHolding.s ||
+            curHold.d !== this._lastSentHolding.d
+        );
+
+        if (hasFieldUpdates || posChanged || holdChanged) {
             socket.emit('update_player', updateData);
+            // Remember what we sent for next delta check
+            if (curPos) {
+                this._lastSentPos.x = curPos.x;
+                this._lastSentPos.y = curPos.y;
+            }
+            if (curHold) {
+                this._lastSentHolding.w = curHold.w;
+                this._lastSentHolding.a = curHold.a;
+                this._lastSentHolding.s = curHold.s;
+                this._lastSentHolding.d = curHold.d;
+            }
         }
 
         // Reset buffer
@@ -169,7 +198,8 @@ function socketSetup(){
             };
             
             // Send via sendBeacon (most reliable for unload events)
-            navigator.sendBeacon('/api/save-player-data', JSON.stringify(completeData));
+            const blob = new Blob([JSON.stringify(completeData)], { type: 'application/json' });
+            navigator.sendBeacon('/api/save-player-data', blob);
             
             // Also emit socket event with short timeout as backup
             socket.emit('player_saving', { playerName: curPlayer.name });
@@ -257,6 +287,11 @@ function socketSetup(){
                 const baseRegen = BASE_STATS[players[keys[i]].race].healthRegen;
                 Object.assign(players[keys[i]].statBlock.stats, data.players[keys[i]].statBlock.stats);
                 players[keys[i]].statBlock.stats.healthRegen = baseRegen;
+            }
+
+            // Sync team data for other players
+            if (playerData.teamId) {
+                players[keys[i]].teamId = playerData.teamId;
             }
         }
     });
@@ -373,9 +408,14 @@ function socketSetup(){
                     }
                 }
                 
-                // Restore team
+                // Restore team and apply team color
                 if (data.teamId) {
                     curPlayer.teamId = data.teamId;
+                    // Apply team color immediately if teams data is available
+                    if (window.allTeams && window.allTeams[data.teamId]) {
+                        const teamColor = window.allTeams[data.teamId].color;
+                        if (teamColor) curPlayer.color = teamColor;
+                    }
                 }
 
                 // Restore dirt bag capacity (default 600 if missing)
@@ -561,15 +601,21 @@ function socketSetup(){
             const playerData = data[playerId];
 
             if (playerId === curPlayer.id) {
-                socket.emit('update_pos', {
-                    id: curPlayer.id,
-                    pos: curPlayer.pos,
-                    holding: curPlayer.holding
-                });
+                // Re-sync our position through the batcher instead of a separate emit
+                if (typeof playerStateBatcher !== 'undefined') {
+                    playerStateBatcher.setPosition(curPlayer.pos);
+                    playerStateBatcher.setHolding(curPlayer.holding);
+                    playerStateBatcher.flushImmediate();
+                }
             } else {
                 if (players[playerId]) {
-                    players[playerId].pos.x = playerData.pos.x;
-                    players[playerId].pos.y = playerData.pos.y;
+                    // Use interpolation target instead of teleporting
+                    if (!players[playerId].targetPos) {
+                        players[playerId].targetPos = createVector(playerData.pos.x, playerData.pos.y);
+                    } else {
+                        players[playerId].targetPos.x = playerData.pos.x;
+                        players[playerId].targetPos.y = playerData.pos.y;
+                    }
                     players[playerId].hp = playerData.hp;
                     players[playerId].holding = playerData.holding;
                     players[playerId].direction = playerData.direction;
@@ -579,9 +625,14 @@ function socketSetup(){
     });
 
     socket.on('UPDATE_POS', (data) => {
-        if (players[data.id]) {
-            players[data.id].pos.x = data.pos.x;
-            players[data.id].pos.y = data.pos.y;
+        if (players[data.id] && players[data.id] !== curPlayer) {
+            // Use interpolation target instead of teleporting
+            if (!players[data.id].targetPos) {
+                players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+            } else {
+                players[data.id].targetPos.x = data.pos.x;
+                players[data.id].targetPos.y = data.pos.y;
+            }
             players[data.id].holding = data.holding;
         }
     });
@@ -1184,11 +1235,38 @@ function socketSetup(){
     socket.on('TEAMS_UPDATE', (data) => {
         if (typeof window.allTeams === 'undefined') window.allTeams = {};
         window.allTeams = data.teams;
-        // Update current player's color if they're in a team and color has changed
-        if (curPlayer && curPlayer.teamId && data.teams[curPlayer.teamId]) {
-            const teamColor = data.teams[curPlayer.teamId].color;
-            if (teamColor) {
-                curPlayer.color = teamColor;
+
+        if (curPlayer) {
+            // If teamId is already set, apply the latest team color
+            if (curPlayer.teamId && data.teams[curPlayer.teamId]) {
+                const teamColor = data.teams[curPlayer.teamId].color;
+                if (teamColor) curPlayer.color = teamColor;
+            } else if (!curPlayer.teamId && curPlayer.name) {
+                // Auto-discover membership: player may have logged in before
+                // receive_my_items restored the teamId
+                for (const tid of Object.keys(data.teams)) {
+                    const t = data.teams[tid];
+                    if (t && Array.isArray(t.members) && t.members.includes(curPlayer.name)) {
+                        curPlayer.teamId = tid;
+                        if (t.color) curPlayer.color = t.color;
+                        break;
+                    }
+                }
+            }
+
+            // Also sync teamId/color for other visible players
+            const pKeys = Object.keys(players);
+            for (let i = 0; i < pKeys.length; i++) {
+                const p = players[pKeys[i]];
+                if (!p || !p.name) continue;
+                for (const tid of Object.keys(data.teams)) {
+                    const t = data.teams[tid];
+                    if (t && Array.isArray(t.members) && t.members.includes(p.name)) {
+                        p.teamId = tid;
+                        if (t.color) p.color = t.color;
+                        break;
+                    }
+                }
             }
         }
         if (typeof updateTeamManagementUI === 'function') {

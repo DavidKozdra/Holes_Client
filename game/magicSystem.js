@@ -208,12 +208,10 @@ class WarpAbility extends MagicAbility {
             // fallback: move player directly
             player.pos.x = cx * CHUNKSIZE * TILESIZE;
             player.pos.y = cy * CHUNKSIZE * TILESIZE;
-            if (typeof socket !== 'undefined') {
-                socket.emit("update_pos", {
-                    id: player.id,
-                    pos: player.pos,
-                    holding: player.holding
-                });
+            if (typeof playerStateBatcher !== 'undefined') {
+                playerStateBatcher.setPosition(player.pos);
+                playerStateBatcher.setHolding(player.holding);
+                playerStateBatcher.flushImmediate();
             }
         }
         // Clear a small area around the player (safe zone)

@@ -82,11 +82,11 @@ function createTestChunk(cx, cy){ //makes the dirt in a specific way to test the
 function teleportToChunk(cx,cy){ //teleports you to the top left corner of a chunk
     curPlayer.pos.x = cx*CHUNKSIZE*TILESIZE;
     curPlayer.pos.y = cy*CHUNKSIZE*TILESIZE;
-    socket.emit("update_pos", {
-        id: curPlayer.id,
-        pos: curPlayer.pos,
-        holding: curPlayer.holding
-    });
+    if (typeof playerStateBatcher !== 'undefined') {
+        playerStateBatcher.setPosition(curPlayer.pos);
+        playerStateBatcher.setHolding(curPlayer.holding);
+        playerStateBatcher.flushImmediate();
+    }
     return true;
 }
 
@@ -95,11 +95,11 @@ function teleportToPlayer(name){ //teleports you to another player
     for(let i = 0; i < keys.length; i++){
         if(players[keys[i]].name === name){
             curPlayer.pos = players[keys[i]].pos.copy();
-            socket.emit("update_pos", {
-                id: curPlayer.id,
-                pos: curPlayer.pos,
-                holding: curPlayer.holding
-            });
+            if (typeof playerStateBatcher !== 'undefined') {
+                playerStateBatcher.setPosition(curPlayer.pos);
+                playerStateBatcher.setHolding(curPlayer.holding);
+                playerStateBatcher.flushImmediate();
+            }
             return true;
         }
     }
@@ -201,10 +201,10 @@ function goToRaceEntities() {
     curPlayer.pos.y = 200;
     camera.pos.x = 200;
     camera.pos.y = 200;
-    socket.emit("update_pos", {
-        id: curPlayer.id,
-        pos: curPlayer.pos,
-        holding: curPlayer.holding
-    });
+    if (typeof playerStateBatcher !== 'undefined') {
+        playerStateBatcher.setPosition(curPlayer.pos);
+        playerStateBatcher.setHolding(curPlayer.holding);
+        playerStateBatcher.flushImmediate();
+    }
     console.log("✅ At spawn area! Look around for Hostile Gnome, Wild Aylah, Feral Skizzard, and Ant.");
 }
