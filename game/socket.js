@@ -222,8 +222,8 @@ function socketSetup(){
                         players[data.id].targetPos.x = data.pos.x;
                         players[data.id].targetPos.y = data.pos.y;
                     }
+                    players[data.id].holding = data.holding;
                 }
-                players[data.id].holding = data.holding;
             }
         });
 
@@ -264,6 +264,93 @@ function socketSetup(){
                 } else {
                     if (testMap.chunks[data.chunkPos].iron_data[data.index] < 1.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
                     if (testMap.chunks[data.chunkPos].iron_data[data.index] > 1.3) testMap.chunks[data.chunkPos].iron_data[data.index] = 1.3;
+                }
+            }
+        });
+
+        // Multi-node terrain updates (e.g. explosions)
+        udpTransport.on('UPDATE_NODES', (data) => {
+            let chunk = testMap.getChunk(data.cx, data.cy);
+            if (!chunk) return;
+            let posX = Math.round(data.pos.x / TILESIZE);
+            let posY = Math.round(data.pos.y / TILESIZE);
+            posX = posX - (data.cx * CHUNKSIZE);
+            posY = posY - (data.cy * CHUNKSIZE);
+            for (let x = posX - data.radius; x <= posX + data.radius; x++) {
+                for (let y = posY - data.radius; y <= posY + data.radius; y++) {
+                    if (x >= 0 && x < CHUNKSIZE && y >= 0 && y < CHUNKSIZE) {
+                        let index = x + y * CHUNKSIZE;
+                        if (data.amt > 0) {
+                            if (chunk.data[index] > 0) chunk.data[index] -= data.amt;
+                            if (chunk.data[index] < 0.3 && chunk.data[index] !== -1) chunk.data[index] = 0;
+                        } else {
+                            if (chunk.data[index] < 1.3 && chunk.data[index] !== -1) chunk.data[index] -= data.amt;
+                            if (chunk.data[index] > 1.3) chunk.data[index] = 1.3;
+                        }
+                    } else {
+                        let tempChunk;
+                        let index;
+                        if (y < 0 && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy - 1); index = x + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (y >= CHUNKSIZE && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy + 1); index = x + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x < 0 && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy); index = (CHUNKSIZE + x) + y * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy); index = (x - CHUNKSIZE) + y * CHUNKSIZE; }
+                        else if (x < 0 && y < 0) { tempChunk = testMap.getChunk(data.cx - 1, data.cy - 1); index = (CHUNKSIZE + x) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y < 0) { tempChunk = testMap.getChunk(data.cx + 1, data.cy - 1); index = (x - CHUNKSIZE) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x < 0 && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy + 1); index = (CHUNKSIZE + x) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy + 1); index = (x - CHUNKSIZE) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        if (tempChunk != undefined && index != undefined) {
+                            if (data.amt > 0) {
+                                if (tempChunk.data[index] > 0) tempChunk.data[index] -= data.amt;
+                                if (tempChunk.data[index] < 0.3 && tempChunk.data[index] !== -1) tempChunk.data[index] = 0;
+                            } else {
+                                if (tempChunk.data[index] < 1.3 && tempChunk.data[index] !== -1) tempChunk.data[index] -= data.amt;
+                                if (tempChunk.data[index] > 1.3) tempChunk.data[index] = 1.3;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        udpTransport.on('UPDATE_IRON_NODES', (data) => {
+            let chunk = testMap.getChunk(data.cx, data.cy);
+            if (!chunk) return;
+            let posX = Math.round(data.pos.x / TILESIZE);
+            let posY = Math.round(data.pos.y / TILESIZE);
+            posX = posX - (data.cx * CHUNKSIZE);
+            posY = posY - (data.cy * CHUNKSIZE);
+            for (let x = posX - data.radius; x <= posX + data.radius; x++) {
+                for (let y = posY - data.radius; y <= posY + data.radius; y++) {
+                    if (x >= 0 && x < CHUNKSIZE && y >= 0 && y < CHUNKSIZE) {
+                        let index = x + y * CHUNKSIZE;
+                        if (data.amt > 0) {
+                            if (chunk.iron_data[index] > 0) chunk.iron_data[index] -= data.amt;
+                            if (chunk.iron_data[index] < 0.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] = 0;
+                        } else {
+                            if (chunk.iron_data[index] < 1.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] -= data.amt;
+                            if (chunk.iron_data[index] > 1.3) chunk.iron_data[index] = 1.3;
+                        }
+                    } else {
+                        let tempChunk;
+                        let index;
+                        if (y < 0 && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy - 1); index = x + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (y >= CHUNKSIZE && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy + 1); index = x + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x < 0 && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy); index = (CHUNKSIZE + x) + y * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy); index = (x - CHUNKSIZE) + y * CHUNKSIZE; }
+                        else if (x < 0 && y < 0) { tempChunk = testMap.getChunk(data.cx - 1, data.cy - 1); index = (CHUNKSIZE + x) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y < 0) { tempChunk = testMap.getChunk(data.cx + 1, data.cy - 1); index = (x - CHUNKSIZE) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x < 0 && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy + 1); index = (CHUNKSIZE + x) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy + 1); index = (x - CHUNKSIZE) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        if (tempChunk != undefined && index != undefined) {
+                            if (data.amt > 0) {
+                                if (tempChunk.iron_data[index] > 0) tempChunk.iron_data[index] -= data.amt;
+                                if (tempChunk.iron_data[index] < 0.3 && tempChunk.iron_data[index] !== -1) tempChunk.iron_data[index] = 0;
+                            } else {
+                                if (tempChunk.iron_data[index] < 1.3 && tempChunk.iron_data[index] !== -1) tempChunk.iron_data[index] -= data.amt;
+                                if (tempChunk.iron_data[index] > 1.3) tempChunk.iron_data[index] = 1.3;
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -888,7 +975,7 @@ function socketSetup(){
             // Always sync team, color, and holding
             if (pd.teamId) players[id].teamId = pd.teamId;
             if (pd.color !== undefined) players[id].color = pd.color;
-            if (pd.holding) players[id].holding = pd.holding;
+            if (pd.holding && players[id] !== curPlayer) players[id].holding = pd.holding;
         }
 
         // 2. Remove any local players that are no longer on the server
@@ -985,8 +1072,8 @@ function socketSetup(){
                     players[data.id].targetPos.x = data.pos.x;
                     players[data.id].targetPos.y = data.pos.y;
                 }
+                players[data.id].holding = data.holding;
             }
-            players[data.id].holding = data.holding;
         }
     })
 
