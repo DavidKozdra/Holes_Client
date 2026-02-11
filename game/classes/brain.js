@@ -21,6 +21,7 @@ class Brain {
         this.lastChat = 0;
         this.ownerName = null; // Track the owner who summoned this entity
         this.teamId = null; // Track team affiliation
+        this._lastMoveEmit = 0; // Throttle movement updates to ~10/sec
     }
 
     update(){
@@ -294,16 +295,21 @@ class Brain {
         
         this.obj.pos.add(moveVec.setMag(speed*(deltaTime/30)));
 
-        socket.emit("update_obj", {
-            cx: oldChunkPos.x, cy: oldChunkPos.y,
-            objName: this.obj.objName,
-            pos: {x: this.obj.pos.x, y: this.obj.pos.y},
-            z: this.obj.z,
-            id: this.obj.id,
-            brainID: this.id,
-            update_name: "hp",
-            update_value: this.obj.hp
-        });
+        // Throttle movement syncs to ~10/sec per entity to avoid flooding the server
+        const _now = Date.now();
+        if (_now - this._lastMoveEmit >= 100) {
+            this._lastMoveEmit = _now;
+            socket.emit("update_obj", {
+                cx: oldChunkPos.x, cy: oldChunkPos.y,
+                objName: this.obj.objName,
+                pos: {x: this.obj.pos.x, y: this.obj.pos.y},
+                z: this.obj.z,
+                id: this.obj.id,
+                brainID: this.id,
+                update_name: "hp",
+                update_value: this.obj.hp
+            });
+        }
 
         let newChunkPos = testMap.globalToChunk(this.obj.pos.x, this.obj.pos.y);
         if(oldChunkPos.x != newChunkPos.x || oldChunkPos.y != newChunkPos.y){

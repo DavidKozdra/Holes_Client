@@ -122,7 +122,13 @@ function turretUpdate() {
                 }
             }
         }
-        socket.emit("update_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z, update_name: "rot", update_value: this.rot });
+        // Throttle rotation sync to ~10/sec to avoid flooding the server
+        if (!this._lastRotEmit) this._lastRotEmit = 0;
+        const _now = Date.now();
+        if (_now - this._lastRotEmit >= 100) {
+            this._lastRotEmit = _now;
+            socket.emit("update_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z, update_name: "rot", update_value: this.rot });
+        }
     }
 }
 defineCustomObj("Turret", [[352, 96, 32, 32], [0, 96, 32, 32], [32, 96, 32, 32], [64, 96, 32, 32], [96, 96, 32, 32], [128, 96, 32, 32], [160, 96, 32, 32], [192, 96, 32, 32], [224, 96, 32, 32], [256, 96, 32, 32], [288, 96, 32, 32], [320, 96, 32, 32]], [["Metal", 3], ["Tech", 1], ["Rock", 5]], 60, 60, 2, 100, turretUpdate, true, true);
@@ -217,6 +223,8 @@ function dirtBinUpdate() {
     //console.log(curPlayer);
     if (buildMode) return;
 
+    // Throttle dirt bin network updates to ~10/sec
+    if (!this._lastBinEmit) this._lastBinEmit = 0;
     const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
     const heldItem = heldItemName ? curPlayer.invBlock.items[heldItemName] : null;
     if (heldItemName == "" || (heldItem && heldItem.type == "Shovel")) {
@@ -232,15 +240,19 @@ function dirtBinUpdate() {
                     if (amt > 0) {
                         dirtInv -= amt;
                         this.hp += amt;
-                        socket.emit("update_obj", {
-                            cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                            cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                            objName: this.objName,
-                            pos: { x: this.pos.x, y: this.pos.y },
-                            z: this.z,
-                            update_name: "hp",
-                            update_value: this.hp
-                        });
+                        const _now = Date.now();
+                        if (_now - this._lastBinEmit >= 100) {
+                            this._lastBinEmit = _now;
+                            socket.emit("update_obj", {
+                                cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
+                                cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
+                                objName: this.objName,
+                                pos: { x: this.pos.x, y: this.pos.y },
+                                z: this.z,
+                                update_name: "hp",
+                                update_value: this.hp
+                            });
+                        }
                     }
                 }
             }
@@ -250,15 +262,19 @@ function dirtBinUpdate() {
                     if (amt > 0) {
                         dirtInv += amt;
                         this.hp -= amt;
-                        socket.emit("update_obj", {
-                            cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                            cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                            objName: this.objName,
-                            pos: { x: this.pos.x, y: this.pos.y },
-                            z: this.z,
-                            update_name: "hp",
-                            update_value: this.hp
-                        });
+                        const _now2 = Date.now();
+                        if (_now2 - this._lastBinEmit >= 100) {
+                            this._lastBinEmit = _now2;
+                            socket.emit("update_obj", {
+                                cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
+                                cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
+                                objName: this.objName,
+                                pos: { x: this.pos.x, y: this.pos.y },
+                                z: this.z,
+                                update_name: "hp",
+                                update_value: this.hp
+                            });
+                        }
                     }
                 }
             }
@@ -306,17 +322,22 @@ function expOrbUpdate() {
         let attraction = closestPlayer.pos.copy().sub(this.pos);
         attraction.setMag(map(closestDist, 0, 200, 2, 0) * (deltaTime / 30)); // stronger when closer
         this.pos.add(attraction);
-        //tell the server to update the position of the orb
-        let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        socket.emit("update_obj", {
-            cx: chunkPos.x, cy: chunkPos.y,
-            objName: this.objName,
-            pos: { x: this.pos.x, y: this.pos.y },
-            z: this.z,
-            id: this.id,
-            update_name: "hp",
-            update_value: this.hp
-        });
+        // Throttle position sync to ~10/sec to avoid flooding the server
+        if (!this._lastOrbEmit) this._lastOrbEmit = 0;
+        const _now = Date.now();
+        if (_now - this._lastOrbEmit >= 100) {
+            this._lastOrbEmit = _now;
+            let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+            socket.emit("update_obj", {
+                cx: chunkPos.x, cy: chunkPos.y,
+                objName: this.objName,
+                pos: { x: this.pos.x, y: this.pos.y },
+                z: this.z,
+                id: this.id,
+                update_name: "hp",
+                update_value: this.hp
+            });
+        }
     }
 
     // Pickup if very close to current player
