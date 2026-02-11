@@ -239,10 +239,11 @@ function socketSetup(){
     });
 
     socket.on('NEW_PLAYER', (data) => {
+        if (!data || !data.pos) return; // guard against malformed data
         players[data.id] = new Player(
             data.pos.x,
             data.pos.y,
-            data.hp,
+            data.statBlock ? data.statBlock.stats.hp : undefined,
             data.id,
             data.color,
             data.race,
@@ -250,7 +251,7 @@ function socketSetup(){
         );
         updatePlayerCount();
 
-        if(data.statBlock.level != 1){
+        if(data.statBlock && data.statBlock.level != 1){
             players[data.id].statBlock.level = data.statBlock.level;
             // Merge stats and preserve healthRegen from BASE_STATS since server doesn't track it
             const baseRegen = BASE_STATS[players[data.id].race].healthRegen;
@@ -263,35 +264,46 @@ function socketSetup(){
             players[data.id].teamId = data.teamId;
         }
 
+        // Sync holding/movement state
+        if (data.holding) {
+            players[data.id].holding = data.holding;
+        }
+
         //console.log("New player added: " + data.id);
     });
 
     socket.on('OLD_DATA', (data) => {
+        if (!data || !data.players) return;
         let keys = Object.keys(data.players);
         for (let i = 0; i < keys.length; i++) {
             const playerData = data.players[keys[i]];
-            //console.log(playerData);
+            if (!playerData || !playerData.pos) continue; // skip malformed entries
             players[keys[i]] = new Player(
                 playerData.pos.x,
                 playerData.pos.y,
-                playerData.statBlock.stats.hp,
+                playerData.statBlock ? playerData.statBlock.stats.hp : undefined,
                 keys[i],
                 playerData.color,
                 playerData.race,
                 playerData.name
             );
 
-            if(data.players[keys[i]].statBlock.level != 1){
-                players[keys[i]].statBlock.level = data.players[keys[i]].statBlock.level;
+            if(playerData.statBlock && playerData.statBlock.level != 1){
+                players[keys[i]].statBlock.level = playerData.statBlock.level;
                 // Merge stats and preserve healthRegen from BASE_STATS since server doesn't track it
                 const baseRegen = BASE_STATS[players[keys[i]].race].healthRegen;
-                Object.assign(players[keys[i]].statBlock.stats, data.players[keys[i]].statBlock.stats);
+                Object.assign(players[keys[i]].statBlock.stats, playerData.statBlock.stats);
                 players[keys[i]].statBlock.stats.healthRegen = baseRegen;
             }
 
             // Sync team data for other players
             if (playerData.teamId) {
                 players[keys[i]].teamId = playerData.teamId;
+            }
+
+            // Sync holding/movement state
+            if (playerData.holding) {
+                players[keys[i]].holding = playerData.holding;
             }
         }
     });
@@ -590,6 +602,74 @@ function socketSetup(){
             }
             updatePlayerCount();
         }
+    });
+
+    // ── Self-healing reconciliation: PLAYERS_SYNC ──
+    // Periodically received from the server with the full player list.
+    // Adds missing players, updates existing ones, and removes stale ones.
+    socket.on('PLAYERS_SYNC', (data) => {
+        if (!data || !data.players) return;
+        const serverIds = Object.keys(data.players);
+
+        // 1. Add missing players OR update existing ones
+        for (let i = 0; i < serverIds.length; i++) {
+            const id = serverIds[i];
+            // Skip our own ID (curPlayer is stored separately)
+            if (id === curID) continue;
+            const pd = data.players[id];
+            if (!pd || !pd.pos) continue;
+
+            if (!players[id]) {
+                // Create missing player
+                players[id] = new Player(
+                    pd.pos.x,
+                    pd.pos.y,
+                    pd.statBlock ? pd.statBlock.stats.hp : undefined,
+                    id,
+                    pd.color,
+                    pd.race,
+                    pd.name
+                );
+                if (pd.statBlock && pd.statBlock.level != 1) {
+                    players[id].statBlock.level = pd.statBlock.level;
+                    const baseRegen = BASE_STATS[players[id].race].healthRegen;
+                    Object.assign(players[id].statBlock.stats, pd.statBlock.stats);
+                    players[id].statBlock.stats.healthRegen = baseRegen;
+                }
+            } else {
+                // Update existing player — low-frequency position heartbeat
+                if (!players[id].targetPos) {
+                    players[id].targetPos = createVector(pd.pos.x, pd.pos.y);
+                } else {
+                    players[id].targetPos.x = pd.pos.x;
+                    players[id].targetPos.y = pd.pos.y;
+                }
+                // Sync combat stats
+                if (pd.statBlock && pd.statBlock.stats) {
+                    if (typeof pd.statBlock.stats.hp === 'number') players[id].statBlock.stats.hp = pd.statBlock.stats.hp;
+                    if (typeof pd.statBlock.stats.mhp === 'number') players[id].statBlock.stats.mhp = pd.statBlock.stats.mhp;
+                }
+                if (pd.statBlock && pd.statBlock.level) {
+                    players[id].statBlock.level = pd.statBlock.level;
+                }
+            }
+
+            // Always sync team, color, and holding
+            if (pd.teamId) players[id].teamId = pd.teamId;
+            if (pd.color !== undefined) players[id].color = pd.color;
+            if (pd.holding) players[id].holding = pd.holding;
+        }
+
+        // 2. Remove any local players that are no longer on the server
+        const localIds = Object.keys(players);
+        for (let i = 0; i < localIds.length; i++) {
+            const id = localIds[i];
+            if (!serverIds.includes(id)) {
+                delete players[id];
+            }
+        }
+
+        updatePlayerCount();
     });
 
     socket.on('UPDATE_ALL_POS', (data) => {

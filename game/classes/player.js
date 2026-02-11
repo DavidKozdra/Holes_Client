@@ -307,11 +307,6 @@ collidesAt(pos) {
     return false;
 }
 update() {
-    // Do not update if player is in unloaded space
-    const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
-    if (!testMap.chunks[chunkKey]) return;
-
     const isLocal = (this === curPlayer);
 
     /* =========================
@@ -344,11 +339,16 @@ update() {
         }
     }
 
-    // ─── Remote players: skip physics, only interpolate + animate ───
+    // ─── Remote players: skip physics/chunk check, only interpolate + animate ───
     if (!isLocal) {
         this.updateRemote();
         return;
     }
+
+    // Do not update local player if in unloaded space
+    const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    if (!testMap.chunks[chunkKey]) return;
 
     /* =========================
        VELOCITY BUILDUP  (local player only)
@@ -429,6 +429,12 @@ update() {
 // Separate lightweight update for remote players — called from the main update()
 // before the early-return so remote players still get interpolation + animation.
 updateRemote() {
+    // Infer facing direction from holding state (matches local player logic)
+    if (this.holding.d) this.direction = 'right';
+    if (this.holding.a) this.direction = 'left';
+    if (this.holding.s) this.direction = 'down';
+    if (this.holding.w) this.direction = 'up';
+
     // Smoothly interpolate towards target position from network updates
     if (this.targetPos) {
         const lerpSpeed = 0.4;
@@ -437,6 +443,17 @@ updateRemote() {
         
         const distToTarget = dist(this.pos.x, this.pos.y, this.targetPos.x, this.targetPos.y);
         this.moving = distToTarget > 1;
+
+        // Fallback: infer direction from interpolation movement if no holding keys
+        if (this.moving && !this.holding.w && !this.holding.a && !this.holding.s && !this.holding.d) {
+            const dx = this.targetPos.x - this.pos.x;
+            const dy = this.targetPos.y - this.pos.y;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                this.direction = dx > 0 ? 'right' : 'left';
+            } else {
+                this.direction = dy > 0 ? 'down' : 'up';
+            }
+        }
     }
 
     // Animation for remote players
@@ -460,10 +477,13 @@ updateRemote() {
 }
 
     render() {
-        //dont render players not in your chunks
-        let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
-        if (testMap.chunks[chunkKey] == undefined) return;
+        // Only require chunk to be loaded for local player rendering;
+        // remote players render based on RENDER_DISTANCE check in sketch.js
+        if (this === curPlayer) {
+            let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+            const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+            if (testMap.chunks[chunkKey] == undefined) return;
+        }
         push();
         // Move relative to the camera
         translate(-camera.pos.x + width / 2, -camera.pos.y + height / 2);
