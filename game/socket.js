@@ -102,7 +102,12 @@ class PlayerStateBatcher {
         );
 
         if (hasFieldUpdates || posChanged || holdChanged) {
-            socket.emit('update_player', updateData);
+            // Use UDP transport for update_player when available (lower latency)
+            if (typeof udpTransport !== 'undefined' && udpTransport.isReady()) {
+                udpTransport.send('update_player', updateData);
+            } else if (socket && socket.connected) {
+                socket.emit('update_player', updateData);
+            }
             // Remember what we sent for next delta check
             if (curPos) {
                 this._lastSentPos.x = curPos.x;
@@ -146,6 +151,232 @@ playerStateBatcher = new PlayerStateBatcher(50); // 50ms = 20 updates per second
 // ============================================================
 
 function socketSetup(){
+    // ── Wrap socket.emit for automatic UDP routing ──
+    // This intercepts all socket.emit() calls throughout the codebase
+    // and routes UDP-eligible events through the DataChannel when open.
+    if (typeof udpTransport !== 'undefined') {
+        udpTransport.wrapSocketEmit(socket);
+    }
+
+    // ── UDP Transport Setup ──
+    // Listen for the UDP auth token from the server and initialize the DataChannel
+    socket.on('UDP_TOKEN', (data) => {
+        if (data && data.token && typeof udpTransport !== 'undefined') {
+            // Determine geckos.io connection URL and port from the Socket.IO connection
+            var sUrl = socket.io.uri || '';
+            var parsedUrl;
+            try {
+                parsedUrl = new URL(sUrl);
+            } catch (e) {
+                parsedUrl = { protocol: location.protocol, hostname: location.hostname, port: location.port };
+            }
+            var geckoUrl = parsedUrl.protocol + '//' + parsedUrl.hostname;
+            var geckoPort = parseInt(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 3000);
+            
+            console.log('[UDP] Received token, connecting DataChannel to', geckoUrl + ':' + geckoPort);
+            udpTransport.init(data.token, geckoUrl, geckoPort);
+        }
+    });
+
+    socket.on('UDP_CONNECTED', (data) => {
+        console.log('[UDP] Server confirmed DataChannel is active');
+    });
+
+    // Register UDP listeners for high-frequency server→client events.
+    // These run in parallel with Socket.IO listeners — the first message
+    // received (from either channel) updates the game state.
+    if (typeof udpTransport !== 'undefined') {
+        // Position updates
+        udpTransport.on('UPDATE_POS', (data) => {
+            if (players[data.id] && players[data.id] !== curPlayer) {
+                if (!players[data.id].targetPos) {
+                    players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+                } else {
+                    players[data.id].targetPos.x = data.pos.x;
+                    players[data.id].targetPos.y = data.pos.y;
+                }
+                players[data.id].holding = data.holding;
+            }
+        });
+
+        // Player state updates
+        udpTransport.on('UPDATE_PLAYER', (data) => {
+            if (players[data.id]) {
+                for (let i = 0; i < data.update_names.length; i++) {
+                    const name = data.update_names[i];
+                    const value = data.update_values[i];
+                    if (name.includes('stats')) {
+                        players[data.id].statBlock.stats[name.split('stats.')[1]] = value;
+                    } else if (name.includes('statBlock')) {
+                        players[data.id].statBlock[name.split('statBlock.')[1]] = value;
+                    } else if (name === 'particles' && Array.isArray(value)) {
+                        players[data.id].particles = value.map(p => Object.assign({}, p));
+                    } else {
+                        players[data.id][name] = value;
+                    }
+                }
+                if (players[data.id] !== curPlayer) {
+                    if (!players[data.id].targetPos) {
+                        players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+                    } else {
+                        players[data.id].targetPos.x = data.pos.x;
+                        players[data.id].targetPos.y = data.pos.y;
+                    }
+                }
+                players[data.id].holding = data.holding;
+            }
+        });
+
+        // Ability visuals
+        udpTransport.on('ABILITY_VISUAL', (data) => {
+            if (players && players[data.playerId]) {
+                players[data.playerId][data.ability] = data.value;
+            }
+        });
+
+        // Explosions
+        udpTransport.on('EXPLOSION', (data) => {
+            if (typeof createExplosion !== 'undefined') createExplosion({ pos: { x: data.x, y: data.y }, size: { w: data.w, h: data.h } });
+            if (typeof spawnExplosion !== 'undefined') spawnExplosion(data.x, data.y, data.w, data.h);
+        });
+
+        // Timer sync
+        udpTransport.on('sync_time', (data) => { setTimeUI(data); });
+
+        // Terrain updates
+        udpTransport.on('UPDATE_NODE', (data) => {
+            if (testMap.chunks[data.chunkPos] != undefined) {
+                if (data.amt > 0) {
+                    if (testMap.chunks[data.chunkPos].data[data.index] > 0) testMap.chunks[data.chunkPos].data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].data[data.index] < 0.3 && testMap.chunks[data.chunkPos].data[data.index] !== -1) testMap.chunks[data.chunkPos].data[data.index] = 0;
+                } else {
+                    if (testMap.chunks[data.chunkPos].data[data.index] < 1.3 && testMap.chunks[data.chunkPos].data[data.index] !== -1) testMap.chunks[data.chunkPos].data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].data[data.index] > 1.3) testMap.chunks[data.chunkPos].data[data.index] = 1.3;
+                }
+            }
+        });
+
+        udpTransport.on('UPDATE_IRON_NODE', (data) => {
+            if (testMap.chunks[data.chunkPos] != undefined) {
+                if (data.amt > 0) {
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] > 0) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] < 0.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1) testMap.chunks[data.chunkPos].iron_data[data.index] = 0;
+                } else {
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] < 1.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] > 1.3) testMap.chunks[data.chunkPos].iron_data[data.index] = 1.3;
+                }
+            }
+        });
+
+        // Projectiles
+        udpTransport.on('NEW_PROJECTILE', (data) => {
+            let proj = createProjectile(data.name, data.ownerName, data.color, data.pos.x, data.pos.y, data.flightPath.a);
+            proj.id = data.id;
+            const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+            if (testMap.chunks[chunkKey] != undefined) testMap.chunks[chunkKey].projectiles.push(proj);
+        });
+
+        udpTransport.on('DELETE_PROJ', (data) => {
+            const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+            let chunk = testMap.chunks[chunkKey];
+            if (chunk) {
+                for (let i = chunk.projectiles.length - 1; i >= 0; i--) {
+                    if (data.id == chunk.projectiles[i].id && data.lifeSpan == chunk.projectiles[i].lifeSpan &&
+                        data.name == chunk.projectiles[i].name && data.ownerName == chunk.projectiles[i].ownerName) {
+                        chunk.projectiles[i].deleteTag = true;
+                    }
+                }
+            }
+        });
+
+        // Sounds
+        udpTransport.on('NEW_SOUND', (data) => {
+            let sound = new SoundObj(data.sound, data.pos.x, data.pos.y);
+            sound.id = data.id;
+            const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+            if (testMap.chunks[chunkKey] != undefined) testMap.chunks[chunkKey].soundObjs.push(sound);
+        });
+
+        // Wander targets
+        udpTransport.on('WANDER_TARGET', (data) => {
+            for (let i = 0; i < testMap.brains.length; i++) {
+                if (data.id == testMap.brains[i].id) testMap.brains[i].target = createVector(data.target.x, data.target.y);
+            }
+        });
+
+        // Heal plants
+        udpTransport.on('HEAL_PLANTS', (data) => {
+            let keys = Object.keys(testMap.chunks);
+            for (let i = 0; i < keys.length; i++) {
+                let chunk = testMap.chunks[keys[i]];
+                for (let j = 0; j < chunk.objects.length; j++) {
+                    if (chunk.objects[j].type == 'Plant' || chunk.objects[j].objName == 'Tree' || chunk.objects[j].objName == 'AppleTree') {
+                        if (chunk.objects[j].hp < chunk.objects[j].mhp) {
+                            chunk.objects[j].hp += 5;
+                            if (chunk.objects[j].hp > chunk.objects[j].mhp) chunk.objects[j].hp = chunk.objects[j].mhp;
+                        }
+                    }
+                }
+            }
+        });
+
+        // Entity level updates
+        udpTransport.on('ENTITY_LEVEL_UPDATE', (data) => {
+            let chunk = testMap.chunks[data.cx + ',' + data.cy];
+            if (chunk) {
+                for (let j = 0; j < chunk.objects.length; j++) {
+                    let obj = chunk.objects[j];
+                    if (obj.pos.x === data.objPos.x && obj.pos.y === data.objPos.y) {
+                        if (obj.statBlock) {
+                            obj.statBlock.level = data.level;
+                            obj.statBlock.xp = data.xp;
+                            obj.hp = data.hp;
+                            obj.mhp = data.mhp;
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Players sync
+        udpTransport.on('PLAYERS_SYNC', (data) => {
+            if (!data || !data.players) return;
+            // Same logic as the Socket.IO PLAYERS_SYNC handler
+            const serverIds = Object.keys(data.players);
+            for (let i = 0; i < serverIds.length; i++) {
+                const id = serverIds[i];
+                if (id === curID) continue;
+                const pd = data.players[id];
+                if (!pd || !pd.pos) continue;
+                if (!players[id]) {
+                    players[id] = new Player(pd.pos.x, pd.pos.y, pd.statBlock ? pd.statBlock.stats.hp : undefined, id, pd.color, pd.race, pd.name);
+                } else {
+                    if (!players[id].targetPos) players[id].targetPos = createVector(pd.pos.x, pd.pos.y);
+                    else { players[id].targetPos.x = pd.pos.x; players[id].targetPos.y = pd.pos.y; }
+                }
+                if (pd.teamId) players[id].teamId = pd.teamId;
+                if (pd.color !== undefined) players[id].color = pd.color;
+                if (pd.holding) players[id].holding = pd.holding;
+            }
+            const localIds = Object.keys(players);
+            for (let i = 0; i < localIds.length; i++) {
+                if (!serverIds.includes(localIds[i])) delete players[localIds[i]];
+            }
+            updatePlayerCount();
+        });
+
+        // Player marked dead
+        udpTransport.on('PLAYER_MARKED_DEAD', (data) => {
+            if (players[data.id]) players[data.id].isDead = true;
+        });
+
+        // Player color changed
+        udpTransport.on('PLAYER_COLOR_CHANGED', (data) => {
+            if (players[data.playerId]) players[data.playerId].color = data.color;
+        });
+    }
+
     // Listen for explosion events and spawn visuals for all clients
     socket.on('EXPLOSION', (data) => {
         if (typeof createExplosion !== 'undefined') {
