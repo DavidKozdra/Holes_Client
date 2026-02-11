@@ -962,6 +962,23 @@ update() {
             // explode if needed
             if (this.explodes) {
                 createExplosion(this);
+
+                // Remove dirt and iron in explosion radius
+                socket.emit("update_nodes", {
+                    cx: chunkPos.x,
+                    cy: chunkPos.y,
+                    pos: { x: this.pos.x, y: this.pos.y },
+                    radius: 5,
+                    amt: 1
+                });
+
+                socket.emit("update_iron_nodes", {
+                    cx: chunkPos.x,
+                    cy: chunkPos.y,
+                    pos: { x: this.pos.x, y: this.pos.y },
+                    radius: 5,
+                    amt: 1
+                });
             }
 
             // send update to server
