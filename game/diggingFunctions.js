@@ -1,5 +1,52 @@
 var digSoundTimer = 0;
 
+// ── Terrain update batching ──
+// Accumulates dig/mine node updates and flushes at most every 50ms
+// to prevent flooding the server with 180+ events/sec while digging
+var _pendingNodeUpdates = {};  // key -> {chunkPos, index, amt}
+var _pendingIronUpdates = {}; // key -> {chunkPos, index, amt}
+var _nodeFlushTimer = null;
+var _NODE_FLUSH_INTERVAL = 50; // ms
+
+function _flushNodeUpdates() {
+    _nodeFlushTimer = null;
+    for (const key in _pendingNodeUpdates) {
+        const u = _pendingNodeUpdates[key];
+        socket.emit('update_node', { chunkPos: u.chunkPos, index: u.index, amt: u.amt });
+    }
+    _pendingNodeUpdates = {};
+    for (const key in _pendingIronUpdates) {
+        const u = _pendingIronUpdates[key];
+        socket.emit('update_iron_node', { chunkPos: u.chunkPos, index: u.index, amt: u.amt });
+    }
+    _pendingIronUpdates = {};
+}
+
+function _scheduleNodeFlush() {
+    if (_nodeFlushTimer) return;
+    _nodeFlushTimer = setTimeout(_flushNodeUpdates, _NODE_FLUSH_INTERVAL);
+}
+
+function _batchNodeUpdate(chunkKey, index, amt) {
+    const key = chunkKey + ':' + index;
+    if (_pendingNodeUpdates[key]) {
+        _pendingNodeUpdates[key].amt += amt;
+    } else {
+        _pendingNodeUpdates[key] = { chunkPos: chunkKey, index: index, amt: amt };
+    }
+    _scheduleNodeFlush();
+}
+
+function _batchIronUpdate(chunkKey, index, amt) {
+    const key = chunkKey + ':' + index;
+    if (_pendingIronUpdates[key]) {
+        _pendingIronUpdates[key].amt += amt;
+    } else {
+        _pendingIronUpdates[key] = { chunkPos: chunkKey, index: index, amt: amt };
+    }
+    _scheduleNodeFlush();
+}
+
 function getEquippedShovelImage() {
     if (!curPlayer || !curPlayer.invBlock) return null;
     const slotName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
@@ -243,7 +290,7 @@ function dig(x, y, amt, playerDiging, rayStart) {
         }
     }
 
-    socket.emit("update_node", {chunkPos: chunkKey, index: index, amt: amt });
+    _batchNodeUpdate(chunkKey, index, amt);
 }
 
 
@@ -478,7 +525,7 @@ function mine(x, y, amt, playerDiging, rayStart) {
         }
     }
 
-    socket.emit("update_iron_node", {chunkPos: chunkKey, index: index, amt: amt });
+    _batchIronUpdate(chunkKey, index, amt);
 }
 
 function ironCast(x,y, angle, placeBool){

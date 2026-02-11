@@ -115,6 +115,7 @@ var connectionHealth = (function () {
         // ── Disconnected ──
         sock.on('disconnect', function (reason) {
             connected = false;
+            if (typeof playerJoined !== 'undefined') playerJoined = false; // Stop batcher sending to stale socket
             console.warn('[ConnHealth] Disconnected:', reason);
             _showBanner('⚠ Disconnected — ' + reason, 'rgba(200,40,40,0.92)');
             _stopHeartbeat();

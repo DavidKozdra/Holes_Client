@@ -1009,6 +1009,7 @@ function startGame() {
             }
 
             curPlayer = pendingPlayer;
+            playerJoined = true; // Server confirmed registration — allow batcher to send
 
             // Password can now be set/changed in Settings menu after login
 
@@ -1036,10 +1037,38 @@ function startGame() {
                 localStorage.setItem("tut_seen", "true");
             }
 
-            for (let y = -5; y < 5; y++) {
-                for (let x = -5; x < 5; x++) {
-                    dig(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
-                    mine(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
+            // Clear spawn area — use update_nodes (single bulk event) instead of
+            // 200 individual dig/mine calls that would flood the socket
+            {
+                const spawnChunk = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
+                socket.emit('update_nodes', {
+                    cx: spawnChunk.x, cy: spawnChunk.y,
+                    pos: { x: curPlayer.pos.x, y: curPlayer.pos.y },
+                    radius: 5, amt: 1
+                });
+                socket.emit('update_iron_nodes', {
+                    cx: spawnChunk.x, cy: spawnChunk.y,
+                    pos: { x: curPlayer.pos.x, y: curPlayer.pos.y },
+                    radius: 5, amt: 1
+                });
+                // Also apply locally for immediate visual feedback
+                for (let y = -5; y < 5; y++) {
+                    for (let x = -5; x < 5; x++) {
+                        const wx = curPlayer.pos.x + x * TILESIZE;
+                        const wy = curPlayer.pos.y + y * TILESIZE;
+                        const cp = testMap.globalToChunk(wx, wy);
+                        const ck = cp.key || getChunkKey(cp.x, cp.y);
+                        const ch = testMap.chunks[ck];
+                        if (ch) {
+                            const lx = floor(wx / TILESIZE) - cp.x * CHUNKSIZE;
+                            const ly = floor(wy / TILESIZE) - cp.y * CHUNKSIZE;
+                            const idx = lx + ly * CHUNKSIZE;
+                            if (idx >= 0 && idx < CHUNKSIZE * CHUNKSIZE) {
+                                if (ch.data[idx] > 0) ch.data[idx] = 0;
+                                if (ch.iron_data && ch.iron_data[idx] > 0) ch.iron_data[idx] = 0;
+                            }
+                        }
+                    }
                 }
             }
         });

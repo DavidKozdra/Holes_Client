@@ -4,6 +4,7 @@
 var socket; //Connection to the server - declared first
 var curID = null; //The ID of the current player
 var playerStateBatcher; // Will be initialized immediately after class definition
+var playerJoined = false; // Gate: true once server has confirmed player registration
 
 // Accumulates player updates and sends them in batches every 100ms
 class PlayerStateBatcher {
@@ -73,7 +74,7 @@ class PlayerStateBatcher {
             return;
         }
 
-        if (typeof curPlayer === 'undefined' || !curPlayer) {
+        if (typeof curPlayer === 'undefined' || !curPlayer || !playerJoined) {
             this.flushTimer = null;
             return;
         }
@@ -494,6 +495,7 @@ function socketSetup(){
 
     // Handle page close/refresh - send player data to server
     window.addEventListener('beforeunload', (event) => {
+        playerJoined = false; // Stop batcher from sending during unload
         if (socket && socket.connected && curPlayer) {
             // Prepare complete player data for persistence
             const completeData = {
@@ -638,12 +640,14 @@ function socketSetup(){
             //console.log("Your ID is already set to: " + curPlayer.id);
             //console.log("New ID received: " + data.id);
             //Reconnection
+            playerJoined = false; // Gate updates until reconnect completes
             curPlayer.id = data.id;
             socket.emit("player_reconnected", {
                 player: curPlayer,
                 oldID: curID
             });
             curID = data.id;
+            playerJoined = true; // Reconnect is synchronous on server, safe to resume
         }
         else{
             curID = data.id;
