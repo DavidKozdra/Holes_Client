@@ -83,6 +83,35 @@ var eventQueue = (function () {
     var sentThisSec = 0;
     var secStart    = Date.now();
 
+    // ── Safe serialization — strip circular refs (p5.Vector etc.) ──
+    // Socket.IO's is-binary check recursively walks objects.  Circular
+    // references (common with p5.Vector which holds a back-ref to the
+    // p5 instance) cause an infinite loop → stack overflow.  This
+    // function clones the data with circular-reference protection so
+    // Socket.IO can safely process it.
+    function _safeClone(obj) {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj !== 'object') return obj;
+        try {
+            return JSON.parse(JSON.stringify(obj));
+        } catch (e) {
+            // JSON.stringify throws on circular refs — use a seen-set fallback
+            var seen = new Set();
+            try {
+                return JSON.parse(JSON.stringify(obj, function (_key, val) {
+                    if (val !== null && typeof val === 'object') {
+                        if (seen.has(val)) return undefined; // prune cycle
+                        seen.add(val);
+                    }
+                    return val;
+                }));
+            } catch (e2) {
+                console.warn('[EventQueue] Failed to serialize data for event:', e2);
+                return undefined;
+            }
+        }
+    }
+
     // ── Internal send — goes through UDP when available ──
     function _rawSend(event, data, ack) {
         // Prefer UDP for eligible events
@@ -93,10 +122,13 @@ var eventQueue = (function () {
         }
         // Fall back to Socket.IO (use the original un-wrapped emit)
         if (typeof socket !== 'undefined' && socket && socket.__origEmit) {
+            // Clone data to strip circular references before Socket.IO
+            // tries its is-binary walk (which would stack-overflow).
+            var safeData = (data !== undefined) ? _safeClone(data) : undefined;
             if (typeof ack === 'function') {
-                socket.__origEmit(event, data, ack);
-            } else if (data !== undefined) {
-                socket.__origEmit(event, data);
+                socket.__origEmit(event, safeData, ack);
+            } else if (safeData !== undefined) {
+                socket.__origEmit(event, safeData);
             } else {
                 socket.__origEmit(event);
             }
@@ -283,7 +315,9 @@ class PlayerStateBatcher {
 
         const updateData = {
             id: curPlayer.id,
-            pos: this.buffer.pos || curPlayer.pos,
+            // Always use plain {x,y} objects — never raw p5.Vector — to avoid
+            // circular-reference crashes in Socket.IO's is-binary serialiser.
+            pos: this.buffer.pos || { x: curPlayer.pos.x, y: curPlayer.pos.y },
             holding: this.buffer.holding || curPlayer.holding,
             update_names: this.buffer.update_names.slice(),
             update_values: this.buffer.update_values.slice()
@@ -869,8 +903,29 @@ function socketSetup(){
             //Reconnection
             playerJoined = false; // Gate updates until reconnect completes
             curPlayer.id = data.id;
+            // Serialize player to a plain object to avoid circular references
+            // (p5.Vector has back-references to the p5 instance that crash
+            // Socket.IO's is-binary check with stack overflow).
+            var reconnectPlayer = {
+                id: curPlayer.id,
+                name: curPlayer.name,
+                pos: { x: curPlayer.pos.x, y: curPlayer.pos.y },
+                race: curPlayer.race,
+                color: curPlayer.color,
+                holding: curPlayer.holding,
+                kills: curPlayer.kills,
+                statBlock: curPlayer.statBlock ? {
+                    race: curPlayer.statBlock.race,
+                    level: curPlayer.statBlock.level,
+                    xp: curPlayer.statBlock.xp,
+                    xpNeeded: curPlayer.statBlock.xpNeeded,
+                    stats: curPlayer.statBlock.stats
+                        ? JSON.parse(JSON.stringify(curPlayer.statBlock.stats))
+                        : null,
+                } : null,
+            };
             socket.emit("player_reconnected", {
-                player: curPlayer,
+                player: reconnectPlayer,
                 oldID: curID
             });
             curID = data.id;
