@@ -68,8 +68,9 @@ class GoblinModeAbility extends MagicAbility {
             if (player.goblinModeTimer <= 0) {
                 player.goblinModeActive = false;
                 player.goblinModeTimer = 0;
+                // Only sync when ability ends
+                batchMagicUpdate(player, ["goblinModeActive", "goblinModeTimer"], [false, 0]);
             }
-            batchMagicUpdate(player, ["goblinModeActive", "goblinModeTimer"], [player.goblinModeActive, player.goblinModeTimer]);
         }
     }
     render(player) {
@@ -100,8 +101,9 @@ class GodModeAbility extends MagicAbility {
             if (player.godModeTimer <= 0) {
                 player.godModeActive = false;
                 player.godModeTimer = 0;
+                // Only sync when ability ends
+                batchMagicUpdate(player, ["godModeActive", "godModeTimer"], [false, 0]);
             }
-            batchMagicUpdate(player, ["godModeActive", "godModeTimer"], [player.godModeActive, player.godModeTimer]);
         }
     }
     render(player) {
@@ -176,8 +178,9 @@ class CloakAbility extends MagicAbility {
             if (player.cloakTimer <= 0) {
                 player.cloakActive = false;
                 player.cloakTimer = 0;
+                // Only sync when ability ends
+                batchMagicUpdate(player, ["cloakActive", "cloakTimer"], [false, 0]);
             }
-            batchMagicUpdate(player, ["cloakActive", "cloakTimer"], [player.cloakActive, player.cloakTimer]);
         }
     }
     render(player) {
@@ -245,21 +248,17 @@ class DashAbility extends MagicAbility {
         }
     }
     update(player) {
-        let changed = false;
         if (player.isDashing) {
             player.dashTimer--;
             if (player.dashTimer <= 0) {
                 player.isDashing = false;
-                changed = true;
+                player.dashTimer = 0;
+                // Only sync when dash ends
+                batchMagicUpdate(player, ["isDashing", "dashTimer"], [false, 0]);
             }
-            changed = true;
         }
         if (player.dashCooldown > 0) {
             player.dashCooldown--;
-            changed = true;
-        }
-        if (changed && typeof socket !== 'undefined') {
-            batchMagicUpdate(player, ["isDashing", "dashTimer", "dashCooldown"], [player.isDashing, player.dashTimer, player.dashCooldown]);
         }
     }
     render(player) {
@@ -335,22 +334,25 @@ class CombustionAbility extends MagicAbility {
         }
     }
     update(player) {
-        let changed = false;
         if (player.flashTimer > 0) {
             player.flashTimer--;
-            changed = true;
+            if (player.flashTimer <= 0) {
+                // Only sync when flash ends
+                batchMagicUpdate(player, ["flashTimer"], [0]);
+            }
         }
         if (Array.isArray(player.particles)) {
             for (let i = player.particles.length - 1; i >= 0; i--) {
                 player.particles[i].life--;
                 if (player.particles[i].life <= 0) {
                     player.particles.splice(i, 1);
-                    changed = true;
                 }
             }
-        }
-        if (changed && typeof socket !== 'undefined') {
-            batchMagicUpdate(player, ["flashTimer", "particles"], [player.flashTimer, player.particles]);
+            // Only sync when all particles are gone
+            if (player.particles.length === 0) {
+                batchMagicUpdate(player, ["particles"], [[]]);
+                player.particles = null;
+            }
         }
     }
     render(player) {
@@ -396,10 +398,11 @@ class ForceFieldAbility extends MagicAbility {
         if (player.forcefieldActive) {
             player.auraTimer = Math.max(0, player.auraTimer - 1);
             
-            // Heal player periodically
+            // Heal player periodically and sync HP on heal ticks
             if (player.auraTimer % 10 === 0 && player.auraTimer > 0) {
                 let amt = ((player.statBlock.stats.magic * (deltaTime/30)) / 5) + 1;
                 player.statBlock.regenHealth(amt);
+                batchMagicUpdate(player, ["stats.hp"], [player.statBlock.stats.hp]);
             }
             
             // End forcefield when timer reaches 0
@@ -455,6 +458,7 @@ class MeditateAbility extends MagicAbility {
                 player.meditateActive = false;
                 player.meditateTimer = 0;
                 player.meditateCancelFlag = false;
+                batchMagicUpdate(player, ["meditateActive", "meditateTimer", "stats.mp"], [false, 0, player.statBlock.stats.mp]);
             } else {
                 player.meditateTimer--;
                 let m = (this.manaPerSec * (deltaTime/30));
@@ -462,10 +466,9 @@ class MeditateAbility extends MagicAbility {
                 if (player.meditateTimer <= 0) {
                     player.meditateActive = false;
                     player.meditateTimer = 0;
+                    // Only sync when meditation ends
+                    batchMagicUpdate(player, ["meditateActive", "meditateTimer", "stats.mp"], [false, 0, player.statBlock.stats.mp]);
                 }
-            }
-            if (typeof socket !== 'undefined') {
-                batchMagicUpdate(player, ["meditateActive", "meditateTimer"], [player.meditateActive, player.meditateTimer]);
             }
         }
     }
@@ -594,8 +597,9 @@ class HastyWorkAbility extends MagicAbility {
                 if (player.originalDigSpeed) {
                     player.statBlock.stats.handDigSpeed = player.originalDigSpeed;
                 }
+                // Only sync when ability ends
+                batchMagicUpdate(player, ["hastyWorkActive", "hastyWorkTimer", "stats.handDigSpeed"], [false, 0, player.statBlock.stats.handDigSpeed]);
             }
-            batchMagicUpdate(player, ["hastyWorkActive", "hastyWorkTimer", "stats.handDigSpeed"], [player.hastyWorkActive, player.hastyWorkTimer, player.statBlock.stats.handDigSpeed]);
         }
     }
     render(player) {

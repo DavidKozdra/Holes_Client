@@ -419,8 +419,8 @@ update() {
     // Clear velocity each frame (intentional, input-driven movement)
     this.vel.set(0, 0);
     
-    // Sync position to server continuously when player is the local player
-    if (typeof playerStateBatcher !== 'undefined') {
+    // Sync position to server only when actually moving or holding keys changed
+    if (typeof playerStateBatcher !== 'undefined' && this.moving) {
         playerStateBatcher.setPosition(this.pos);
         playerStateBatcher.setHolding(this.holding);
     }
