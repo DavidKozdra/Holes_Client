@@ -714,7 +714,7 @@ function defineObjProjectile(name,objName,radius,speed,lifespan){
 function damageObj(chunk, obj, damage){
     //damage the obj
     obj.hp -= damage;
-    socket.emit("upadate_obj", {
+    socket.emit("update_obj", {
         cx: chunk.cx, cy: chunk.cy,
         objName: obj.objName, 
         pos: {x: obj.pos.x, y: obj.pos.y}, 
@@ -725,7 +725,7 @@ function damageObj(chunk, obj, damage){
 
     //shake the obj
     obj.shake = {intensity: damage/2, length: 2};
-    socket.emit("upadate_obj", {
+    socket.emit("update_obj", {
         cx: chunk.cx, cy: chunk.cy,
         objName: obj.objName, 
         pos: {x: obj.pos.x, y: obj.pos.y}, 

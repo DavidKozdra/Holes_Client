@@ -1,4 +1,204 @@
 // ============================================================
+// EVENT QUEUE SYSTEM — Prevents socket flooding
+// ============================================================
+// Central outbound queue that coalesces high-frequency events and
+// enforces a global events-per-second budget.  Sits between game
+// code and the actual socket/UDP send.
+//
+// Three event tiers:
+//   IMMEDIATE  – sent right away, never queued (login, heartbeat)
+//   COALESCE   – only latest value kept per key, flushed on interval
+//   NORMAL     – queued FIFO, flushed up to budget per tick
+// ============================================================
+var eventQueue = (function () {
+    'use strict';
+
+    // ── Config ──
+    var BUDGET_PER_SEC  = 120;   // Max game events/sec we'll actually send
+    var FLUSH_INTERVAL  = 50;    // Flush every 50 ms (20 times/sec)
+    var BUDGET_PER_TICK = Math.ceil(BUDGET_PER_SEC / (1000 / FLUSH_INTERVAL));
+
+    // ── Tier: IMMEDIATE (bypass queue entirely) ──
+    var IMMEDIATE_EVENTS = {
+        'app_ping': true,
+        'new_player': true,
+        'player_reconnected': true,
+        'player_leave': true,
+        'player_dies': true,
+        'set_password': true,
+        'save_player_state': true,
+        'get_chunk': true,
+        'get_portals': true,
+        'request_my_items': true,
+        'get_teams': true,
+        'send_message': true,
+        'sync_player_inventory': true,
+        'create_team': true,
+        'leave_team': true,
+        'accept_team_request': true,
+        'deny_team_request': true,
+        'request_join_team': true,
+        'accept_invite': true,
+        'decline_invite': true,
+        'invite_player': true,
+        'promote_member': true,
+        'remove_member': true,
+        'update_team': true,
+        'player_saving': true,
+    };
+
+    // ── Tier: COALESCE (latest-value-wins per composite key) ──
+    var COALESCE_EVENTS = {
+        'update_obj': function (d) {
+            return 'uo:' + (d.cx||0) + ',' + (d.cy||0) + ':' + (d.id || d.objName || '');
+        },
+        'update_player': function (d) {
+            return 'up:' + (d.id || '');
+        },
+        'update_node': function (d) {
+            var cp = d.chunkPos || {};
+            return 'un:' + (cp.x||0) + ',' + (cp.y||0) + ':' + (d.index||0);
+        },
+        'update_iron_node': function (d) {
+            var cp = d.chunkPos || {};
+            return 'uin:' + (cp.x||0) + ',' + (cp.y||0) + ':' + (d.index||0);
+        },
+        'update_nodes': function (d) {
+            var cp = d.cPos || {};
+            return 'uns:' + (cp.x||0) + ',' + (cp.y||0);
+        },
+        'update_iron_nodes': function (d) {
+            var cp = d.cPos || {};
+            return 'uins:' + (cp.x||0) + ',' + (cp.y||0);
+        },
+        'wander_request': function (d) {
+            return 'wr:' + (d.id || '');
+        },
+    };
+
+    // ── State ──
+    var coalesceBuf = {};       // key → { event, data, ack }
+    var normalQueue = [];       // FIFO: [{ event, data, ack }, ...]
+    var flushTimer  = null;
+    var sentThisSec = 0;
+    var secStart    = Date.now();
+
+    // ── Internal send — goes through UDP when available ──
+    function _rawSend(event, data, ack) {
+        // Prefer UDP for eligible events
+        if (typeof udpTransport !== 'undefined' && udpTransport.isReady() &&
+            udpTransport.shouldSendViaUDP(event) && !ack) {
+            udpTransport.send(event, data);
+            return;
+        }
+        // Fall back to Socket.IO (use the original un-wrapped emit)
+        if (typeof socket !== 'undefined' && socket && socket.__origEmit) {
+            if (typeof ack === 'function') {
+                socket.__origEmit(event, data, ack);
+            } else {
+                socket.__origEmit(event, data);
+            }
+        }
+    }
+
+    // ── Enqueue ──
+    function enqueue(event, data, ack) {
+        // Immediate tier: bypass queue entirely
+        if (IMMEDIATE_EVENTS[event]) {
+            _rawSend(event, data, ack);
+            return;
+        }
+
+        // Coalesce tier: overwrite previous pending value for same key
+        var keyFn = COALESCE_EVENTS[event];
+        if (keyFn) {
+            var key = keyFn(data || {});
+            coalesceBuf[key] = { event: event, data: data, ack: ack };
+            _scheduleFlush();
+            return;
+        }
+
+        // Normal tier: FIFO queue
+        normalQueue.push({ event: event, data: data, ack: ack });
+        _scheduleFlush();
+    }
+
+    // ── Flush ──
+    function _flush() {
+        flushTimer = null;
+        var now = Date.now();
+
+        // Reset per-second budget counter
+        if (now - secStart >= 1000) {
+            sentThisSec = 0;
+            secStart = now;
+        }
+
+        var budget = BUDGET_PER_TICK;
+
+        // 1) Drain coalesced events first (they represent "latest state")
+        var keys = Object.keys(coalesceBuf);
+        for (var i = 0; i < keys.length && budget > 0; i++) {
+            var entry = coalesceBuf[keys[i]];
+            _rawSend(entry.event, entry.data, entry.ack);
+            delete coalesceBuf[keys[i]];
+            budget--;
+            sentThisSec++;
+        }
+
+        // 2) Drain normal FIFO queue
+        while (normalQueue.length > 0 && budget > 0) {
+            var item = normalQueue.shift();
+            _rawSend(item.event, item.data, item.ack);
+            budget--;
+            sentThisSec++;
+        }
+
+        // If there's still work, schedule another flush
+        if (Object.keys(coalesceBuf).length > 0 || normalQueue.length > 0) {
+            _scheduleFlush();
+        }
+    }
+
+    function _scheduleFlush() {
+        if (flushTimer) return;
+        flushTimer = setTimeout(_flush, FLUSH_INTERVAL);
+    }
+
+    // ── Force immediate drain (e.g. before disconnect) ──
+    function flushNow() {
+        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+        var keys = Object.keys(coalesceBuf);
+        for (var i = 0; i < keys.length; i++) {
+            var e = coalesceBuf[keys[i]];
+            _rawSend(e.event, e.data, e.ack);
+        }
+        coalesceBuf = {};
+        while (normalQueue.length > 0) {
+            var item = normalQueue.shift();
+            _rawSend(item.event, item.data, item.ack);
+        }
+    }
+
+    // ── Debug stats ──
+    function stats() {
+        return {
+            coalescePending: Object.keys(coalesceBuf).length,
+            normalPending:   normalQueue.length,
+            sentThisSec:     sentThisSec,
+            budgetPerTick:   BUDGET_PER_TICK,
+            budgetPerSec:    BUDGET_PER_SEC,
+        };
+    }
+
+    return {
+        enqueue:  enqueue,
+        flushNow: flushNow,
+        stats:    stats,
+    };
+})();
+
+// ============================================================
 // PLAYER STATE BATCHING SYSTEM - Reduces network overhead
 // ============================================================
 var socket; //Connection to the server - declared first
@@ -159,11 +359,25 @@ function socketSetup(){
         connectionHealth.attach(socket);
     }
 
-    // ── Wrap socket.emit for automatic UDP routing ──
-    // This intercepts all socket.emit() calls throughout the codebase
-    // and routes UDP-eligible events through the DataChannel when open.
-    if (typeof udpTransport !== 'undefined') {
-        udpTransport.wrapSocketEmit(socket);
+    // ── Wrap socket.emit through the Event Queue ──
+    // All socket.emit() calls throughout the codebase are intercepted
+    // and routed through eventQueue, which coalesces, throttles, and
+    // then sends via UDP or Socket.IO as appropriate.
+    if (!socket.__origEmit) {
+        socket.__origEmit = socket.emit.bind(socket);
+        socket.emit = function (event) {
+            // Socket.IO internal events must NOT go through the queue
+            if (event === 'connect' || event === 'disconnect' || event === 'error' ||
+                event === 'connect_error' || event === 'connect_timeout' ||
+                event === 'newListener' || event === 'removeListener') {
+                return socket.__origEmit.apply(socket, arguments);
+            }
+            var data = arguments.length > 1 ? arguments[1] : undefined;
+            var ack  = arguments.length > 2 && typeof arguments[2] === 'function'
+                       ? arguments[2] : undefined;
+            eventQueue.enqueue(event, data, ack);
+            return socket;
+        };
     }
 
     // ── UDP Transport Setup ──
