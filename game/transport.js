@@ -6,6 +6,14 @@
 // go over the DataChannel (UDP semantics). Everything else stays
 // on Socket.IO (TCP/reliable).
 //
+// Architecture:
+//   • Server sends each message via exactly ONE channel per client
+//     (UDP if DataChannel is open, Socket.IO otherwise).
+//   • Client registers listeners on BOTH channels (UDP + Socket.IO)
+//     so the handler fires regardless of which path delivers.
+//   • No client-side dedup needed since server-side smart routing
+//     guarantees single-delivery per event.
+//
 // Usage:
 //   udpTransport.send('event_name', data)   — fire & forget over UDP
 //   udpTransport.on('EVENT_NAME', callback) — listen for UDP events
@@ -15,10 +23,25 @@
 var udpTransport = (function () {
     var channel = null;     // geckos.io client channel
     var ready = false;      // DataChannel open?
-    var listeners = {};     // event → [callback, …]
-    var pendingListeners = []; // listeners registered before channel opens
     var serverUrl = null;
     var serverPort = null;
+
+    // Track registered listeners to avoid duplicates
+    // Maps event → callback (one callback per event)
+    var registeredListeners = {};
+    // Pending listeners queued before channel opens
+    var pendingListeners = [];
+
+    // ── Connection health ──
+    var connectionAttempts = 0;
+
+    // ── Metrics ──
+    var metrics = {
+        messagesSent: 0,
+        messagesReceived: 0,
+        connectTime: 0,
+        disconnects: 0,
+    };
 
     // Events that should be sent over UDP (client → server)
     var UDP_SEND_EVENTS = {
@@ -70,13 +93,19 @@ var udpTransport = (function () {
             return;
         }
 
+        // Close any existing channel before creating a new one
+        if (channel) {
+            try { channel.close(); } catch (e) { /* ignore */ }
+            channel = null;
+            ready = false;
+        }
+
         serverUrl = url;
         serverPort = port;
 
         try {
             var geckos = GeckosClient.default;
 
-            // Configure connection - set port to null if included in URL
             var options = {
                 authorization: token,
                 url: url,
@@ -91,13 +120,16 @@ var udpTransport = (function () {
                 if (error) {
                     console.error('[UDP] Connection failed:', error.message || error);
                     ready = false;
+                    connectionAttempts++;
                     return;
                 }
 
                 ready = true;
+                connectionAttempts = 0;
+                metrics.connectTime = Date.now();
                 console.log('[UDP] DataChannel connected! Low-latency transport active.');
 
-                // Register any pending listeners
+                // Register all queued listeners now that channel is open
                 for (var i = 0; i < pendingListeners.length; i++) {
                     var p = pendingListeners[i];
                     _registerListener(p.event, p.callback);
@@ -108,8 +140,9 @@ var udpTransport = (function () {
             channel.onDisconnect(function (reason) {
                 console.log('[UDP] DataChannel disconnected:', reason);
                 ready = false;
-                // Don't attempt reconnect — the Socket.IO channel is still active
-                // and will serve as fallback. UDP will reconnect on next page load.
+                metrics.disconnects++;
+                // Socket.IO fallback remains active — server detects channel loss
+                // and automatically routes future messages via Socket.IO.
             });
         } catch (e) {
             console.error('[UDP] Failed to initialize:', e);
@@ -117,16 +150,25 @@ var udpTransport = (function () {
         }
     }
 
+    /**
+     * Register a geckos.io channel listener for an event.
+     * Uses the registeredListeners map to prevent duplicate registrations.
+     * @private
+     */
     function _registerListener(event, callback) {
-        if (channel) {
-            channel.on(event, function (data) {
-                try {
-                    callback(data);
-                } catch (e) {
-                    console.error('[UDP] Error in listener for "' + event + '":', e);
-                }
-            });
-        }
+        if (!channel) return;
+        // Only register one geckos listener per event — prevents accumulation
+        if (registeredListeners[event]) return;
+
+        registeredListeners[event] = callback;
+        channel.on(event, function (data) {
+            metrics.messagesReceived++;
+            try {
+                callback(data);
+            } catch (e) {
+                console.error('[UDP] Error in listener for "' + event + '":', e);
+            }
+        });
     }
 
     /**
@@ -140,9 +182,10 @@ var udpTransport = (function () {
         if (ready && channel) {
             try {
                 channel.emit(event, data);
+                metrics.messagesSent++;
                 return true;
             } catch (e) {
-                // Channel may have closed
+                // Channel may have closed mid-send
                 return false;
             }
         }
@@ -152,16 +195,21 @@ var udpTransport = (function () {
     /**
      * Register a listener for a UDP event from the server.
      * If the channel isn't ready yet, the listener is queued.
+     * Idempotent: calling on() for the same event twice does NOT duplicate.
      * @param {string} event
      * @param {Function} callback
      */
     function on(event, callback) {
-        if (!listeners[event]) listeners[event] = [];
-        listeners[event].push(callback);
+        // Prevent duplicate registration for the same event
+        if (registeredListeners[event]) return;
 
         if (ready && channel) {
             _registerListener(event, callback);
         } else {
+            // Check pending list for duplicates
+            for (var i = 0; i < pendingListeners.length; i++) {
+                if (pendingListeners[i].event === event) return;
+            }
             pendingListeners.push({ event: event, callback: callback });
         }
     }
@@ -199,13 +247,8 @@ var udpTransport = (function () {
      * @param {*} data
      */
     function emit(event, data) {
-        if (shouldSendViaUDP(event) && ready && channel) {
-            try {
-                channel.emit(event, data);
-                return; // Sent via UDP, no need for Socket.IO
-            } catch (e) {
-                // Fall through to Socket.IO
-            }
+        if (shouldSendViaUDP(event) && send(event, data)) {
+            return; // Sent via UDP
         }
         // Fallback: send via Socket.IO
         if (typeof socket !== 'undefined' && socket && socket.connected) {
@@ -222,8 +265,20 @@ var udpTransport = (function () {
         }
         ready = false;
         channel = null;
-        listeners = {};
+        registeredListeners = {};
         pendingListeners = [];
+        connectionAttempts = 0;
+    }
+
+    /** Get transport metrics for debugging. */
+    function getMetrics() {
+        return {
+            ready: ready,
+            messagesSent: metrics.messagesSent,
+            messagesReceived: metrics.messagesReceived,
+            disconnects: metrics.disconnects,
+            uptime: ready ? Date.now() - metrics.connectTime : 0,
+        };
     }
 
     /**
@@ -248,6 +303,7 @@ var udpTransport = (function () {
             if (shouldSendViaUDP(event) && ready && channel && arguments.length <= 2) {
                 try {
                     channel.emit(event, arguments[1]);
+                    metrics.messagesSent++;
                     return sock; // match Socket.IO return convention
                 } catch (e) {
                     // DataChannel error — fall through to Socket.IO
@@ -269,5 +325,6 @@ var udpTransport = (function () {
         isUdpRecvEvent: isUdpRecvEvent,
         wrapSocketEmit: wrapSocketEmit,
         close: close,
+        getMetrics: getMetrics,
     };
 })();
