@@ -151,6 +151,13 @@ playerStateBatcher = new PlayerStateBatcher(50); // 50ms = 20 updates per second
 // ============================================================
 
 function socketSetup(){
+    // ── Connection health monitor ──
+    // Tracks connection state, shows reconnect banners, and runs
+    // an app-level heartbeat to detect silent disconnects.
+    if (typeof connectionHealth !== 'undefined') {
+        connectionHealth.attach(socket);
+    }
+
     // ── Wrap socket.emit for automatic UDP routing ──
     // This intercepts all socket.emit() calls throughout the codebase
     // and routes UDP-eligible events through the DataChannel when open.

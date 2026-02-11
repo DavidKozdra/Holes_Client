@@ -384,7 +384,13 @@ function renderServerBrowser() {
                 window.isHardcoreServer = !!(data.hardcore || data.permaDeath);
                 selectedServer.hardcore = window.isHardcoreServer;
 
-                socket = io.connect(getServerUrl(selectedServer));
+                socket = io.connect(getServerUrl(selectedServer), {
+                    reconnection: true,
+                    reconnectionAttempts: 20,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 10000,
+                    timeout: 15000,
+                });
                 socketSetup();
                 testMap = new Map();
                 // ghostBuild will be created later when needed in input.js
