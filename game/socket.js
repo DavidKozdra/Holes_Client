@@ -50,7 +50,7 @@ var eventQueue = (function () {
     // ── Tier: COALESCE (latest-value-wins per composite key) ──
     var COALESCE_EVENTS = {
         'update_obj': function (d) {
-            return 'uo:' + (d.cx||0) + ',' + (d.cy||0) + ':' + (d.id || d.objName || '');
+            return 'uo:' + (d.cx||0) + ',' + (d.cy||0) + ':' + (d.id || d.objName || '') + ':' + (d.update_name || '');
         },
         'update_player': function (d) {
             return 'up:' + (d.id || '');
@@ -95,8 +95,10 @@ var eventQueue = (function () {
         if (typeof socket !== 'undefined' && socket && socket.__origEmit) {
             if (typeof ack === 'function') {
                 socket.__origEmit(event, data, ack);
-            } else {
+            } else if (data !== undefined) {
                 socket.__origEmit(event, data);
+            } else {
+                socket.__origEmit(event);
             }
         }
     }
@@ -372,9 +374,20 @@ function socketSetup(){
                 event === 'newListener' || event === 'removeListener') {
                 return socket.__origEmit.apply(socket, arguments);
             }
-            var data = arguments.length > 1 ? arguments[1] : undefined;
-            var ack  = arguments.length > 2 && typeof arguments[2] === 'function'
-                       ? arguments[2] : undefined;
+
+            // CRITICAL: Reset Socket.IO flags (volatile, compress, timeout)
+            // immediately.  The original emit resets them at the end of each
+            // call, but since we intercept before __origEmit runs, stale
+            // flags (e.g. from socket.volatile) would leak into later sends
+            // and silently discard packets.
+            socket.flags = {};
+
+            // Preserve full argument list for exact Socket.IO compatibility
+            var args = new Array(arguments.length);
+            for (var i = 0; i < arguments.length; i++) args[i] = arguments[i];
+            var data = args.length > 1 ? args[1] : undefined;
+            var ack  = args.length > 2 && typeof args[args.length - 1] === 'function'
+                       ? args[args.length - 1] : undefined;
             eventQueue.enqueue(event, data, ack);
             return socket;
         };

@@ -63,15 +63,19 @@ var connectionHealth = (function () {
     function _startHeartbeat() {
         _stopHeartbeat();
         lastPongTime = Date.now();
+        console.log('[ConnHealth] Heartbeat started, lastPongTime =', lastPongTime);
 
         pingInterval = setInterval(function () {
             if (!socket || !socket.connected) return;
 
-            // Send a lightweight app-level ping
-            socket.volatile.emit('app_ping', { t: Date.now() });
+            // Send app-level ping directly via the original Socket.IO emit
+            // to bypass the event-queue wrapper and avoid volatile flag issues.
+            var emitFn = (socket.__origEmit || socket.emit).bind(socket);
+            emitFn('app_ping', { t: Date.now() });
 
             // Check if we've heard back recently
             var silence = Date.now() - lastPongTime;
+            console.log('[ConnHealth] Ping sent, silence = ' + (silence / 1000).toFixed(1) + 's');
             if (silence > MAX_SILENT_MS) {
                 console.warn('[ConnHealth] No response for ' + (silence / 1000).toFixed(0) + 's — forcing reconnect');
                 _showBanner('⚠ Connection lost — reconnecting…', 'rgba(200,40,40,0.92)');
@@ -175,11 +179,20 @@ var connectionHealth = (function () {
         // ── App-level pong from server ──
         sock.on('app_pong', function () {
             lastPongTime = Date.now();
+            console.log('[ConnHealth] Pong received, lastPongTime updated');
             // If banner was showing a "connection unstable" warning, clear it
             if (connected && bannerEl && bannerEl.style.display !== 'none') {
                 _hideBanner();
             }
         });
+
+        // If the socket is already connected (fast local connections),
+        // the 'connect' event won't fire again, so start heartbeat now.
+        if (sock.connected) {
+            console.log('[ConnHealth] Socket already connected on attach — starting heartbeat immediately');
+            connected = true;
+            _startHeartbeat();
+        }
 
         console.log('[ConnHealth] Monitoring attached to socket');
     }
