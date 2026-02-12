@@ -856,8 +856,8 @@ var swapListCache = {
  */
 function defineSwapInvUI() {
     swapInvDiv = createDiv();
-    swapInvDiv.id("inventory");
-    swapInvDiv.class("container");
+    swapInvDiv.id("swap-inventory");
+    swapInvDiv.class("container swap-inv-container");
     swapInvDiv.style("position", "absolute");
     swapInvDiv.style("top", "50%");
     swapInvDiv.style("left", "50%");

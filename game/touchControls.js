@@ -8,20 +8,47 @@
 var isMobileDevice = false;
 
 function detectMobile() {
-  isMobileDevice = (
+  // Primary check: CSS media query (most reliable across all devices)
+  const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  // Fallback: touch API check
+  const hasTouch = (
     ('ontouchstart' in window) ||
     (navigator.maxTouchPoints > 0) ||
     (navigator.msMaxTouchPoints > 0)
   );
-  // Also check screen size — small screens are almost certainly mobile
-  if (window.innerWidth <= 1024 && isMobileDevice) {
-    isMobileDevice = true;
-  }
+  // A device is "mobile" if it has a coarse pointer (finger),
+  // OR has touch AND a small screen (filters out touch-enabled laptops)
+  isMobileDevice = coarsePointer || (hasTouch && window.innerWidth <= 1366);
+  console.log('[Mobile] detected:', isMobileDevice, '| coarse:', coarsePointer, '| touch:', hasTouch, '| width:', window.innerWidth);
   return isMobileDevice;
 }
 
 // Run on load
 detectMobile();
+
+// Re-detect on orientation change and resize (handles rotation, split-screen, etc.)
+window.addEventListener('orientationchange', function() {
+  setTimeout(function() {
+    const wasMobile = isMobileDevice;
+    detectMobile();
+    if (isMobileDevice && !wasMobile && typeof createTouchControlsUI === 'function') {
+      createTouchControlsUI();
+    }
+  }, 300); // Delay to let viewport settle
+});
+window.addEventListener('resize', (function() {
+  let resizeTimer;
+  return function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      const wasMobile = isMobileDevice;
+      detectMobile();
+      if (isMobileDevice && !wasMobile && typeof createTouchControlsUI === 'function') {
+        createTouchControlsUI();
+      }
+    }, 500);
+  };
+})());
 
 // ─── Global Touch State ─────────────────────────────
 var touchJoystick = {
@@ -63,53 +90,85 @@ var touchActions = {
 
 // ─── Touch Controls DOM ─────────────────────────────
 var _touchControlsRoot = null;
-var _joystickContainer = null;
-var _joystickBase = null;
-var _joystickThumb = null;
+var _joystickContainer = null; // now holds the D-pad
+var _dpadButtons = {};
 var _actionButtons = {};
 
 function createTouchControlsUI() {
   if (_touchControlsRoot) return; // already created
-  if (!isMobileDevice) return;
+  // Re-detect in case the initial check at script parse time was wrong
+  if (!isMobileDevice) detectMobile();
+  if (!isMobileDevice) {
+    // Schedule a final fallback check after layout is fully complete
+    requestAnimationFrame(function() {
+      detectMobile();
+      if (isMobileDevice && !_touchControlsRoot) {
+        console.log('[Mobile] Late detection triggered — creating touch controls');
+        createTouchControlsUI();
+      }
+    });
+    return;
+  }
 
   // ── CSS ──
   const style = document.createElement('style');
   style.id = 'touch-controls-styles';
   style.textContent = `
-    /* ─── Virtual Joystick ─── */
-    #touch-joystick-area {
+    /* ─── D-Pad (visible movement control) ─── */
+    #touch-dpad-area {
       position: fixed;
-      left: 0;
-      bottom: 0;
-      width: 40vw;
-      height: 50vh;
+      left: 10px;
+      bottom: 20px;
+      width: 160px;
+      height: 160px;
       z-index: 9990;
       touch-action: none;
+      pointer-events: none;
+    }
+
+    #touch-dpad-area .dpad-grid {
+      display: grid;
+      grid-template-columns: 52px 52px 52px;
+      grid-template-rows: 52px 52px 52px;
+      gap: 2px;
+      width: 160px;
+      height: 160px;
+    }
+
+    .dpad-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.45);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 22px;
+      touch-action: none;
       pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: transform 0.08s, background 0.08s;
     }
 
-    #touch-joystick-base {
-      position: absolute;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.12);
-      border: 3px solid rgba(255, 255, 255, 0.25);
-      display: none;
-      pointer-events: none;
-      transform: translate(-50%, -50%);
+    .dpad-btn:active, .dpad-btn.pressed {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.6);
+      color: #fff;
     }
 
-    #touch-joystick-thumb {
-      position: absolute;
-      width: 56px;
-      height: 56px;
+    .dpad-center {
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.6), rgba(255,255,255,0.2));
-      border: 2px solid rgba(255, 255, 255, 0.5);
-      display: none;
+      background: rgba(255, 255, 255, 0.06);
+      border: 2px solid rgba(255, 255, 255, 0.1);
       pointer-events: none;
-      transform: translate(-50%, -50%);
+    }
+
+    .dpad-empty {
+      background: transparent;
+      border: none;
+      pointer-events: none;
     }
 
     /* ─── Action Buttons Container ─── */
@@ -276,18 +335,35 @@ function createTouchControlsUI() {
   _touchControlsRoot = document.createElement('div');
   _touchControlsRoot.id = 'touch-controls-root';
 
-  // ── Joystick Area (left side) ──
+  // ── D-Pad Area (left side, always visible) ──
   _joystickContainer = document.createElement('div');
-  _joystickContainer.id = 'touch-joystick-area';
+  _joystickContainer.id = 'touch-dpad-area';
 
-  _joystickBase = document.createElement('div');
-  _joystickBase.id = 'touch-joystick-base';
+  var dpadGrid = document.createElement('div');
+  dpadGrid.className = 'dpad-grid';
 
-  _joystickThumb = document.createElement('div');
-  _joystickThumb.id = 'touch-joystick-thumb';
+  // Grid layout (3×3): top-left=UL, top-center=UP, top-right=UR, etc.
+  var dpadLayout = [
+    { dir: 'ul', label: '↖' }, { dir: 'up',    label: '▲' }, { dir: 'ur', label: '↗' },
+    { dir: 'left', label: '◀' }, { dir: 'center', label: '' },   { dir: 'right', label: '▶' },
+    { dir: 'dl', label: '↙' }, { dir: 'down',  label: '▼' }, { dir: 'dr', label: '↘' }
+  ];
 
-  _joystickContainer.appendChild(_joystickBase);
-  _joystickContainer.appendChild(_joystickThumb);
+  _dpadButtons = {};
+  dpadLayout.forEach(function(item) {
+    var btn = document.createElement('div');
+    if (item.dir === 'center') {
+      btn.className = 'dpad-center';
+    } else {
+      btn.className = 'dpad-btn';
+      btn.dataset.dir = item.dir;
+      _dpadButtons[item.dir] = btn;
+    }
+    btn.textContent = item.label;
+    dpadGrid.appendChild(btn);
+  });
+
+  _joystickContainer.appendChild(dpadGrid);
 
   // ── Aim Area (right side, for drag-to-aim digging) ──
   const aimArea = document.createElement('div');
@@ -350,7 +426,7 @@ function createTouchControlsUI() {
   document.body.appendChild(_touchControlsRoot);
 
   // ── Attach Event Listeners ──
-  _attachJoystickListeners();
+  _attachDpadListeners();
   _attachAimListeners(aimArea);
   _attachButtonListeners();
 }
@@ -369,91 +445,83 @@ function _createButton(label, className, action) {
   return btn;
 }
 
-// ─── Joystick Listeners ─────────────────────────────
-function _attachJoystickListeners() {
-  _joystickContainer.addEventListener('touchstart', function(e) {
-    e.preventDefault();
-    if (touchJoystick.active) return;
-    const t = e.changedTouches[0];
-    touchJoystick.active = true;
-    touchJoystick.identifier = t.identifier;
-    touchJoystick.origin.x = t.clientX;
-    touchJoystick.origin.y = t.clientY;
-    touchJoystick.current.x = t.clientX;
-    touchJoystick.current.y = t.clientY;
-    touchJoystick.vector.x = 0;
-    touchJoystick.vector.y = 0;
+// ─── D-Pad Listeners ────────────────────────────────
+var _dpadState = { w: false, a: false, s: false, d: false };
+var _activeDpadTouches = {}; // identifier → direction
 
-    _joystickBase.style.display = 'block';
-    _joystickThumb.style.display = 'block';
-    _joystickBase.style.left = t.clientX + 'px';
-    _joystickBase.style.top = t.clientY + 'px';
-    _joystickThumb.style.left = t.clientX + 'px';
-    _joystickThumb.style.top = t.clientY + 'px';
-  }, { passive: false });
-
-  _joystickContainer.addEventListener('touchmove', function(e) {
-    e.preventDefault();
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const t = e.changedTouches[i];
-      if (t.identifier === touchJoystick.identifier) {
-        _updateJoystick(t.clientX, t.clientY);
-        break;
-      }
-    }
-  }, { passive: false });
-
-  const endJoystick = function(e) {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === touchJoystick.identifier) {
-        touchJoystick.active = false;
-        touchJoystick.identifier = -1;
-        touchJoystick.vector.x = 0;
-        touchJoystick.vector.y = 0;
-
-        _joystickBase.style.display = 'none';
-        _joystickThumb.style.display = 'none';
-        break;
-      }
-    }
+function _attachDpadListeners() {
+  // Direction → WASD mapping
+  var dirMap = {
+    up:    { w: true,  a: false, s: false, d: false },
+    down:  { w: false, a: false, s: true,  d: false },
+    left:  { w: false, a: true,  s: false, d: false },
+    right: { w: false, a: false, s: false, d: true  },
+    ul:    { w: true,  a: true,  s: false, d: false },
+    ur:    { w: true,  a: false, s: false, d: true  },
+    dl:    { w: false, a: true,  s: true,  d: false },
+    dr:    { w: false, a: false, s: true,  d: true  }
   };
 
-  _joystickContainer.addEventListener('touchend', endJoystick, { passive: false });
-  _joystickContainer.addEventListener('touchcancel', endJoystick, { passive: false });
-}
+  Object.keys(_dpadButtons).forEach(function(dir) {
+    var btn = _dpadButtons[dir];
 
-function _updateJoystick(cx, cy) {
-  let dx = cx - touchJoystick.origin.x;
-  let dy = cy - touchJoystick.origin.y;
-  let dist = Math.sqrt(dx * dx + dy * dy);
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        _activeDpadTouches[e.changedTouches[i].identifier] = dir;
+      }
+      btn.classList.add('pressed');
+      touchJoystick.active = true;
+      _recalcDpadState();
+    }, { passive: false });
 
-  // Clamp to radius
-  if (dist > touchJoystick.radius) {
-    dx = (dx / dist) * touchJoystick.radius;
-    dy = (dy / dist) * touchJoystick.radius;
-    dist = touchJoystick.radius;
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        delete _activeDpadTouches[e.changedTouches[i].identifier];
+      }
+      btn.classList.remove('pressed');
+      _recalcDpadState();
+      // If no d-pad buttons held, mark joystick inactive
+      if (Object.keys(_activeDpadTouches).length === 0) {
+        touchJoystick.active = false;
+      }
+    }, { passive: false });
+
+    btn.addEventListener('touchcancel', function(e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        delete _activeDpadTouches[e.changedTouches[i].identifier];
+      }
+      btn.classList.remove('pressed');
+      _recalcDpadState();
+      if (Object.keys(_activeDpadTouches).length === 0) {
+        touchJoystick.active = false;
+      }
+    }, { passive: false });
+  });
+
+  function _recalcDpadState() {
+    // Merge all currently-held directions into one combined state
+    _dpadState = { w: false, a: false, s: false, d: false };
+    var vx = 0, vy = 0;
+    Object.values(_activeDpadTouches).forEach(function(dir) {
+      var m = dirMap[dir];
+      if (m) {
+        if (m.w) _dpadState.w = true;
+        if (m.a) _dpadState.a = true;
+        if (m.s) _dpadState.s = true;
+        if (m.d) _dpadState.d = true;
+      }
+    });
+    // Update the joystick vector for aim/ghost-build compatibility
+    if (_dpadState.d) vx += 1;
+    if (_dpadState.a) vx -= 1;
+    if (_dpadState.s) vy += 1;
+    if (_dpadState.w) vy -= 1;
+    var mag = Math.sqrt(vx * vx + vy * vy);
+    touchJoystick.vector.x = mag > 0 ? vx / mag : 0;
+    touchJoystick.vector.y = mag > 0 ? vy / mag : 0;
   }
-
-  touchJoystick.current.x = touchJoystick.origin.x + dx;
-  touchJoystick.current.y = touchJoystick.origin.y + dy;
-
-  // Normalize to -1..1
-  let nx = dx / touchJoystick.radius;
-  let ny = dy / touchJoystick.radius;
-
-  // Apply deadzone
-  const mag = Math.sqrt(nx * nx + ny * ny);
-  if (mag < touchJoystick.deadzone) {
-    touchJoystick.vector.x = 0;
-    touchJoystick.vector.y = 0;
-  } else {
-    touchJoystick.vector.x = nx;
-    touchJoystick.vector.y = ny;
-  }
-
-  // Move thumb visual
-  _joystickThumb.style.left = touchJoystick.current.x + 'px';
-  _joystickThumb.style.top = touchJoystick.current.y + 'px';
 }
 
 // ─── Aim Area Listeners (right side for dig targeting) ───
@@ -479,6 +547,11 @@ function _attachAimListeners(aimArea) {
       if (t.identifier === touchAim.identifier) {
         touchAim.x = t.clientX;
         touchAim.y = t.clientY;
+        // Keep p5.js mouseX/mouseY in sync for ghost-build, portal hover, etc.
+        if (typeof mouseX !== 'undefined') {
+          mouseX = t.clientX;
+          mouseY = t.clientY;
+        }
         // Check if moved beyond tap threshold
         const dx = touchAim.x - touchAim.startX;
         const dy = touchAim.y - touchAim.startY;
@@ -510,11 +583,23 @@ function _attachAimListeners(aimArea) {
 }
 
 function _handleAimTap(screenX, screenY) {
-  // Convert screen tap to world coordinates and attempt interaction
+  // Synthesize a real p5.js mouse click so ALL mouse-dependent game code
+  // (teleport portals, interactions, chat-blur, etc.) works on mobile.
+  // p5.js exposes mouseX, mouseY, mouseButton, mouseIsPressed as globals.
+  if (typeof mouseX !== 'undefined') {
+    mouseX = screenX;
+    mouseY = screenY;
+    mouseButton = LEFT;
+    mouseIsPressed = true;
+    // Fire the p5 mouseReleased handler (handles teleport, chat, etc.)
+    if (typeof mouseReleased === 'function') mouseReleased();
+    mouseIsPressed = false;
+  }
+
+  // Also run the proximity-based interact check for objects near the tap
   if (typeof camera === 'undefined' || typeof curPlayer === 'undefined' || !curPlayer) return;
   if (gameState !== 'playing') return;
 
-  // Simulate the interact action at tap location
   const worldX = screenX + camera.pos.x - (width / 2);
   const worldY = screenY + camera.pos.y - (height / 2);
 
@@ -785,15 +870,18 @@ function applyTouchInput() {
   if (typeof curPlayer === 'undefined' || !curPlayer) return;
   if (gameState !== 'playing') return;
 
-  // ── Joystick → Movement ──
-  if (touchJoystick.active) {
-    const vx = touchJoystick.vector.x;
-    const vy = touchJoystick.vector.y;
-
-    curPlayer.holding.w = vy < -0.3;
-    curPlayer.holding.a = vx < -0.3;
-    curPlayer.holding.s = vy > 0.3;
-    curPlayer.holding.d = vx > 0.3;
+  // ── D-Pad → Movement ──
+  if (typeof _dpadState !== 'undefined' && (touchJoystick.active || _dpadState.w || _dpadState.a || _dpadState.s || _dpadState.d)) {
+    curPlayer.holding.w = _dpadState.w;
+    curPlayer.holding.a = _dpadState.a;
+    curPlayer.holding.s = _dpadState.s;
+    curPlayer.holding.d = _dpadState.d;
+  } else {
+    // No D-pad buttons held — stop the player
+    curPlayer.holding.w = false;
+    curPlayer.holding.a = false;
+    curPlayer.holding.s = false;
+    curPlayer.holding.d = false;
   }
 
   // ── Dash ──
@@ -965,7 +1053,7 @@ function updateTouchControlsVisibility() {
                   gameState === 'swap_inv' || gameState === 'pause' ||
                   gameState === 'dead' || gameState === 'player_status');
 
-  // Joystick area - only during gameplay
+  // D-Pad area - only during gameplay
   _joystickContainer.style.display = inGame ? '' : 'none';
 
   // Aim area

@@ -2573,8 +2573,9 @@ function defineDeathUI() {
     deathDiv.style("top", "50%");
     deathDiv.style("left", "50%");
     deathDiv.style("transform", "translate(-50%, -50%)");
-    deathDiv.style("width", "25%");
-    deathDiv.style("height", "20%");
+    deathDiv.style("width", "clamp(280px, 60vw, 400px)");
+    deathDiv.style("height", "auto");
+    deathDiv.style("min-height", "20%");
     deathDiv.style("border", "2px solid black");
     deathDiv.style("border-radius", "10px");
     deathDiv.style("text-align", "center");
@@ -2601,8 +2602,9 @@ function defineDeathUI() {
     respawnButton.class("system-button");
     respawnButton.style("width", "80%");
     respawnButton.style("padding", "12px");
-    respawnButton.style("margin-left", "45px");
-    respawnButton.style("font-size", "16px");
+    respawnButton.style("margin", "10px auto");
+    respawnButton.style("min-height", "48px");
+    respawnButton.style("font-size", "clamp(14px, 3vw, 16px)");
     respawnButton.style("border-radius", "8px");
     respawnButton.style("cursor", "pointer");
     respawnButton.style("color", "white");

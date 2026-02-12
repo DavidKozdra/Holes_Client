@@ -3,7 +3,7 @@
  *******************************************************/
 let gameState = "initial";
 let testMap; // your Map object
-var lastHolding;
+var lastHolding = { w: false, a: false, s: false, d: false };
 var projectiles = [];
 var collisionChecks = [];
 const races = BASE_STATS.map(item => item.name);
@@ -291,8 +291,9 @@ function draw() {
                                     const objIsSnappable = obj.objName == "Wall" || obj.objName == "Floor" || obj.objName == "Door" || obj.objName == "Thin Wall";
                                     if (objIsSnappable) {
 
-                                        let relX = (mouseX + camera.pos.x - width / 2) - obj.pos.x;
-                                        let relY = (mouseY + camera.pos.y - height / 2) - obj.pos.y;
+                                        // Use ghostBuild position (already set for mobile or desktop)
+                                        let relX = ghostBuild.pos.x - obj.pos.x;
+                                        let relY = ghostBuild.pos.y - obj.pos.y;
 
                                         let rad = -radians(obj.rot);
                                         let rotX = relX * Math.cos(rad) - relY * Math.sin(rad);

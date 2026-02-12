@@ -600,7 +600,9 @@ function mouseReleased() {
                 y = y * height / 2;
                 x = x + width / 2;
                 y = y + height / 2;
-                if (mouseX > x - 30 && mouseX < x + 30 && mouseY > y - 30 && mouseY < y + 30) {
+                // Use a larger tap target on mobile (50px radius instead of 30px)
+                var tapRadius = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ? 50 : 30;
+                if (mouseX > x - tapRadius && mouseX < x + tapRadius && mouseY > y - tapRadius && mouseY < y + tapRadius) {
                     //teleport to the portal
                     curPlayer.pos.x = knownPortals[i].pos.x;
                     curPlayer.pos.y = knownPortals[i].pos.y + 128;
@@ -777,9 +779,9 @@ function isElementVisible(el) {
 function continousKeyBoardInput() {
     if (getIsChatting() || isElementVisible(pauseDiv)) return
     if (gameState == "playing") {
-        // On mobile, joystick handles movement — skip keyboard polling
-        if (typeof isMobileDevice !== 'undefined' && isMobileDevice && typeof touchJoystick !== 'undefined' && touchJoystick.active) {
-            // Touch joystick is active, don't override with keyboard
+        // On mobile, touch system is the sole source of truth for movement
+        if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+            // Skip keyboard polling entirely — applyTouchInput handles all movement
         } else {
             // default all keys to false
             curPlayer.holding = { w: false, a: false, s: false, d: false };

@@ -69,10 +69,11 @@ function renderLinks() {
 
     // draw title image
     titleImage = createImg("./images/ui/title.png");
+    titleImage.id("titleImage");
 
     // Apply styles to the image using .style()
-    titleImage.style("width", "28dvw"); // Set the width of the image
-    titleImage.style("height", "9dvw"); // Automatically adjust the height
+    titleImage.style("width", "clamp(180px, 40vw, 28dvw)");
+    titleImage.style("height", "auto");
     titleImage.style("border", "5px solid #000"); // Add a border
     titleImage.style("display", "block"); // Make it a block element (to prevent inline styling)
     titleImage.style("margin", "10px auto");
@@ -92,6 +93,7 @@ function renderLinks() {
         .map(i => markeeText[i]).join("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
 
     markee = createElement("marquee", marqueeContent);
+    markee.id("mainMenuMarquee");
     markee.style("position", "fixed");
     markee.style("bottom", "0px");
     markee.style("width", "80%");
@@ -102,6 +104,7 @@ function renderLinks() {
 
     // Parent container for buttons (Bottom Right)
     linkContainer = createDiv();
+    linkContainer.id("socialLinksPanel");
     linkContainer.class("container");
 
     applyStyle(linkContainer, {
@@ -122,6 +125,7 @@ function renderLinks() {
 
     // Parent container for settings (Bottom Left)
     settingsToggle = createDiv();
+    settingsToggle.id("settingsToggle");
     settingsToggle.class("container");
     applyStyle(settingsToggle, {
         position: "fixed",
@@ -220,11 +224,13 @@ function renderServerBrowser() {
         serverBrowserContainer = createDiv();
         serverBrowserContainer.id("serverBrowserContainer");
         serverBrowserContainer.class("container");
-        serverBrowserContainer.style("overflow-y", "scroll");
-        // Main container styling
-        serverBrowserContainer.style("max-width", "50dvw");
+        serverBrowserContainer.style("overflow-y", "auto");
+        // Main container styling — clamp ensures usability on phones AND desktops
+        serverBrowserContainer.style("max-width", "clamp(320px, 90vw, 50dvw)");
         serverBrowserContainer.style("max-height", "75%");
-        serverBrowserContainer.style("overflow-y", "hide");
+        serverBrowserContainer.style("overflow-y", "auto");
+        serverBrowserContainer.style("touch-action", "pan-y");
+        serverBrowserContainer.style("-webkit-overflow-scrolling", "touch");
         serverBrowserContainer.style("border-radius", "15px");
         serverBrowserContainer.style("color", "#fff");
         serverBrowserContainer.style("font-family", "Arial, sans-serif");
@@ -238,7 +244,7 @@ function renderServerBrowser() {
 
         // Title
         let title = createDiv("Select A Server");
-        title.style("font-size", "2.5rem");
+        title.style("font-size", "clamp(1.2rem, 4vw, 2.5rem)");
         title.style("font-weight", "bold");
         title.style("margin-bottom", "15px");
         title.style("text-align", "center");
@@ -355,9 +361,9 @@ function renderServerBrowser() {
         let connectButton = createButton("▶ Connect");
         connectButton.parent(serverBrowserContainer);
         connectButton.style("width", "80%");
-        connectButton.style("height", "5dvw");
+        connectButton.style("min-height", "clamp(48px, 8vw, 70px)");
 
-        connectButton.style("font-size", "2rem");
+        connectButton.style("font-size", "clamp(1rem, 3vw, 2rem)");
         connectButton.style("margin-top", "20px");
         connectButton.style("padding", "12px");
         connectButton.style("background", "#4CAF50");
@@ -436,20 +442,22 @@ function renderSingleServerEntry(server, indexInFullList) {
     serverEntry.class("serverEntry");
 
     // Basic layout styling
-    serverEntry.style("font-size", "2rem");
-    serverEntry.style("padding", "12px");
-    serverEntry.style("margin-bottom", "12px");
+    serverEntry.style("font-size", "clamp(0.7rem, 2vw, 2rem)");
+    serverEntry.style("padding", "clamp(8px, 2vw, 12px)");
+    serverEntry.style("margin-bottom", "8px");
     serverEntry.style("background-color", "var(--color-dirt-dark)");
     serverEntry.style("cursor", "pointer");
     serverEntry.style("display", "flex");
     serverEntry.style("align-items", "center");
-    serverEntry.style("gap", "12px");
+    serverEntry.style("gap", "clamp(8px, 2vw, 12px)");
     serverEntry.style("transition", "transform 0.15s ease-in-out");
+    serverEntry.style("touch-action", "manipulation");
 
     // === Logo Container ===
     let logoContainer = createDiv();
-    logoContainer.style("width", "100px");
-    logoContainer.style("height", "100px");
+    logoContainer.style("width", "clamp(48px, 12vw, 100px)");
+    logoContainer.style("height", "clamp(48px, 12vw, 100px)");
+    logoContainer.style("flex-shrink", "0");
     logoContainer.style("display", "flex");
     logoContainer.style("border-radius", "8px");
     logoContainer.style("overflow", "hidden");
@@ -520,14 +528,18 @@ function renderSingleServerEntry(server, indexInFullList) {
     // Remove server button
     let removeButton = createButton(" &#x20E0; &nbsp; Remove ");
     removeButton.parent(serverEntry);
-    removeButton.style("margin-left", "10px");
-    removeButton.style("padding", "15px");
+    removeButton.style("margin-left", "auto");
+    removeButton.style("padding", "clamp(8px, 2vw, 15px)");
+    removeButton.style("min-width", "44px");
+    removeButton.style("min-height", "44px");
+    removeButton.style("font-size", "clamp(0.6rem, 1.5vw, 1rem)");
     removeButton.style("background-color", "#F44336");
     removeButton.style("color", "#fff");
     removeButton.style("border", "none");
-    removeButton.style("border-radius", "3px");
+    removeButton.style("border-radius", "5px");
     removeButton.style("cursor", "pointer");
     removeButton.style("pointer-events", "auto");
+    removeButton.style("flex-shrink", "0");
 
     removeButton.mousePressed(() => {
         serverList.splice(indexInFullList, 1);
@@ -619,6 +631,11 @@ function hideServerBrowser() {
 
 // Show the selection UI elements
 function drawSelection() {
+    // Hide social links & marquee on mobile during race selection
+    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+        if (linkContainer) linkContainer.style("display", "none");
+        if (markee) markee.style("display", "none");
+    }
     raceContainer.style("display", "flex");
     // ---------------------------------------------------
     //  Create Title (centered, larger & responsive)
@@ -647,6 +664,9 @@ function drawSelection() {
     raceTitle.style("border-radius", "10px");
     raceTitle.style("text-align", "center");
 
+    // Show the combined name+go container
+    var ngc = document.getElementById('nameGoContainer');
+    if (ngc) ngc.style.display = 'flex';
     nameInput.show();
     goButton.show();
 
@@ -677,6 +697,8 @@ function drawSelection() {
 function hideRaceSelect() {
     nameInput.hide();
     goButton.hide();
+    var ngc = document.getElementById('nameGoContainer');
+    if (ngc) ngc.style.display = 'none';
     raceButtons.forEach((card) => {
         card.hide();
     });
@@ -696,19 +718,26 @@ function setupRaceSelectionUI() {
     // ---------------------------------------------------
     raceContainer = createDiv();
     race_back_button = createButton("<- Back");
+    race_back_button.id("raceBackButton");
     raceContainer.id("raceContainer");
     raceContainer.style("position", "absolute");
-    raceContainer.style("top", "40dvh");
+    raceContainer.style("top", "clamp(120px, 30dvh, 40dvh)");
     raceContainer.style("left", "50%");
     raceContainer.style("transform", "translateX(-50%)");
     raceContainer.style("display", "none");
     raceContainer.style("flex-wrap", "wrap");
     raceContainer.style("justify-content", "center");
-    raceContainer.style("align-items", "center");
-    raceContainer.style("gap", "30px");
-    raceContainer.style("padding", "0px");
+    raceContainer.style("align-items", "flex-start");
+    raceContainer.style("gap", "clamp(10px, 2vw, 30px)");
+    raceContainer.style("padding", "10px");
     raceContainer.style("border-radius", "10px");
-    raceContainer.style("min-width", "100dvw");
+    raceContainer.style("width", "95vw");
+    raceContainer.style("max-width", "100vw");
+    raceContainer.style("max-height", "clamp(200px, 45dvh, 50dvh)");
+    raceContainer.style("overflow-y", "auto");
+    raceContainer.style("overflow-x", "hidden");
+    raceContainer.style("touch-action", "pan-y");
+    raceContainer.style("-webkit-overflow-scrolling", "touch");
     // ---------------------------------------------------
     //  Create cards for each race (with responsive sizing)
     // Allowed stats to display
@@ -744,8 +773,10 @@ function setupRaceSelectionUI() {
         // Create an image element for the race portrait
         let raceImgPath = `images/characters/${raceName}/${raceName}_portrait.png`;
         let raceImg = createImg(raceImgPath, `${raceName} image`);
-        raceImg.style("max-width", "15dvw");
-        raceImg.style("height", "15dvh");
+        raceImg.style("width", "clamp(60px, 15vw, 150px)");
+        raceImg.style("height", "auto");
+        raceImg.style("aspect-ratio", "1");
+        raceImg.style("object-fit", "contain");
         raceImg.style("image-rendering", "pixelated");
         raceImg.parent(card);
 
@@ -773,7 +804,7 @@ function setupRaceSelectionUI() {
 
         // Create a label for the stats
         let raceStatsLbl = createP(statsText);
-        raceStatsLbl.style("font-size", "calc(0.6vw + 2px)");
+        raceStatsLbl.style("font-size", "clamp(9px, 1.5vw, 14px)");
         raceStatsLbl.style("font-weight", "bold");
         raceStatsLbl.style("margin", "0");
         raceStatsLbl.style("align-self", "flex-end");
@@ -819,16 +850,24 @@ function setupRaceSelectionUI() {
     // ---------------------------------------------------
     //   Name Input Field (centered, larger & responsive)
     // ---------------------------------------------------
-    nameInput = createInput("");
-    nameInput.hide();
-    let inputWidth = constrain(width * 0.5, 100, 200); // Responsive width
+    // ── Name + Go container (flex row, positioned at bottom) ──
+    var nameGoContainer = createDiv();
+    nameGoContainer.id('nameGoContainer');
+    nameGoContainer.style("position", "fixed");
+    nameGoContainer.style("bottom", "max(12px, env(safe-area-inset-bottom))");
+    nameGoContainer.style("left", "50%");
+    nameGoContainer.style("transform", "translateX(-50%)");
+    nameGoContainer.style("display", "flex");
+    nameGoContainer.style("align-items", "center");
+    nameGoContainer.style("gap", "10px");
+    nameGoContainer.style("z-index", "100");
+    nameGoContainer.style("width", "auto");
+    nameGoContainer.style("max-width", "90vw");
+    nameGoContainer.hide();
 
-    // Use CSS positioning instead of .position() to prevent movement
-    nameInput.style("position", "absolute");
-    nameInput.style("left", "48%");
-    nameInput.style("top", "85dvh");
-    nameInput.style("transform", "translateX(-50%)");
-    nameInput.style("width", "14%");
+    nameInput = createInput("");
+    nameInput.parent(nameGoContainer);
+    nameInput.style("width", "clamp(150px, 40vw, 300px)");
 
     // Responsive base styling
     nameInput.style("font-size", width < 500 ? "14px" : "18px");
@@ -882,19 +921,16 @@ function setupRaceSelectionUI() {
     //   "Go" Button (centered, larger & responsive)
     // ---------------------------------------------------
     goButton = createButton("Go");
-    goButton.hide();
-    // Position near the name input with a fixed offset
-    goButton.style("position", "absolute");
-    goButton.style("left", "calc(50% + 130px)");
-    goButton.style("top", "85dvh"); // or "80%" if more stable
+    goButton.parent(nameGoContainer);
 
-    goButton.style("font-size", "20px");
+    goButton.style("font-size", "clamp(16px, 3vw, 20px)");
     goButton.style("color", "#fff");
     goButton.style("border", "none");
     goButton.style("border-radius", "8px");
     goButton.style("padding", "10px 20px");
+    goButton.style("min-height", "44px");
+    goButton.style("min-width", "60px");
 
-    goButton.style("margin-left", "20px");
     goButton.style("cursor", "pointer");
     goButton.style("transition", "background-color 0.2s, transform 0.2s");
 

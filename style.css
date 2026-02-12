@@ -331,13 +331,26 @@ button:hover::before {
   flex-grow: calc(10);
 }
 
-input:focus {
-  font-size: 2em;
-  font-weight: 900;
-  background-color: var(--color-hover);
-  color: var(--color-black);
-  outline: none;
-  border: #1a1a1a 1px solid;
+/* Only apply dramatic focus styling on desktop (fine pointer) */
+@media (pointer: fine) {
+  input:focus {
+    font-size: 2em;
+    font-weight: 900;
+    background-color: var(--color-hover);
+    color: var(--color-black);
+    outline: none;
+    border: #1a1a1a 1px solid;
+  }
+}
+
+/* Subtle focus for mobile — no layout-breaking font size change */
+@media (pointer: coarse) {
+  input:focus {
+    background-color: var(--color-hover);
+    color: var(--color-black);
+    outline: 2px solid var(--color-gold);
+    border: #1a1a1a 1px solid;
+  }
 }
 
 /* Responsive Adjustments */
@@ -1149,6 +1162,11 @@ input.fmt-italic-apply {
 
   body {
     overscroll-behavior: none;
+    /* touch-action: none applied only to canvas and touch overlays, NOT body */
+    /* This preserves scrolling in server browser, inventory, crafting panels */
+  }
+
+  canvas {
     touch-action: none;
   }
 
@@ -1172,6 +1190,20 @@ input.fmt-italic-apply {
 
   canvas {
     border-radius: 0 !important;
+  }
+
+  /* Allow scrolling inside UI panels */
+  #inventory.container,
+  .craft-container,
+  .swap-inv-container,
+  .item-list,
+  .item-details,
+  .craft-recipe-list,
+  .craft-recipe-details,
+  .swap-inv-column,
+  .player-status-wrapper {
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* ─── Inventory panel — full-width bottom sheet ─── */
@@ -1323,11 +1355,12 @@ input.fmt-italic-apply {
     font-size: 12px !important;
   }
 
-  /* ─── Chat — wider on mobile ─── */
+  /* ─── Chat — wider on mobile, above touch controls ─── */
   #chatContainer {
     width: 50dvw !important;
     max-width: 90vw !important;
     bottom: 70px !important;
+    z-index: 9995 !important;
   }
 
   /* ─── Spacebar hotkey hint ─── */
@@ -1349,11 +1382,34 @@ input.fmt-italic-apply {
     max-height: 60vh !important;
   }
 
-  /* ─── Race cards ─── */
+  /* ─── Race cards — compact on mobile ─── */
   .raceCard {
-    min-width: 200px !important;
-    font-size: 0.8em !important;
-    padding: 14px !important;
+    min-width: 120px !important;
+    max-width: 42vw !important;
+    font-size: 0.7em !important;
+    padding: 8px !important;
+    margin: 4px !important;
+  }
+
+  .raceCard img {
+    width: clamp(40px, 12vw, 80px) !important;
+  }
+
+  .raceCard p {
+    margin: 4px 0 !important;
+  }
+
+  /* ─── Back button — top-left, out of the way ─── */
+  #raceBackButton {
+    position: fixed !important;
+    top: 6px !important;
+    left: 6px !important;
+    z-index: 1001 !important;
+    font-size: 14px !important;
+    padding: 8px 14px !important;
+    min-height: 44px !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    border-radius: 8px !important;
   }
 
   /* ─── Moves hotbar on mobile ─── */
@@ -1384,6 +1440,140 @@ input.fmt-italic-apply {
   .serverEntry {
     min-width: auto !important;
   }
+
+  /* ─── Server browser container ─── */
+  #serverBrowserContainer {
+    max-width: 92vw !important;
+    width: 92vw !important;
+    padding: 10px !important;
+    max-height: 70dvh !important;
+  }
+
+  /* ─── Death screen ─── */
+  #deathDiv {
+    width: clamp(280px, 80vw, 400px) !important;
+    height: auto !important;
+    min-height: 160px !important;
+    padding: 16px !important;
+  }
+
+  #deathDiv button {
+    min-height: 48px !important;
+    font-size: 14px !important;
+    margin: 10px auto !important;
+    display: block !important;
+  }
+
+  /* ─── Swap inventory with new ID ─── */
+  #swap-inventory.container,
+  #swap-inventory.swap-inv-container {
+    width: 96vw !important;
+    max-width: 96vw !important;
+    height: 80dvh !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ─── Close buttons — ensure minimum 44px touch target ─── */
+  .inv-close-btn,
+  .craft-close-btn,
+  .pause-close-btn,
+  [class*="close"] {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    font-size: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* ─── Chat — prevent stealing touch events from joystick behind it ─── */
+  #chatLog {
+    pointer-events: auto;
+  }
+
+  #chatContainer:not(:focus-within) {
+    pointer-events: none;
+  }
+
+  #chatContainer:not(:focus-within) * {
+    pointer-events: auto;
+  }
+
+  /* ─── Title image on mobile — small, top-left corner ─── */
+  #titleImage {
+    width: 120px !important;
+    height: auto !important;
+    position: fixed !important;
+    top: 6px !important;
+    left: 6px !important;
+    margin: 0 !important;
+    border-width: 2px !important;
+    z-index: 999;
+  }
+
+  /* ─── Hide social links panel on mobile ─── */
+  #socialLinksPanel {
+    display: none !important;
+  }
+
+  /* ─── Hide marquee on mobile ─── */
+  #mainMenuMarquee {
+    display: none !important;
+  }
+
+  /* ─── Settings button — top-right on mobile ─── */
+  #settingsToggle {
+    position: fixed !important;
+    top: 6px !important;
+    right: 6px !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: 999;
+  }
+
+  #settingsToggle button {
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+  }
+
+  /* ─── Name + Go container ─── */
+  #nameGoContainer {
+    bottom: max(16px, env(safe-area-inset-bottom)) !important;
+    gap: 10px;
+  }
+
+  #nameGoContainer input {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+    min-height: 44px;
+    border-radius: 8px;
+  }
+
+  #nameGoContainer button {
+    min-height: 48px !important;
+    min-width: 60px !important;
+    font-size: 16px !important;
+    border-radius: 8px !important;
+  }
+
+  /* ─── Race title on mobile ─── */
+  #raceTitle {
+    top: clamp(36px, 10dvh, 20dvh) !important;
+    font-size: clamp(12px, 3vw, 18px) !important;
+    padding: 6px 14px !important;
+  }
+
+  /* ─── Race container scrollable on mobile ─── */
+  #raceContainer {
+    top: clamp(60px, 15dvh, 30dvh) !important;
+    max-height: 60dvh !important;
+    overflow-y: auto !important;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
 }
 
 /* Extra small phones */
@@ -1402,15 +1592,15 @@ input.fmt-italic-apply {
     padding: 6px !important;
   }
 
-  .touch-btn {
-    width: 52px !important;
-    height: 52px !important;
-    font-size: 8px !important;
+  .dpad-btn {
+    font-size: 16px !important;
   }
 
-  .touch-btn.primary {
-    width: 64px !important;
-    height: 64px !important;
+  .dpad-grid {
+    grid-template-columns: 44px 44px 44px !important;
+    grid-template-rows: 44px 44px 44px !important;
+    width: 136px !important;
+    height: 136px !important;
   }
 
   .touch-top-btn {
