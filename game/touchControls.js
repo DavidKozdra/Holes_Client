@@ -157,34 +157,19 @@ function createTouchControlsUI() {
       border-color: rgba(255, 255, 255, 0.7);
     }
 
-    /* ─── Action Buttons Container ─── */
-    #touch-action-buttons {
+    /* ─── USE Button (single action button) ─── */
+    #touch-use-btn {
       position: fixed;
-      right: 12px;
-      bottom: 60px;
-      z-index: 9990;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    .touch-btn-row {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-      pointer-events: none;
-    }
-
-    .touch-btn {
-      width: 54px;
-      height: 54px;
+      right: 16px;
+      bottom: 64px;
+      width: 64px;
+      height: 64px;
       border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      background: rgba(0, 0, 0, 0.45);
+      border: 3px solid rgba(255, 200, 80, 0.5);
+      background: rgba(90, 60, 20, 0.5);
       color: white;
       font-family: 'Press Start 2P', monospace;
-      font-size: 8px;
+      font-size: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -193,38 +178,15 @@ function createTouchControlsUI() {
       pointer-events: auto;
       user-select: none;
       -webkit-user-select: none;
-      line-height: 1.1;
+      z-index: 9990;
       text-shadow: 0 1px 3px rgba(0,0,0,0.8);
       transition: transform 0.1s;
     }
 
-    .touch-btn:active, .touch-btn.pressed {
+    #touch-use-btn:active, #touch-use-btn.pressed {
       transform: scale(0.88);
-      background: rgba(255, 255, 255, 0.25);
-      border-color: rgba(255, 255, 255, 0.6);
-    }
-
-    .touch-btn.primary {
-      width: 64px;
-      height: 64px;
-      font-size: 9px;
-      border-color: rgba(255, 200, 80, 0.5);
-      background: rgba(90, 60, 20, 0.5);
-    }
-
-    .touch-btn.primary:active, .touch-btn.primary.pressed {
       background: rgba(160, 120, 40, 0.5);
       border-color: rgba(255, 200, 80, 0.8);
-    }
-
-    .touch-btn.danger {
-      border-color: rgba(255, 80, 80, 0.5);
-      background: rgba(80, 20, 20, 0.45);
-    }
-
-    .touch-btn.danger:active, .touch-btn.danger.pressed {
-      background: rgba(160, 40, 40, 0.5);
-      border-color: rgba(255, 80, 80, 0.8);
     }
 
     /* ─── Top-bar Buttons (Inventory, Craft, Build, Pause) ─── */
@@ -265,38 +227,40 @@ function createTouchControlsUI() {
       background: rgba(255, 255, 255, 0.2);
     }
 
-    /* ─── Aim area (right side for digging direction) ─── */
+    /* ─── Aim/dig area — covers game canvas except joystick corner ─── */
     #touch-aim-area {
       position: fixed;
-      right: 0;
-      bottom: 52px;
-      width: 60vw;
-      height: 45vh;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
       z-index: 9985;
       touch-action: none;
       pointer-events: auto;
     }
 
-    /* ─── Hotbar swipe arrows ─── */
+    /* ─── Hotbar swipe arrows — inside bottom bar ─── */
     #touch-hotbar-arrows {
       position: fixed;
-      left: 155px;
-      bottom: 52px;
-      z-index: 9990;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10001;
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      gap: 4px;
       pointer-events: none;
+      /* Sit just above the move slots row */
+      margin-bottom: 46px;
     }
 
     .touch-hotbar-arrow {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      border: 2px solid rgba(255, 255, 255, 0.25);
-      background: rgba(0, 0, 0, 0.45);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.5);
       color: white;
-      font-size: 18px;
+      font-size: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -339,29 +303,12 @@ function createTouchControlsUI() {
   const aimArea = document.createElement('div');
   aimArea.id = 'touch-aim-area';
 
-  // ── Action Buttons (right side) ──
-  const actionRoot = document.createElement('div');
-  actionRoot.id = 'touch-action-buttons';
-
-  // Row 1: Interact
-  const row1 = _createRow();
-  _actionButtons.interact = _createButton('ACT', 'touch-btn', 'interact');
-  row1.appendChild(_actionButtons.interact);
-  actionRoot.appendChild(row1);
-
-  // Row 2: Dig + Fill
-  const row2 = _createRow();
-  _actionButtons.dig = _createButton('DIG', 'touch-btn primary', 'dig');
-  _actionButtons.fill = _createButton('FILL', 'touch-btn danger', 'fill');
-  row2.appendChild(_actionButtons.fill);
-  row2.appendChild(_actionButtons.dig);
-  actionRoot.appendChild(row2);
-
-  // Row 3: Dash
-  const row3 = _createRow();
-  _actionButtons.dash = _createButton('DASH', 'touch-btn', 'dash');
-  row3.appendChild(_actionButtons.dash);
-  actionRoot.appendChild(row3);
+  // ── Single USE button (uses held item or interacts) ──
+  const useBtn = document.createElement('div');
+  useBtn.id = 'touch-use-btn';
+  useBtn.textContent = 'USE';
+  useBtn.dataset.action = 'use';
+  _actionButtons.use = useBtn;
 
   // ── Top Bar (Inventory, Crafting, Build, Pause) ──
   const topBar = document.createElement('div');
@@ -390,7 +337,7 @@ function createTouchControlsUI() {
   // ── Assemble ──
   _touchControlsRoot.appendChild(_joystickContainer);
   _touchControlsRoot.appendChild(aimArea);
-  _touchControlsRoot.appendChild(actionRoot);
+  _touchControlsRoot.appendChild(useBtn);
   _touchControlsRoot.appendChild(topBar);
   _touchControlsRoot.appendChild(hotbarArrows);
   document.body.appendChild(_touchControlsRoot);
@@ -501,7 +448,7 @@ function _attachJoystickListeners() {
   }
 }
 
-// ─── Aim Area Listeners (right side for dig targeting) ───
+// ─── Aim Area Listeners — touch = dig/use at that position ───
 function _attachAimListeners(aimArea) {
   aimArea.addEventListener('touchstart', function(e) {
     e.preventDefault();
@@ -515,6 +462,13 @@ function _attachAimListeners(aimArea) {
     touchAim.y = t.clientY;
     touchAim.tapTime = performance.now();
     touchAim.isTap = true;
+    // Immediately start digging at touch position
+    touchActions.dig = true;
+    // Sync p5 mouse position
+    if (typeof mouseX !== 'undefined') {
+      mouseX = t.clientX;
+      mouseY = t.clientY;
+    }
   }, { passive: false });
 
   aimArea.addEventListener('touchmove', function(e) {
@@ -543,9 +497,11 @@ function _attachAimListeners(aimArea) {
   const endAim = function(e) {
     for (let i = 0; i < e.changedTouches.length; i++) {
       if (e.changedTouches[i].identifier === touchAim.identifier) {
+        // Stop digging
+        touchActions.dig = false;
         const elapsed = performance.now() - touchAim.tapTime;
         if (touchAim.isTap && elapsed < touchAim.tapMaxDuration) {
-          // Tap = interact with object at that point
+          // Short tap = interact with object at that point
           _handleAimTap(touchAim.x, touchAim.y);
         }
         touchAim.active = false;
@@ -619,32 +575,31 @@ function _handleAimTap(screenX, screenY) {
 
 // ─── Action Button Listeners ────────────────────────
 function _attachButtonListeners() {
-  // Generic press/release handling for continuous actions (dig, fill, dash)
-  const continuousActions = ['dig', 'fill', 'dash'];
-  continuousActions.forEach(function(action) {
-    const btn = _actionButtons[action];
-    if (!btn) return;
-
-    btn.addEventListener('touchstart', function(e) {
+  // USE button — uses held item (left-click equivalent) or interacts
+  const useBtn = _actionButtons.use;
+  if (useBtn) {
+    useBtn.addEventListener('touchstart', function(e) {
       e.preventDefault();
-      touchActions[action] = true;
-      btn.classList.add('pressed');
+      touchActions.dig = true; // left-click equivalent
+      useBtn.classList.add('pressed');
     }, { passive: false });
 
-    btn.addEventListener('touchend', function(e) {
+    useBtn.addEventListener('touchend', function(e) {
       e.preventDefault();
-      touchActions[action] = false;
-      btn.classList.remove('pressed');
+      touchActions.dig = false;
+      useBtn.classList.remove('pressed');
+      // Also try interact on release (for doors, items, etc.)
+      _simulateInteract();
     }, { passive: false });
 
-    btn.addEventListener('touchcancel', function(e) {
-      touchActions[action] = false;
-      btn.classList.remove('pressed');
+    useBtn.addEventListener('touchcancel', function(e) {
+      touchActions.dig = false;
+      useBtn.classList.remove('pressed');
     }, { passive: false });
-  });
+  }
 
-  // One-shot actions (interact, inventory, crafting, build, pause)
-  const oneShotActions = ['interact', 'inventory', 'crafting', 'build', 'pause'];
+  // One-shot actions (inventory, crafting, build, pause)
+  const oneShotActions = ['inventory', 'crafting', 'build', 'pause'];
   oneShotActions.forEach(function(action) {
     const btn = _actionButtons[action];
     if (!btn) return;
@@ -863,81 +818,48 @@ function applyTouchInput() {
     curPlayer.holding.d = false;
   }
 
-  // ── Dash ──
-  if (touchActions.dash) {
-    const dashAbility = (window.magicAbilities || []).find(function(a) {
-      return a.name.toLowerCase() === 'dash';
-    });
-    if (dashAbility && typeof dashAbility.activate === 'function') {
-      dashAbility.activate(curPlayer);
-    }
-  }
-
-  // ── Dig/Fill (continuous, simulates mouse held) ──
-  if (touchActions.dig || touchActions.fill) {
+  // ── Dig/Use (touch on screen or USE button held) ──
+  if (touchActions.dig) {
     if (curPlayer.isConcentrating) return;
 
-    // Determine world aim position
+    // Determine world aim position from touch or joystick
     let aimWorldX, aimWorldY;
 
     if (touchAim.active) {
-      // Use aim touch position
+      // Use finger touch position on screen
       aimWorldX = touchAim.x + camera.pos.x - width / 2;
       aimWorldY = touchAim.y + camera.pos.y - height / 2;
     } else {
-      // Auto-aim: use player facing direction (based on joystick or last movement)
+      // USE button pressed without aiming — use joystick direction or facing
       const aimDist = 3 * TILESIZE;
       if (touchJoystick.active && (Math.abs(touchJoystick.vector.x) > 0.1 || Math.abs(touchJoystick.vector.y) > 0.1)) {
         aimWorldX = curPlayer.pos.x + touchJoystick.vector.x * aimDist;
         aimWorldY = curPlayer.pos.y + touchJoystick.vector.y * aimDist;
       } else {
-        // Fallback: dig in the direction player is facing
         const facing = _getPlayerFacingDir();
         aimWorldX = curPlayer.pos.x + facing.x * aimDist;
         aimWorldY = curPlayer.pos.y + facing.y * aimDist;
       }
     }
 
-    if (touchActions.dig) {
-      // Left-click equivalent
-      if (!buildMode) {
-        if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] !== '') {
-          const heldItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]];
-          if (heldItem) heldItem.use(aimWorldX, aimWorldY, LEFT);
-        } else {
-          if (typeof dirtInv !== 'undefined' && typeof maxDirtInv !== 'undefined' && typeof DIGSPEED !== 'undefined') {
-            if (dirtInv < maxDirtInv - DIGSPEED) {
-              playerDig(aimWorldX, aimWorldY, DIGSPEED);
-            } else {
-              dirtBagUI.shake = { intensity: dirtBagUI.shake.intensity + 0.1, length: 1 };
-            }
-          }
-        }
+    // Left-click equivalent — use held item or dig
+    if (!buildMode) {
+      if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] !== '') {
+        const heldItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]];
+        if (heldItem) heldItem.use(aimWorldX, aimWorldY, LEFT);
       } else {
-        // Build mode - place building at aim position
-        if (ghostBuild && ghostBuild.openBool) {
-          // Reuse the build placement logic from continousMouseInput
-          _touchPlaceBuild(aimWorldX, aimWorldY);
+        if (typeof dirtInv !== 'undefined' && typeof maxDirtInv !== 'undefined' && typeof DIGSPEED !== 'undefined') {
+          if (dirtInv < maxDirtInv - DIGSPEED) {
+            playerDig(aimWorldX, aimWorldY, DIGSPEED);
+          } else {
+            dirtBagUI.shake = { intensity: dirtBagUI.shake.intensity + 0.1, length: 1 };
+          }
         }
       }
-    }
-
-    if (touchActions.fill) {
-      // Right-click equivalent
-      if (!buildMode) {
-        if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] !== '') {
-          const heldItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]];
-          if (heldItem) heldItem.use(aimWorldX, aimWorldY, RIGHT);
-        } else {
-          if (typeof dirtInv !== 'undefined' && typeof DIGSPEED !== 'undefined') {
-            if (dirtInv > DIGSPEED) {
-              playerDig(aimWorldX, aimWorldY, -DIGSPEED);
-            }
-          }
-        }
-      } else {
-        // Build mode - delete building
-        _touchDeleteBuild(aimWorldX, aimWorldY);
+    } else {
+      // Build mode - place building at aim position
+      if (ghostBuild && ghostBuild.openBool) {
+        _touchPlaceBuild(aimWorldX, aimWorldY);
       }
     }
   }
@@ -1038,8 +960,9 @@ function updateTouchControlsVisibility() {
   // Aim area
   document.getElementById('touch-aim-area').style.display = inGame ? '' : 'none';
 
-  // Action buttons - only during gameplay
-  document.getElementById('touch-action-buttons').style.display = inGame ? '' : 'none';
+  // USE button - only during gameplay
+  var useBtnEl = document.getElementById('touch-use-btn');
+  if (useBtnEl) useBtnEl.style.display = inGame ? '' : 'none';
 
   // Hotbar arrows - only during gameplay
   document.getElementById('touch-hotbar-arrows').style.display = inGame ? '' : 'none';
@@ -1051,12 +974,10 @@ function updateTouchControlsVisibility() {
   // Reset pressed states when switching states
   if (!inGame) {
     touchActions.dig = false;
-    touchActions.fill = false;
-    touchActions.dash = false;
     touchJoystick.vector.x = 0;
     touchJoystick.vector.y = 0;
     Object.values(_actionButtons).forEach(function(btn) {
-      btn.classList.remove('pressed');
+      if (btn && btn.classList) btn.classList.remove('pressed');
     });
   }
 }

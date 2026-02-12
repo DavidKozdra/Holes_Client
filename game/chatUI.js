@@ -23,6 +23,22 @@ function renderChatUI() {
     if (mobile) {
         chatFloatingBtn = createDiv('💬');
         chatFloatingBtn.id('chat-floating-btn');
+        chatFloatingBtn.style('position', 'fixed');
+        chatFloatingBtn.style('left', '12px');
+        chatFloatingBtn.style('top', '60px');
+        chatFloatingBtn.style('z-index', '9995');
+        chatFloatingBtn.style('width', '44px');
+        chatFloatingBtn.style('height', '44px');
+        chatFloatingBtn.style('border-radius', '50%');
+        chatFloatingBtn.style('background', 'rgba(0,0,0,0.65)');
+        chatFloatingBtn.style('border', '2px solid rgba(255,255,255,0.25)');
+        chatFloatingBtn.style('color', '#fff');
+        chatFloatingBtn.style('font-size', '18px');
+        chatFloatingBtn.style('display', 'flex');
+        chatFloatingBtn.style('align-items', 'center');
+        chatFloatingBtn.style('justify-content', 'center');
+        chatFloatingBtn.style('cursor', 'pointer');
+        chatFloatingBtn.style('touch-action', 'manipulation');
         chatFloatingBtn.mousePressed(function() {
             // Open the bottom-sheet chat
             chatContainer.addClass('chat-open');

@@ -1467,7 +1467,7 @@ input.fmt-italic-apply {
     padding: 4px 8px !important;
     border-radius: 0 !important;
     justify-content: center !important;
-    background: rgba(0, 0, 0, 0.6) !important;
+    background: transparent !important;
     border: none !important;
     box-shadow: none !important;
   }
@@ -1703,24 +1703,16 @@ input.fmt-italic-apply {
     font-size: 6px !important;
   }
 
-  .touch-btn {
-    width: 46px !important;
-    height: 46px !important;
-    font-size: 7px !important;
-  }
-
-  .touch-btn.primary {
+  #touch-use-btn {
     width: 54px !important;
     height: 54px !important;
-  }
-
-  #touch-hotbar-arrows {
-    left: 120px !important;
-    bottom: 48px !important;
+    font-size: 8px !important;
+    right: 12px !important;
+    bottom: 56px !important;
   }
 
   .touch-hotbar-arrow {
-    width: 34px !important;
-    height: 34px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
 }
