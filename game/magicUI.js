@@ -431,6 +431,19 @@ function ensureMoveHotbarDOM() {
       slot.appendChild(key);
       slot.appendChild(name);
 
+      // Make slot tappable on mobile to cast spell
+      slot.style.pointerEvents = 'auto';
+      slot.style.cursor = 'pointer';
+      slot.style.touchAction = 'manipulation';
+      (function(slotIdx) {
+        slot.addEventListener('pointerdown', function(e) {
+          e.stopPropagation();
+          if (typeof triggerMoveSlot === 'function') {
+            triggerMoveSlot(slotIdx);
+          }
+        });
+      })(i);
+
       bar.appendChild(slot);
 
       slots.push({ slot, icon, cd, key, name });

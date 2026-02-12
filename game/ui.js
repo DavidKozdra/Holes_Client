@@ -2876,6 +2876,7 @@ var pageNumberText;
 function defineTutorialUI() {
     // MAIN CONTAINER
     tutorialDiv = createDiv();
+    tutorialDiv.id("tutorialDiv");
     applyStyle(tutorialDiv, {
         backgroundColor: "#1a1a1a",
         width: "50%",
@@ -2900,12 +2901,15 @@ function defineTutorialUI() {
         justifyContent: "flex-end",
     });
     let closeButton = createImg("images/ui/x.png", "").parent(topBar);
+    closeButton.id("tutorialCloseBtn");
     applyStyle(closeButton, {
-        width: "22px",
-        height: "22px",
+        width: "36px",
+        height: "36px",
+        padding: "6px",
         cursor: "pointer",
         imageRendering: "pixelated",
         border: "none",
+        touchAction: "manipulation",
     });
     closeButton.mousePressed(() => {
         gameState = "playing";

@@ -397,11 +397,13 @@ function createTouchControlsUI() {
   _actionButtons.inventory = _createButton('INV', 'touch-top-btn', 'inventory');
   _actionButtons.crafting = _createButton('CRFT', 'touch-top-btn', 'crafting');
   _actionButtons.build = _createButton('BLD', 'touch-top-btn', 'build');
+  _actionButtons.team = _createButton('TEAM', 'touch-top-btn', 'team');
   _actionButtons.pause = _createButton('⏸', 'touch-top-btn', 'pause');
 
   dropdown.appendChild(_actionButtons.inventory);
   dropdown.appendChild(_actionButtons.crafting);
   dropdown.appendChild(_actionButtons.build);
+  dropdown.appendChild(_actionButtons.team);
   dropdown.appendChild(_actionButtons.pause);
 
   // ── Hotbar Arrows ──
@@ -680,8 +682,8 @@ function _attachButtonListeners() {
     }, { passive: false });
   }
 
-  // One-shot actions (inventory, crafting, build, pause)
-  const oneShotActions = ['inventory', 'crafting', 'build', 'pause'];
+  // One-shot actions (inventory, crafting, build, team, pause)
+  const oneShotActions = ['inventory', 'crafting', 'build', 'team', 'pause'];
   oneShotActions.forEach(function(action) {
     const btn = _actionButtons[action];
     if (!btn) return;
@@ -790,6 +792,10 @@ function _handleOneShotAction(action) {
     case 'crafting':
       if (gameState === 'playing') {
         gameState = 'crafting';
+        // Exit build mode when opening crafting
+        buildMode = false;
+        renderGhost = false;
+        if (typeof buildDiv !== 'undefined' && buildDiv) buildDiv.hide();
         curPlayer.invBlock.curItem = '';
         if (typeof updateCraftList === 'function') updateCraftList();
         if (typeof updatecurCraftItemDiv === 'function') updatecurCraftItemDiv();
@@ -816,14 +822,24 @@ function _handleOneShotAction(action) {
       ghostBuild = createObject(option.objName, 0, 0, 0, 0, curPlayer.id, curPlayer.name);
       buildMode = !buildMode;
       renderGhost = buildMode;
-      if (!buildMode && curPlayer.invBlock.selectedHotBar > 4) {
-        curPlayer.invBlock.selectedHotBar = 4;
+      if (buildMode) {
+        if (typeof buildDiv !== 'undefined' && buildDiv) buildDiv.show();
+        if (typeof renderBuildOptions === 'function') renderBuildOptions();
+      } else {
+        if (typeof buildDiv !== 'undefined' && buildDiv) buildDiv.hide();
+        if (curPlayer.invBlock.selectedHotBar > 4) {
+          curPlayer.invBlock.selectedHotBar = 4;
+        }
       }
       break;
 
     case 'pause':
       if (gameState === 'playing') {
         gameState = 'pause';
+        // Exit build mode when pausing
+        buildMode = false;
+        renderGhost = false;
+        if (typeof buildDiv !== 'undefined' && buildDiv) buildDiv.hide();
         if (typeof pauseDiv !== 'undefined') {
           pauseDiv.show();
           pauseDiv.style('display', 'flex');
@@ -835,6 +851,18 @@ function _handleOneShotAction(action) {
       // Close menu dropdown after action
       const dd1 = document.getElementById('touch-menu-dropdown');
       if (dd1) dd1.classList.remove('menu-open');
+      break;
+
+    case 'team':
+      if (gameState !== 'playing' || !curPlayer) return;
+      gameState = 'team_select';
+      if (typeof teamPickDiv !== 'undefined' && teamPickDiv) {
+        if (typeof updateTeamManagementUI === 'function') updateTeamManagementUI();
+        teamPickDiv.show();
+      }
+      // Close menu dropdown
+      const dd2 = document.getElementById('touch-menu-dropdown');
+      if (dd2) dd2.classList.remove('menu-open');
       break;
 
     case 'dash':

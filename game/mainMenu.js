@@ -72,14 +72,16 @@ function renderLinks() {
     titleImage.id("titleImage");
 
     // Apply styles to the image using .style()
-    titleImage.style("width", "clamp(180px, 40vw, 28dvw)");
+    titleImage.style("width", "clamp(180px, 30vw, 500px)");
     titleImage.style("height", "auto");
-    titleImage.style("border", "5px solid #000"); // Add a border
-    titleImage.style("display", "block"); // Make it a block element (to prevent inline styling)
-    titleImage.style("margin", "10px auto");
-    titleImage.style("padding-bottom", "20px auto");
-    titleImage.style("top", "0");
+    titleImage.style("border", "5px solid #000");
+    titleImage.style("display", "block");
+    titleImage.style("margin", "0 auto");
+    titleImage.style("top", "10px");
+    titleImage.style("left", "50%");
+    titleImage.style("transform", "translateX(-50%)");
     titleImage.style("position", "absolute");
+    titleImage.style("z-index", "10");
     
     let randItem1 = Math.floor(Math.random() * markeeText.length);
     // Suppose we want 5 distinct random items
@@ -643,7 +645,8 @@ function drawSelection() {
     raceTitle.id("raceTitle");
     raceTitle.elt.innerHTML = "Select Your Race";
     raceTitle.style("position", "absolute");
-    raceTitle.style("top", "min(25%, 30dvh)");
+    raceTitle.style("top", "clamp(120px, 20dvh, 22dvh)");
+    raceTitle.style("z-index", "11");
 
     raceTitle.style("left", "50%");
     raceTitle.style("transform", "translateX(-50%)");
@@ -677,8 +680,14 @@ function drawSelection() {
     race_back_button.style("color", "#fff");
     race_back_button.style("border", "none");
     race_back_button.style("border-radius", "8px");
-    race_back_button.style("position", "absolute");
-    race_back_button.style("top", "50dvh");
+    race_back_button.style("position", "fixed");
+    race_back_button.style("left", "50%");
+    race_back_button.style("transform", "translateX(-50%)");
+    race_back_button.style("bottom", "max(22dvh, 80px)");
+    race_back_button.style("z-index", "101");
+    race_back_button.style("padding", "8px 20px");
+    race_back_button.style("background", "rgba(0,0,0,0.6)");
+    race_back_button.style("cursor", "pointer");
 
     race_back_button.mousePressed(() => {
         //console.log("pressed")
@@ -687,7 +696,7 @@ function drawSelection() {
     });
 
     race_back_button.show();
-    race_back_button.parent(raceContainer);
+    // Don't parent to raceContainer — it would scroll away
     raceButtons.forEach((card) => {
         card.show();
     });
@@ -721,7 +730,7 @@ function setupRaceSelectionUI() {
     race_back_button.id("raceBackButton");
     raceContainer.id("raceContainer");
     raceContainer.style("position", "absolute");
-    raceContainer.style("top", "clamp(120px, 30dvh, 40dvh)");
+    raceContainer.style("top", "clamp(180px, 28dvh, 34dvh)");
     raceContainer.style("left", "50%");
     raceContainer.style("transform", "translateX(-50%)");
     raceContainer.style("display", "none");
@@ -733,7 +742,7 @@ function setupRaceSelectionUI() {
     raceContainer.style("border-radius", "10px");
     raceContainer.style("width", "95vw");
     raceContainer.style("max-width", "100vw");
-    raceContainer.style("max-height", "clamp(200px, 45dvh, 50dvh)");
+    raceContainer.style("max-height", "clamp(200px, 40dvh, 45dvh)");
     raceContainer.style("overflow-y", "auto");
     raceContainer.style("overflow-x", "hidden");
     raceContainer.style("touch-action", "pan-y");
@@ -854,7 +863,7 @@ function setupRaceSelectionUI() {
     var nameGoContainer = createDiv();
     nameGoContainer.id('nameGoContainer');
     nameGoContainer.style("position", "fixed");
-    nameGoContainer.style("bottom", "max(12px, env(safe-area-inset-bottom))");
+    nameGoContainer.style("bottom", "max(18dvh, env(safe-area-inset-bottom))");
     nameGoContainer.style("left", "50%");
     nameGoContainer.style("transform", "translateX(-50%)");
     nameGoContainer.style("display", "flex");
