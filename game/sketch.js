@@ -212,6 +212,11 @@ function draw() {
         renderLinks();
 
         MusicPlayer.playMainTheme()
+        // Hide gameplay UI that shouldn't be visible in the main menu
+        if (uiHiddenForPlay) {
+            if (typeof hideSwapInv === 'function') hideSwapInv();
+            if (typeof spaceBarDiv !== 'undefined' && spaceBarDiv) spaceBarDiv.hide();
+        }
         uiHiddenForPlay = false; // reset guard when leaving gameplay
     }
     else if (gameState === "race_selection") {

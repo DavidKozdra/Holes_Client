@@ -1,7 +1,7 @@
 // sw.js
 
 // Change this when you update your assets
-const CACHE_NAME = 'holesgame-v5-mobile';
+const CACHE_NAME = 'holesgame-v6-mobile';
 
 // Pre-cache URLs — critical assets for offline/PWA use
 const PRECACHE_URLS = [
@@ -30,7 +30,10 @@ const PRECACHE_URLS = [
   './systemUI.js',
   './mainMenu.js',
   './preload.js',
-  './diggingFunctions.js'
+  './diggingFunctions.js',
+  './ui/inventoryUI.js',
+  './craftingUI.js',
+  './inventoryUI.js'
 ];
 
 // Install: pre-cache the core assets
@@ -93,15 +96,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Precache first
-  if (PRECACHE_URLS.includes(url.pathname)) {
-    event.respondWith(
-      caches.match(event.request)
-    );
-    return;
-  }
-
-  // Otherwise, network-first then cache-fallback
+  // All same-origin assets: network-first, cache-fallback
+  // (ensures code updates always propagate)
   event.respondWith(
     fetch(event.request)
       .then(resp => {

@@ -1112,7 +1112,7 @@ class InvObj extends Placeable {
                     if (curPlayer.otherInv.invBlock.invId == this.invBlock.invId) {
                         if (gameState == "swap_inv") {
                             gameState = "playing";
-                            swapInvDiv.hide();
+                            hideSwapInv();
                             spaceBarDiv.hide();
                         }
                     }
@@ -1133,7 +1133,7 @@ class InvObj extends Placeable {
             curPlayer.invBlock.curItem = "";
             curPlayer.otherInv.invBlock.curItem = "";
             updateSwapItemLists(this.invBlock);
-            swapInvDiv.show();
+            showSwapInv();
             return;
         }
 
@@ -1145,7 +1145,7 @@ class InvObj extends Placeable {
                 curPlayer.invBlock.curItem = "";
                 curPlayer.otherInv.invBlock.curItem = "";
                 updateSwapItemLists(this.invBlock);
-                swapInvDiv.show();
+                showSwapInv();
             }
         }
         else { //when unlocked all team members can open
@@ -1155,7 +1155,7 @@ class InvObj extends Placeable {
                 curPlayer.invBlock.curItem = "";
                 curPlayer.otherInv.invBlock.curItem = "";
                 updateSwapItemLists(this.invBlock);
-                swapInvDiv.show();
+                showSwapInv();
             }
         }
     }

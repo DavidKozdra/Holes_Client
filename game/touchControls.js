@@ -672,22 +672,7 @@ function _handleOneShotAction(action) {
           renderGhost = true;
         }
       } else if (gameState === 'swap_inv') {
-        // Close swap inventory
-        if (curPlayer.otherInv && curPlayer.otherInv.pos) {
-          const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-          socket.emit('update_inv', {
-            cx: chunkPos.x, cy: chunkPos.y,
-            objName: curPlayer.otherInv.objName,
-            pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-            z: curPlayer.otherInv.z,
-            invId: curPlayer.otherInv.invBlock?.invId,
-            items: curPlayer.otherInv.invBlock.items
-          });
-        }
-        gameState = 'playing';
-        if (typeof swapInvDiv !== 'undefined') swapInvDiv.hide();
-        if (typeof spaceBarDiv !== 'undefined') spaceBarDiv.hide();
-        curPlayer.otherInv = undefined;
+        if (typeof closeSwapInv === 'function') closeSwapInv();
       } else if (gameState === 'crafting') {
         // Switch from crafting to inventory
         gameState = 'inventory';

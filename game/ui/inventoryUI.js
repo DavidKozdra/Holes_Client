@@ -831,209 +831,296 @@ function getMaxCrafts(itemName) {
 }
 
 /**
- * Swap Inventory UI Module
+ * ═══════════════════════════════════════════════════════════════
+ * Swap Inventory UI Module (Rewritten)
  * Handles: player inventory ↔ chest/bag/other inventory
+ *
+ * Architecture:
+ *   - One consolidated close function:      closeSwapInv()
+ *   - One consolidated Take All function:   swapTakeAll()
+ *   - One detail panel updater:             updateSwapItemDetails()
+ *     (updatecurSwapItemDiv is gone — it was a competing function
+ *      that nuked the DOM with html("") and leaked p5 elements)
+ *   - Mobile transfer supports "Move Stack" via long-press
+ *   - All styling via CSS classes, no inline styles on rebuild
+ * ═══════════════════════════════════════════════════════════════
  */
 
 var swapInvDiv;
 var itemListDivLeft;
 var itemListDivRight;
 var curSwapItemDiv;
+var _swapDetailContent; // stable inner wrapper for detail panel content
 
-// Cache for quick updates - prevents unnecessary rebuilds
+/* ─── Show / Hide (always class-toggle — works on desktop & mobile) ─── */
+function showSwapInv() {
+    if (!swapInvDiv) return;
+    if (typeof gameState !== 'undefined' && gameState !== 'playing' && gameState !== 'swap_inv') return;
+    swapInvDiv.addClass('swap-open');
+}
+function hideSwapInv() {
+    if (!swapInvDiv) return;
+    swapInvDiv.removeClass('swap-open');
+}
+
+/* ─── Consolidated close (saves, emits, hides) ─── */
+function closeSwapInv() {
+    if (!curPlayer) return;
+    // Push pending chest/bag changes to server
+    if (curPlayer.otherInv && curPlayer.otherInv.pos) {
+        const cp = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
+        socket.emit("update_inv", {
+            cx: cp.x, cy: cp.y,
+            objName: curPlayer.otherInv.objName,
+            pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
+            z: curPlayer.otherInv.z,
+            invId: curPlayer.otherInv.invBlock?.invId,
+            items: curPlayer.otherInv.invBlock.items
+        });
+    }
+    gameState = "playing";
+    if (curPlayer.invBlock) curPlayer.invBlock.useTimer = 10;
+    hideSwapInv();
+    if (typeof spaceBarDiv !== 'undefined' && spaceBarDiv) spaceBarDiv.hide();
+    curPlayer.otherInv = undefined;
+}
+
+/* ─── Consolidated Take All ─── */
+function swapTakeAll() {
+    if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.invBlock) return;
+    const otherInv = curPlayer.otherInv.invBlock;
+    const otherItems = otherInv.items || {};
+    Object.keys(otherItems).forEach((itemName) => {
+        const itemData = otherItems[itemName];
+        if (itemData && itemData.amount > 0) {
+            curPlayer.invBlock.addItem(itemName, itemData.amount, true);
+            otherInv.decreaseAmount(itemName, itemData.amount);
+        }
+    });
+    curPlayer.invBlock.curItem = "";
+    otherInv.curItem = "";
+    // Force full rebuild (cache will detect change)
+    swapListCache.lastLeftHash = "";
+    swapListCache.lastRightHash = "";
+    updateSwapItemLists(otherInv);
+    _syncOtherInv();
+}
+
+/* ─── Sync helper — emits update_inv for the other inventory ─── */
+function _syncOtherInv() {
+    if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.pos) return;
+    const cp = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
+    socket.emit("update_inv", {
+        cx: cp.x, cy: cp.y,
+        objName: curPlayer.otherInv.objName,
+        pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
+        z: curPlayer.otherInv.z,
+        invId: curPlayer.otherInv.invBlock?.invId,
+        items: curPlayer.otherInv.invBlock.items
+    });
+}
+
+/* ─── Cache for smart list rebuilds ─── */
 var swapListCache = {
-    leftItems: {},
-    rightItems: {},
-    leftSelected: "",
-    rightSelected: "",
     lastLeftHash: "",
-    lastRightHash: ""
+    lastRightHash: "",
+    leftSelected: "",
+    rightSelected: ""
 };
 
-/**
- * Initialize the swap inventory UI
- * Called once during setup
- */
+/* ═══ defineSwapInvUI — called once during setup() ═══ */
 function defineSwapInvUI() {
     swapInvDiv = createDiv();
     swapInvDiv.id("swap-inventory");
-    swapInvDiv.class("container swap-inv-container");
-    swapInvDiv.style("position", "absolute");
-    swapInvDiv.style("top", "50%");
-    swapInvDiv.style("left", "50%");
-    swapInvDiv.style("transform", "translate(-50%, -50%)");
-    swapInvDiv.style("z-index", "50");
-    
-    let swapInvTitleBar = createDiv();
-    swapInvTitleBar.parent(swapInvDiv);
-    applyStyle(swapInvTitleBar, {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingBottom: "15px",
-        borderBottom: "2px solid black"
-    });
+    swapInvDiv.addClass("container");
+    swapInvDiv.addClass("swap-inv-container");
 
-    let swapInvYourInvTittle = createP("Your Inventory");
-    swapInvYourInvTittle.parent(swapInvTitleBar);
-    swapInvYourInvTittle.class("inventory-title");
-    swapInvYourInvTittle.style("margin-left", "25px");
+    /* ── Desktop title bar ── */
+    let titleBar = createDiv();
+    titleBar.addClass("swap-inv-titlebar");
+    titleBar.parent(swapInvDiv);
 
-    let swapInvCurItemTittle = createP("Selected Item");
-    swapInvCurItemTittle.parent(swapInvTitleBar);
-    swapInvCurItemTittle.class("inventory-title");
+    createP("Your Inventory").parent(titleBar).addClass("swap-inv-section-title");
+    createP("Selected Item").parent(titleBar).addClass("swap-inv-section-title");
+    createP("Other Inventory").parent(titleBar).addClass("swap-inv-section-title");
 
-    let swapInvOtherInvTittle = createP("Other Inventory");
-    swapInvOtherInvTittle.parent(swapInvTitleBar);
-    swapInvOtherInvTittle.class("inventory-title");
-    swapInvOtherInvTittle.style("margin-right", "25px");
+    let closeBtn = createButton("✕");
+    closeBtn.addClass("swap-inv-close-btn");
+    closeBtn.parent(titleBar);
+    closeBtn.mousePressed(() => closeSwapInv());
 
-    let swapInvDivInnerds = createDiv();
-    swapInvDivInnerds.parent(swapInvDiv);
-    swapInvDivInnerds.style("display", "flex");
-    swapInvDivInnerds.style("flex-direction", "row");
-    swapInvDivInnerds.style("justify-content", "space-evenly");
-    swapInvDivInnerds.style("align-items", "start");
+    /* ── Content area (3-column on desktop, stacked on mobile) ── */
+    let content = createDiv();
+    content.addClass("swap-inv-content");
+    content.parent(swapInvDiv);
 
-    //Left Item list
-    itemListDivLeft = createDiv().parent(swapInvDivInnerds);
-    itemListDivLeft.class("item-list");
+    // Left column — player inventory
+    itemListDivLeft = createDiv();
+    itemListDivLeft.addClass("swap-inv-column");
+    itemListDivLeft.parent(content);
 
-    // Current item details (container)
-    curSwapItemDiv = createDiv().parent(swapInvDivInnerds);
-    curSwapItemDiv.class("item-details");
-    
-    // Inner div for item details content (this will be cleared when updating)
-    var curSwapItemContentDiv = createDiv().parent(curSwapItemDiv);
-    curSwapItemContentDiv.class("swap-item-content");
-    curSwapItemContentDiv.id("swap-item-content-inner");
+    // Middle column — item detail + Take All
+    curSwapItemDiv = createDiv();
+    curSwapItemDiv.addClass("swap-inv-column");
+    curSwapItemDiv.addClass("swap-inv-middle");
+    curSwapItemDiv.parent(content);
 
-    let curSwapItemNone = createP("No Selected Item");
-    curSwapItemNone.parent(curSwapItemContentDiv);
-    curSwapItemNone.class("inventory-title");
-    applyStyle(curSwapItemNone, {
-        paddingTop: "7%",
-        textDecoration: "none"
-    });
+    // Stable inner wrapper — only this gets wiped on detail updates
+    _swapDetailContent = createDiv();
+    _swapDetailContent.addClass("swap-detail-content");
+    _swapDetailContent.parent(curSwapItemDiv);
 
-    // Take All button (outside content div so it persists)
-    let takeAllButton = createButton("⬅ Take All").parent(curSwapItemDiv);
-    takeAllButton.id("swap-take-all-btn");
-    applyStyle(takeAllButton, {
-        padding: "10px 15px",
-        cursor: "pointer",
-        backgroundColor: "#4CAF50",
-        color: "white",
-        border: "none",
-        borderRadius: "5px",
-        fontWeight: "bold",
-        marginTop: "20px",
-        width: "90%"
-    });
-    takeAllButton.mousePressed(() => {
-        if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.invBlock) return;
-        const otherInv = curPlayer.otherInv.invBlock;
-        const otherItems = otherInv.items || {};
-        Object.keys(otherItems).forEach((itemName) => {
-            const itemData = otherItems[itemName];
-            if (itemData && itemData.amount > 0) {
-                curPlayer.invBlock.addItem(itemName, itemData.amount, true);
-                otherInv.decreaseAmount(itemName, itemData.amount);
-            }
-        });
-        curPlayer.invBlock.curItem = "";
-        otherInv.curItem = "";
-        updateSwapItemLists(otherInv);
-        if (curPlayer.otherInv.pos) {
-            const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-            socket.emit("update_inv", {
-                cx: chunkPos.x, cy: chunkPos.y,
-                objName: curPlayer.otherInv.objName,
-                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                z: curPlayer.otherInv.z,
-                invId: otherInv.invId,
-                items: otherInv.items
-            });
-        }
-    });
+    let emptyMsg = createP("No item selected");
+    emptyMsg.addClass("swap-inv-empty");
+    emptyMsg.parent(_swapDetailContent);
 
-    //Right Item list
-    itemListDivRight = createDiv().parent(swapInvDivInnerds);
-    itemListDivRight.class("item-list");
-    itemListDivRight.style("border-left", "2px solid black");
+    // Desktop Take All button (persists, never destroyed)
+    let takeAllBtn = createButton("⬅ Take All");
+    takeAllBtn.id("swap-take-all-btn");
+    takeAllBtn.addClass("swap-take-all-btn");
+    takeAllBtn.parent(curSwapItemDiv);
+    takeAllBtn.mousePressed(() => swapTakeAll());
 
-    // Close Button (image X)
-    let closeButton = createImg("images/ui/x.png", "").parent(swapInvTitleBar);
-    closeButton.class("close-button");
-    closeButton.addClass("icon-btn");
-    applyStyle(closeButton, {
-        marginLeft: "auto",
-        position: "absolute",
-        right: "0",
-        width: "22px",
-        height: "22px",
-        cursor: "pointer",
-        imageRendering: "pixelated",
-        border: "none",
-    });
+    // Right column — other inventory
+    itemListDivRight = createDiv();
+    itemListDivRight.addClass("swap-inv-column");
+    itemListDivRight.parent(content);
 
-    closeButton.mousePressed(() => {
-        // Push any pending chest/bag changes before closing
-        if (curPlayer.otherInv && curPlayer.otherInv.pos) {
-            const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-            socket.emit("update_inv", {
-                cx: chunkPos.x, cy: chunkPos.y,
-                objName: curPlayer.otherInv.objName,
-                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                z: curPlayer.otherInv.z,
-                invId: curPlayer.otherInv.invBlock?.invId,
-                items: curPlayer.otherInv.invBlock.items
-            });
-        }
-        gameState = "playing"
-        curPlayer.invBlock.useTimer = 10;
-        swapInvDiv.hide();
-        spaceBarDiv.hide();
-    });
+    /* ── Tab bar + action bar (CSS hides on desktop, shows on mobile) ── */
+    let tabBar = createDiv();
+    tabBar.id("swap-mobile-tabs");
+    tabBar.parent(swapInvDiv);
 
-    swapInvDiv.hide();
+    let mobileClose = createButton("✕");
+    mobileClose.id("swap-mobile-close");
+    mobileClose.parent(tabBar);
+    mobileClose.mousePressed(() => closeSwapInv());
+
+    let tabYours = createButton("📦 Yours");
+    tabYours.id("swap-tab-yours");
+    tabYours.addClass("swap-tab-btn");
+    tabYours.addClass("active");
+    tabYours.parent(tabBar);
+    tabYours.mousePressed(() => switchSwapMobileTab("yours"));
+
+    let tabOther = createButton("🗃️ Other");
+    tabOther.id("swap-tab-other");
+    tabOther.addClass("swap-tab-btn");
+    tabOther.parent(tabBar);
+    tabOther.mousePressed(() => switchSwapMobileTab("other"));
+
+    let actionBar = createDiv();
+    actionBar.id("swap-mobile-actions");
+    actionBar.parent(swapInvDiv);
+
+    let xferBtn = createButton("→ Move to Other");
+    xferBtn.id("swap-xfer-btn");
+    xferBtn.addClass("swap-action-btn");
+    xferBtn.parent(actionBar);
+    xferBtn.mousePressed(() => swapMobileTransfer(false));
+
+    let xferStackBtn = createButton("⇉ Move Stack");
+    xferStackBtn.id("swap-xfer-stack-btn");
+    xferStackBtn.addClass("swap-action-btn");
+    xferStackBtn.addClass("swap-move-stack");
+    xferStackBtn.parent(actionBar);
+    xferStackBtn.mousePressed(() => swapMobileTransfer(true));
+
+    let takeAllMobile = createButton("⬅ Take All");
+    takeAllMobile.id("swap-take-all-mobile");
+    takeAllMobile.addClass("swap-action-btn");
+    takeAllMobile.addClass("swap-take-all");
+    takeAllMobile.parent(actionBar);
+    takeAllMobile.mousePressed(() => swapTakeAll());
+
+    switchSwapMobileTab("yours");
+
+    hideSwapInv();
 }
 
-/**
- * Rebuild both inventory columns when data changes
- * Uses smart cache detection to avoid unnecessary rebuilds
- * @param {Object} otherInv - The other inventory data
- */
+/* ─── Mobile tab state ─── */
+var _swapMobileTab = "yours";
+
+function switchSwapMobileTab(tab) {
+    _swapMobileTab = tab;
+    const yoursBtn = document.getElementById("swap-tab-yours");
+    const otherBtn = document.getElementById("swap-tab-other");
+    if (yoursBtn) yoursBtn.classList.toggle("active", tab === "yours");
+    if (otherBtn) otherBtn.classList.toggle("active", tab === "other");
+    if (itemListDivLeft && itemListDivLeft.elt) {
+        itemListDivLeft.elt.classList.toggle("swap-tab-hidden", tab !== "yours");
+    }
+    if (itemListDivRight && itemListDivRight.elt) {
+        itemListDivRight.elt.classList.toggle("swap-tab-hidden", tab !== "other");
+    }
+    const xferBtn = document.getElementById("swap-xfer-btn");
+    const xferStackBtn = document.getElementById("swap-xfer-stack-btn");
+    if (xferBtn) xferBtn.textContent = tab === "yours" ? "→ Move to Other" : "← Take to Yours";
+    if (xferStackBtn) xferStackBtn.textContent = tab === "yours" ? "⇉ Move Stack" : "⇇ Take Stack";
+}
+
+/* ─── Mobile transfer (single or whole stack) ─── */
+function swapMobileTransfer(moveAll) {
+    if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.invBlock) return;
+    const otherInv = curPlayer.otherInv.invBlock;
+
+    if (_swapMobileTab === "yours" && curPlayer.invBlock.curItem !== "") {
+        const item = curPlayer.invBlock.curItem;
+        const amt = moveAll ? (curPlayer.invBlock.items[item]?.amount || 1) : 1;
+        otherInv.addItem(item, amt, false);
+        curPlayer.invBlock.decreaseAmount(item, amt);
+        if (!curPlayer.invBlock.items[item]) {
+            otherInv.curItem = item;
+            curPlayer.invBlock.curItem = "";
+        }
+    } else if (_swapMobileTab === "other" && otherInv.curItem !== "") {
+        const item = otherInv.curItem;
+        const amt = moveAll ? (otherInv.items[item]?.amount || 1) : 1;
+        curPlayer.invBlock.addItem(item, amt, true);
+        otherInv.decreaseAmount(item, amt);
+        if (!otherInv.items[item]) {
+            curPlayer.invBlock.curItem = item;
+            otherInv.curItem = "";
+        }
+    }
+
+    // Force full rebuild so amounts update
+    swapListCache.lastLeftHash = "";
+    swapListCache.lastRightHash = "";
+    updateSwapItemLists(otherInv);
+    _syncOtherInv();
+}
+
+/* ═══ Rebuild both inventory columns ═══ */
 function updateSwapItemLists(otherInv) {
     if (!curPlayer || !curPlayer.invBlock) return;
 
     const myItems = curPlayer.invBlock.items || {};
-    const otherItems = (otherInv?.items) || {};
+    const otherItems = otherInv?.items || {};
 
-    // PERF: Generate hashes of item data to detect actual changes
-    const leftHash = hashObject(myItems);
-    const rightHash = hashObject(otherItems);
-    
+    const leftHash = _hashItems(myItems);
+    const rightHash = _hashItems(otherItems);
+
     const leftChanged = leftHash !== swapListCache.lastLeftHash;
     const rightChanged = rightHash !== swapListCache.lastRightHash;
-    
-    // Skip updates if nothing changed
-    if (!leftChanged && !rightChanged && 
+
+    if (!leftChanged && !rightChanged &&
         curPlayer.invBlock.curItem === swapListCache.leftSelected &&
-        otherInv?.curItem === swapListCache.rightSelected) {
+        (otherInv?.curItem || "") === swapListCache.rightSelected) {
         return;
     }
-    
+
     swapListCache.lastLeftHash = leftHash;
     swapListCache.lastRightHash = rightHash;
+    swapListCache.leftSelected = curPlayer.invBlock.curItem;
+    swapListCache.rightSelected = otherInv?.curItem || "";
 
-    // Only rebuild columns that actually changed
     if (leftChanged) {
         updateSwapColumn("left", myItems, curPlayer.invBlock.curItem, (itemName) => {
             curPlayer.invBlock.curItem = itemName;
             if (otherInv) otherInv.curItem = "";
+            fastHighlightSwapLists(itemName, "");
             updateSwapItemDetails(itemName, myItems[itemName]);
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, otherInv?.curItem || "");
         });
     }
 
@@ -1041,27 +1128,25 @@ function updateSwapItemLists(otherInv) {
         updateSwapColumn("right", otherItems, otherInv?.curItem || "", (itemName) => {
             curPlayer.invBlock.curItem = "";
             if (otherInv) otherInv.curItem = itemName;
+            fastHighlightSwapLists("", itemName);
             updateSwapItemDetails(itemName, otherItems[itemName]);
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, otherInv?.curItem || "");
         });
     }
 
-    // Always update center panel with selected item details
-    const selectedItem = curPlayer.invBlock.curItem || otherInv?.curItem;
-    const selectedData = curPlayer.invBlock.curItem 
+    // Update highlight if selection changed but lists didn't rebuild
+    if (!leftChanged && !rightChanged) {
+        fastHighlightSwapLists(curPlayer.invBlock.curItem, otherInv?.curItem || "");
+    }
+
+    // Update center detail panel
+    const selectedItem = curPlayer.invBlock.curItem || otherInv?.curItem || "";
+    const selectedData = curPlayer.invBlock.curItem
         ? myItems[selectedItem]
         : otherInv?.items?.[selectedItem];
-
     updateSwapItemDetails(selectedItem, selectedData);
 }
 
-/**
- * Update a single swap inventory column
- * @param {string} side - "left" or "right"
- * @param {Object} items - Items object
- * @param {string} selectedItem - Currently selected item name
- * @param {Function} onSelect - Callback when item selected
- */
+/* ─── Build one column ─── */
 function updateSwapColumn(side, items, selectedItem, onSelect) {
     const container = side === "left" ? itemListDivLeft : itemListDivRight;
     container.html("");
@@ -1072,158 +1157,210 @@ function updateSwapColumn(side, items, selectedItem, onSelect) {
         const entry = items[itemName] || { amount: 0 };
         const isSelected = itemName === selectedItem;
 
-        // Item row
-        const itemRow = createDiv().parent(container);
-        itemRow.class("swap-inv-item-row");
-        itemRow.attribute("data-item", itemName);
-        if (isSelected) itemRow.class("selected");
-        itemRow.mousePressed(() => onSelect(itemName));
+        const row = createDiv();
+        row.parent(container);
+        row.addClass("swap-inv-item-row");
+        row.attribute("data-item", itemName);
+        if (isSelected) row.addClass("selected");
+        row.mousePressed(() => onSelect(itemName));
 
-        // Image
-        const imgDiv = createDiv().parent(itemRow);
-        imgDiv.class("swap-inv-item-image");
-        
+        const imgWrap = createDiv();
+        imgWrap.parent(row);
+        imgWrap.addClass("swap-inv-item-image");
+
         const imgUrl = resolveItemImgURL(itemName, entry);
         if (imgUrl) {
             let img = createImg(imgUrl, itemName);
-            img.class("swap-inv-img");
-            img.parent(imgDiv);
+            img.addClass("swap-inv-img");
+            img.parent(imgWrap);
         } else {
-            let placeholder = createDiv("📦").parent(imgDiv);
-            placeholder.class("swap-inv-placeholder");
+            let ph = createDiv("📦");
+            ph.parent(imgWrap);
+            ph.addClass("swap-inv-placeholder");
         }
 
-        // Name and amount
-        const infoDiv = createDiv().parent(itemRow);
-        infoDiv.class("swap-inv-item-info");
+        const info = createDiv();
+        info.parent(row);
+        info.addClass("swap-inv-item-info");
 
-        let nameP = createP((isSelected ? "→ " : "") + itemName).parent(infoDiv);
-        nameP.class("swap-inv-item-name");
+        let nameP = createP((isSelected ? "→ " : "") + itemName);
+        nameP.parent(info);
+        nameP.addClass("swap-inv-item-name");
         try {
-            if (typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function') {
+            if (typeof window.getItemRarityCSSByName === 'function') {
                 nameP.style("color", window.getItemRarityCSSByName(itemName));
             }
         } catch (e) {}
 
-        let amountP = createP("×" + (entry.amount || 0)).parent(infoDiv);
-        amountP.class("swap-inv-item-amount");
+        let amtP = createP("×" + (entry.amount || 0));
+        amtP.parent(info);
+        amtP.addClass("swap-inv-item-amount");
     });
 
     if (itemNames.length === 0) {
-        let empty = createP("(empty)").parent(container);
-        empty.class("swap-inv-empty");
+        let empty = createP("(empty)");
+        empty.parent(container);
+        empty.addClass("swap-inv-empty");
     }
 }
 
-/**
- * Update the center panel showing selected item details
- * @param {string} itemName - Item name
- * @param {Object} itemEntry - Item data
- */
+/* ─── Fast highlight toggle (no DOM rebuild) ─── */
+function fastHighlightSwapLists(leftSelected, rightSelected) {
+    [itemListDivLeft, itemListDivRight].forEach((list, idx) => {
+        if (!list?.elt?.children) return;
+        const sel = idx === 0 ? leftSelected : rightSelected;
+        for (const row of list.elt.children) {
+            const name = row.getAttribute("data-item");
+            row.classList.toggle("selected", name === sel);
+        }
+    });
+}
+
+/* ─── Detail panel — wipes only _swapDetailContent, Take All persists ─── */
 function updateSwapItemDetails(itemName, itemEntry) {
-    // Get the inner content div (created in defineSwapInvUI)
-    let contentDiv = document.getElementById("swap-item-content-inner");
-    if (!contentDiv) return; // If the inner div doesn't exist, bail
-    
-    // Create a p5.js wrapper around the existing element
-    let contentP5 = select("#swap-item-content-inner");
-    contentP5.html("");
+    if (!_swapDetailContent) return;
+    _swapDetailContent.html("");
 
     if (!itemName || !itemEntry) {
-        let noSel = createP("No Item Selected").parent(contentP5);
-        noSel.class("swap-inv-empty");
+        let noSel = createP("No item selected");
+        noSel.parent(_swapDetailContent);
+        noSel.addClass("swap-inv-empty");
         return;
     }
 
-    // Item image (larger)
-    let imgDiv = createDiv().parent(contentP5);
-    imgDiv.class("swap-inv-detail-image");
+    // Hydrate images for loot bags
+    if (curPlayer?.otherInv?.objName === "ItemBag" && itemEntry) {
+        if (itemEntry.imgNum === undefined || itemEntry.imgNum === null) {
+            const dictImg = itemDic?.[itemName]?.imgNum;
+            if (dictImg !== undefined) itemEntry.imgNum = dictImg;
+        }
+    }
+
+    // ── Image ──
+    let imgDiv = createDiv();
+    imgDiv.parent(_swapDetailContent);
+    imgDiv.addClass("swap-inv-detail-image");
 
     const imgUrl = resolveItemImgURL(itemName, itemEntry);
     if (imgUrl) {
         let img = createImg(imgUrl, itemName);
-        img.class("swap-inv-detail-img");
+        img.addClass("swap-inv-detail-img");
         img.parent(imgDiv);
     } else {
-        let placeholder = createDiv("📦").parent(imgDiv);
-        placeholder.class("swap-inv-detail-placeholder");
+        let ph = createDiv("📦");
+        ph.parent(imgDiv);
+        ph.addClass("swap-inv-detail-placeholder");
     }
 
-    // Item info
-    let nameP = createP(itemName).parent(contentP5);
-    nameP.class("swap-inv-detail-name");
+    // ── Name ──
+    let nameP = createP(itemName);
+    nameP.parent(_swapDetailContent);
+    nameP.addClass("swap-inv-detail-name");
     try {
-        if (typeof window !== 'undefined' && typeof window.getItemRarityCSSByName === 'function') {
+        if (typeof window.getItemRarityCSSByName === 'function') {
             nameP.style("color", window.getItemRarityCSSByName(itemName));
         }
     } catch (e) {}
 
-    let amountP = createP("Amount: " + (itemEntry.amount || 0)).parent(contentP5);
-    amountP.class("swap-inv-detail-amount");
+    // ── Amount ──
+    let amtP = createP("Amount: " + (itemEntry.amount || 0));
+    amtP.parent(_swapDetailContent);
+    amtP.addClass("swap-inv-detail-amount");
 
-    // Item description from dictionary
-    const itemDesc = itemDic?.[itemName]?.desc || "No description";
-    let descP = createP(itemDesc).parent(contentP5);
-    descP.class("swap-inv-detail-desc");
+    // ── Description ──
+    const desc = itemEntry.desc || itemDic?.[itemName]?.desc || "No description";
+    let descP = createP(desc);
+    descP.parent(_swapDetailContent);
+    descP.addClass("swap-inv-detail-desc");
+
+    // ── Durability bar (only for non-Simple items) ──
+    if (itemEntry.type !== "Simple" &&
+        typeof itemEntry.durability === "number" &&
+        typeof itemEntry.maxDurability === "number" &&
+        itemEntry.maxDurability > 0) {
+        let durWrap = createDiv();
+        durWrap.parent(_swapDetailContent);
+        durWrap.addClass("swap-detail-durability");
+
+        let durLabel = createP("Durability");
+        durLabel.parent(durWrap);
+        durLabel.addClass("swap-detail-dur-label");
+
+        let barBg = createDiv();
+        barBg.parent(durWrap);
+        barBg.addClass("swap-detail-dur-bar");
+
+        const pct = Math.max(0, Math.min(1, itemEntry.durability / itemEntry.maxDurability)) * 100;
+        let barFill = createDiv();
+        barFill.parent(barBg);
+        barFill.addClass("swap-detail-dur-fill");
+        barFill.style("width", pct + "%");
+    }
+
+    // ── Stats list ──
+    let stats;
+    const myCur = curPlayer?.invBlock?.curItem || "";
+    if (myCur !== "" && typeof curPlayer.invBlock.getItemStats === "function") {
+        stats = curPlayer.invBlock.getItemStats(itemName);
+    } else if (curPlayer?.otherInv?.invBlock && typeof curPlayer.otherInv.invBlock.getItemStats === "function") {
+        stats = curPlayer.otherInv.invBlock.getItemStats(itemName);
+    }
+
+    if (Array.isArray(stats) && stats.length > 0) {
+        let statsWrap = createDiv();
+        statsWrap.parent(_swapDetailContent);
+        statsWrap.addClass("swap-detail-stats");
+
+        stats.forEach(stat => {
+            if (!Array.isArray(stat) || stat.length < 2) return;
+            if (stat[0] === "Durability") return;
+
+            let row = createDiv();
+            row.parent(statsWrap);
+            row.addClass("swap-detail-stat-row");
+
+            let label = createDiv(String(stat[0]) + ":");
+            label.parent(row);
+            label.addClass("swap-detail-stat-label");
+
+            let val = createDiv(String(stat[1]));
+            val.parent(row);
+            val.addClass("swap-detail-stat-value");
+        });
+    }
+
+    if (typeof updateSpaceBarDiv === "function") updateSpaceBarDiv();
 }
 
-/**
- * Simple hash function for object comparison
- * Used to detect if inventory data actually changed
- * @param {Object} obj - Object to hash
- * @returns {string} Simple hash
- */
-function hashObject(obj) {
-    if (!obj || typeof obj !== 'object') return JSON.stringify(obj);
-    
+/* ─── Alias for backward-compat (callers that used updatecurSwapItemDiv) ─── */
+function updatecurSwapItemDiv(otherInv) {
+    if (!curPlayer || !curPlayer.invBlock) return;
+    const myCur = curPlayer.invBlock.curItem || "";
+    const theirCur = otherInv?.curItem || "";
+    const selectedName = myCur || theirCur;
+    const selectedData = myCur
+        ? curPlayer.invBlock.items?.[myCur]
+        : otherInv?.items?.[theirCur];
+    updateSwapItemDetails(selectedName, selectedData);
+}
+
+/* ─── Hash for change detection ─── */
+function _hashItems(obj) {
+    if (!obj || typeof obj !== 'object') return "";
     const keys = Object.keys(obj).sort();
-    let hash = '';
-    
-    for (let key of keys) {
-        const item = obj[key];
-        hash += key + ':' + (item?.amount || 0) + '|';
+    let h = '';
+    for (const k of keys) {
+        h += k + ':' + (obj[k]?.amount || 0) + '|';
     }
-    
-    return hash;
+    return h;
 }
 
 /**
- * Quick update of highlighting without full DOM rebuild
- * @param {string} leftSelected - Selected item on left
- * @param {string} rightSelected - Selected item on right
- */
-function fastHighlightSwapLists(leftSelected, rightSelected) {
-    if (itemListDivLeft?.elt?.children) {
-        for (let row of itemListDivLeft.elt.children) {
-            const itemName = row.getAttribute("data-item");
-            if (itemName === leftSelected) {
-                row.classList.add("selected");
-            } else {
-                row.classList.remove("selected");
-            }
-        }
-    }
-
-    if (itemListDivRight?.elt?.children) {
-        for (let row of itemListDivRight.elt.children) {
-            const itemName = row.getAttribute("data-item");
-            if (itemName === rightSelected) {
-                row.classList.add("selected");
-            } else {
-                row.classList.remove("selected");
-            }
-        }
-    }
-}
-
-/**
- * Backfills missing imgNum fields for loot bags while leaving chests/other containers untouched.
- * Only runs when the currently opened otherInv is an ItemBag.
+ * Backfills missing imgNum fields for loot bags.
  */
 function hydrateBagItemImages(inv) {
     if (!inv || !inv.items) return inv;
     if (!curPlayer || !curPlayer.otherInv || curPlayer.otherInv.objName !== "ItemBag") return inv;
-
     Object.keys(inv.items).forEach((name) => {
         const entry = inv.items[name];
         if (!entry) return;
@@ -1232,256 +1369,5 @@ function hydrateBagItemImages(inv) {
             if (imgNum !== undefined) entry.imgNum = imgNum;
         }
     });
-
     return inv;
-}
-
-/**
- * Update the center panel showing selected item details with full formatting
- * Moved from ui.js for consolidation
- */
-function updatecurSwapItemDiv(otherInv) {
-    if (!curPlayer || !curPlayer.invBlock) return;
-
-    const normalizedOther = hydrateBagItemImages(otherInv);
-    const safeOther = normalizedOther || { items: {}, curItem: "" };
-
-    let curSwapItem;
-    const myCur = curPlayer.invBlock.curItem || "";
-    const theirCur = safeOther.curItem || "";
-
-    if (myCur !== "") {
-        curSwapItem = (curPlayer.invBlock.items || {})[myCur];
-        if (curSwapItem && !curSwapItem.itemName) curSwapItem.itemName = myCur;
-    } else if (theirCur !== "") {
-        curSwapItem = (safeOther.items || {})[theirCur];
-        if (curSwapItem && !curSwapItem.itemName) curSwapItem.itemName = theirCur;
-    }
-
-    // Clear the div every time
-    curSwapItemDiv.html("");
-
-    if (!curSwapItem) {
-        // Show a clean "None Selected" state
-        const noneDiv = createDiv("No item selected");
-        noneDiv.style("width", "100%");
-        noneDiv.style("padding", "24px");
-        noneDiv.style("color", "#aaa");
-        noneDiv.style("text-align", "center");
-        noneDiv.style("font-size", "22px");
-        noneDiv.parent(curSwapItemDiv);
-        
-        // Re-add Take All button
-        let takeAllButton = createButton("⬅ Take All").parent(curSwapItemDiv);
-        applyStyle(takeAllButton, {
-            padding: "10px 15px",
-            cursor: "pointer",
-            backgroundColor: "#4CAF50",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            fontWeight: "bold",
-            marginTop: "20px",
-            width: "90%"
-        });
-        takeAllButton.mousePressed(() => {
-            if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.invBlock) return;
-            const otherInv = curPlayer.otherInv.invBlock;
-            const otherItems = otherInv.items || {};
-            Object.keys(otherItems).forEach((itemName) => {
-                const itemData = otherItems[itemName];
-                if (itemData && itemData.amount > 0) {
-                    curPlayer.invBlock.addItem(itemName, itemData.amount, true);
-                    otherInv.decreaseAmount(itemName, itemData.amount);
-                }
-            });
-            curPlayer.invBlock.curItem = "";
-            otherInv.curItem = "";
-            updateSwapItemLists(otherInv);
-            if (curPlayer.otherInv.pos) {
-                const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-                socket.emit("update_inv", {
-                    cx: chunkPos.x, cy: chunkPos.y,
-                    objName: curPlayer.otherInv.objName,
-                    pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                    z: curPlayer.otherInv.z,
-                    invId: otherInv.invId,
-                    items: otherInv.items
-                });
-            }
-        });
-        return;
-    }
-
-    // ---- Item card (image + name/desc) ----
-    const itemCardDiv = createDiv();
-    itemCardDiv.style("width", "100%");
-    itemCardDiv.style("height", "30%");
-    itemCardDiv.style("display", "flex");
-    itemCardDiv.style("margin-bottom", "20px");
-    itemCardDiv.parent(curSwapItemDiv);
-
-    const itemImgDiv = createDiv();
-    itemImgDiv.style("width", "50%");
-    itemImgDiv.style("border", "2px solid black");
-    itemImgDiv.style("border-radius", "10px");
-    const bgURL = resolveItemImgURL(curSwapItem.itemName, curSwapItem);
-    if (bgURL) {
-        itemImgDiv.style("background-image", "url('" + bgURL + "')");
-        itemImgDiv.style("image-rendering", "pixelated");
-    } else {
-        itemImgDiv.style("display", "flex");
-        itemImgDiv.style("align-items", "center");
-        itemImgDiv.style("justify-content", "center");
-        const dot = createDiv("•");
-        dot.style("font-size", "28px");
-        dot.style("color", "#ccc");
-        dot.parent(itemImgDiv);
-    }
-    itemImgDiv.style("background-size", "contain");
-    itemImgDiv.style("background-repeat", "no-repeat");
-    itemImgDiv.style("background-position", "center");
-    itemImgDiv.parent(itemCardDiv);
-
-    const itemNameDescDiv = createDiv();
-    itemNameDescDiv.style("width", "calc(50% - 8px)");
-    itemNameDescDiv.style("height", "100%");
-    itemNameDescDiv.parent(itemCardDiv);
-
-    const itemNameDiv = createDiv();
-    itemNameDiv.style("width", "100%");
-    itemNameDiv.style("height", "20%");
-    itemNameDiv.style("border", "2px solid black");
-    itemNameDiv.style("border-radius", "10px");
-    itemNameDiv.parent(itemNameDescDiv);
-
-    const itemNameP = createP(String(curSwapItem.itemName || "Unknown Item"));
-    itemNameP.style("font-size", "20px");
-    itemNameP.style("color", rarityColorCSS(curSwapItem.itemName));
-    itemNameP.style("margin", "5px");
-    itemNameP.style("padding", "0");
-    itemNameP.style("word-wrap", "break-word");
-    itemNameP.style("overflow-wrap", "break-word");
-    itemNameP.style("white-space", "normal");
-    itemNameP.parent(itemNameDiv);
-
-    // Description
-    const itemDescDiv = createDiv();
-    itemDescDiv.style("width", "100%");
-    itemDescDiv.style("height", "calc(80% - 5px)");
-    itemDescDiv.style("border", "2px solid black");
-    itemDescDiv.style("border-radius", "10px");
-    itemDescDiv.parent(itemNameDescDiv);
-
-    const itemDescP = createP(String(curSwapItem.desc || "No description."));
-    itemDescP.style("font-size", "20px");
-    itemDescP.style("color", "white");
-    itemDescP.style("margin", "5px");
-    itemDescP.parent(itemDescDiv);
-
-    // ---- Stats area ----
-    const itemStatsDiv = createDiv();
-    itemStatsDiv.style("width", "100%");
-    itemStatsDiv.style("height", "calc(70% - 10px)");
-    itemStatsDiv.parent(curSwapItemDiv);
-
-    // Durability (only when applicable)
-    if (curSwapItem.type !== "Simple" && typeof curSwapItem.durability === "number" && typeof curSwapItem.maxDurability === "number" && curSwapItem.maxDurability > 0) {
-        const durabilityDiv = createDiv();
-        durabilityDiv.style("width", "calc(100% - 14px)");
-        durabilityDiv.style("height", "10%");
-        durabilityDiv.style("padding", "5px");
-        durabilityDiv.style("border", "2px solid black");
-        durabilityDiv.style("border-radius", "10px");
-        durabilityDiv.style("display", "flex");
-        durabilityDiv.style("align-items", "center");
-        durabilityDiv.style("justify-content", "center");
-        durabilityDiv.style("margin-bottom", "5px");
-        durabilityDiv.parent(itemStatsDiv);
-
-        const durabilityText = createP("Durability:");
-        durabilityText.style("font-size", "20px");
-        durabilityText.style("color", "white");
-        durabilityText.parent(durabilityDiv);
-
-        const durabilityBar = createDiv();
-        durabilityBar.style("width", "80%");
-        durabilityBar.style("height", "20px");
-        durabilityBar.style("background-color", "red");
-        durabilityBar.style("border", "2px solid black");
-        durabilityBar.style("border-radius", "10px");
-        durabilityBar.parent(durabilityDiv);
-
-        const pct = Math.max(0, Math.min(1, curSwapItem.durability / curSwapItem.maxDurability)) * 100;
-        const durabilityFill = createDiv();
-        durabilityFill.style("width", pct + "%");
-        durabilityFill.style("height", "100%");
-        durabilityFill.style("background-color", "green");
-        durabilityFill.style("border-radius", "10px");
-        durabilityFill.parent(durabilityBar);
-    }
-
-    const statsText = createDiv("Stats");
-    statsText.style("font-size", "20px");
-    statsText.style("color", "white");
-    statsText.style("text-align", "center");
-    statsText.style("border", "2px solid black");
-    statsText.style("border-radius", "10px");
-    statsText.style("padding", "10px");
-    statsText.style("margin-bottom", "5px");
-    statsText.parent(itemStatsDiv);
-
-    const statsList = createDiv();
-    statsList.style("width", "100%");
-    statsList.style("height", "calc(90% - 10px)");
-    statsList.style("overflow-y", "auto");
-    statsList.parent(itemStatsDiv);
-
-    // Safely fetch stats
-    let stats;
-    if (myCur !== "" && typeof curPlayer.invBlock.getItemStats === "function") {
-        stats = curPlayer.invBlock.getItemStats(curSwapItem.itemName || myCur);
-    } else if (theirCur !== "" && typeof safeOther.getItemStats === "function") {
-        stats = safeOther.getItemStats(curSwapItem.itemName || theirCur);
-    }
-
-    if (Array.isArray(stats)) {
-        stats.forEach(stat => {
-            if (!Array.isArray(stat) || stat.length < 2) return;
-            if (stat[0] === "Durability") return;
-
-            const statDiv = createDiv();
-            statDiv.style("width", "100%");
-            statDiv.style("height", "20px");
-            statDiv.style("display", "flex");
-            statDiv.style("margin-bottom", "12px");
-            statDiv.parent(statsList);
-
-            const statNameDiv = createDiv(String(stat[0]) + ":");
-            statNameDiv.style("width", "50%");
-            statNameDiv.style("height", "100%");
-            statNameDiv.style("color", "white");
-            statNameDiv.style("text-align", "center");
-            statNameDiv.style("font-size", "20px");
-            statNameDiv.style("border", "2px solid black");
-            statNameDiv.style("border-radius", "10px");
-            statNameDiv.style("padding", "5px");
-            statNameDiv.parent(statDiv);
-
-            const statNumDiv = createDiv(String(stat[1]));
-            statNumDiv.style("width", "50%");
-            statNumDiv.style("height", "100%");
-            statNumDiv.style("color", "white");
-            statNumDiv.style("text-align", "center");
-            statNumDiv.style("font-size", "20px");
-            statNumDiv.style("border", "2px solid black");
-            statNumDiv.style("border-radius", "10px");
-            statNumDiv.style("padding", "5px");
-            statNumDiv.parent(statDiv);
-        });
-    }
-
-    if (typeof updateSpaceBarDiv === "function") {
-        updateSpaceBarDiv();
-    }
 }

@@ -321,36 +321,14 @@ function keyReleased() {
                 }
             }
 
-            let chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-            socket.emit("update_inv", {
-                cx: chunkPos.x, cy: chunkPos.y,
-                objName: curPlayer.otherInv.objName,
-                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                z: curPlayer.otherInv.z,
-                invId: curPlayer.otherInv.invBlock?.invId,
-                items: curPlayer.otherInv.invBlock.items
-            });
-            // PERF FIX #10: Use fast highlight instead of full DOM rebuild after transfer
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, curPlayer.otherInv.invBlock.curItem);
-            updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
+            // Force full rebuild so amounts refresh
+            swapListCache.lastLeftHash = "";
+            swapListCache.lastRightHash = "";
+            updateSwapItemLists(curPlayer.otherInv.invBlock);
+            _syncOtherInv();
         }
         if (keyCode == Controls_Inventory_code) { //i
-            // push any chest/bag state back to server on close
-            if (curPlayer.otherInv && curPlayer.otherInv.pos) {
-                const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-                socket.emit("update_inv", {
-                    cx: chunkPos.x, cy: chunkPos.y,
-                    objName: curPlayer.otherInv.objName,
-                    pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                    z: curPlayer.otherInv.z,
-                    invId: curPlayer.otherInv.invBlock?.invId,
-                    items: curPlayer.otherInv.invBlock.items
-                });
-            }
-            gameState = "playing";
-            swapInvDiv.hide();
-            spaceBarDiv.hide();
-            curPlayer.otherInv = undefined;
+            closeSwapInv();
         }
         if (keyCode == 16 && gameState != "inventory" && gameState != "crafting" && gameState != "swap_inv") { //Shift
             updateSpaceBarDiv();

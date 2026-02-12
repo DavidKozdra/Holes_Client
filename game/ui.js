@@ -44,11 +44,13 @@ function setupUI() {
 
     // Create player name button once
     nameBtn = createButton("");
+    nameBtn.id('playerNameBtn');
     nameBtn.style('background', 'none');
     nameBtn.style('border', 'none');
     nameBtn.style('padding', '0');
     nameBtn.style('font-size', '20px');
     nameBtn.style('cursor', 'pointer');
+    nameBtn.style('transform', 'translateX(-50%)');
     nameBtn.mousePressed(() => {
         gameState = "team_select";
         teamPickDiv.show();
@@ -312,22 +314,12 @@ function defineSpaceBarUI() {
                     }
                 }
             }
-            // PERF FIX #10: Use fast highlight instead of full DOM rebuild after transfer
+            // Force full rebuild so amounts refresh
+            swapListCache.lastLeftHash = "";
+            swapListCache.lastRightHash = "";
             fastHighlightSwapLists(curPlayer.invBlock.curItem, curPlayer.otherInv.invBlock.curItem);
-            updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
-
-            // Sync other inventory back to server when clicking the spacebar UI (mirror keyboard handler)
-            if (curPlayer.otherInv && curPlayer.otherInv.pos) {
-                const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-                socket.emit("update_inv", {
-                    cx: chunkPos.x, cy: chunkPos.y,
-                    objName: curPlayer.otherInv.objName,
-                    pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                    z: curPlayer.otherInv.z,
-                    invId: curPlayer.otherInv.invBlock?.invId,
-                    items: curPlayer.otherInv.invBlock.items
-                });
-            }
+            updateSwapItemLists(curPlayer.otherInv.invBlock);
+            _syncOtherInv();
         }
     });
 
@@ -769,6 +761,7 @@ var buildDiv;
 // 1) Set up the container DIV
 function defineBuildUI() {
     buildDiv = createDiv();
+    buildDiv.id('buildOptionsDiv');
     buildDiv.class("build-ui-container");
     buildDiv.style("position", "absolute");
     buildDiv.style("bottom", "28%");
@@ -1315,13 +1308,25 @@ function renderPlayerCardUI() {
         `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`
     );
 
-    let nx = width - 530 + 6 + 45 + 350 / 2;
-    let ny = 19;
+    let nx, ny;
+    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+        // On mobile, place name below the scaled card at top-right
+        nx = width - (cardW / 2) - 10 * uiScale;
+        ny = cardH + 4;
+        nameBtn.style('font-size', (14 * uiScale) + 'px');
+    } else {
+        nx = width - 530 + 6 + 45 + 350 / 2;
+        ny = 19;
+        nameBtn.style('font-size', '20px');
+    }
     nameBtn.position(nx, ny);
     nameBtn.show();
 
-    let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
-    line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
+    // Draw underline on canvas (desktop only — on mobile the name is below the card)
+    if (!(typeof isMobileDevice !== 'undefined' && isMobileDevice)) {
+        let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
+        line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
+    }
 
     pop();
 }
