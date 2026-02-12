@@ -1,0 +1,19 @@
+{
+  "name": "Holes: Martyr of Dirt",
+  "short_name": "Holes",
+  "description": "A free 2D survival sandbox. Build, mine, explore an infinite world.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#3b2f2f",
+  "theme_color": "#3b2f2f",
+  "categories": ["games"],
+  "icons": [
+    {
+      "src": "images/ui/title.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

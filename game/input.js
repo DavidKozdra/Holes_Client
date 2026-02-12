@@ -632,6 +632,8 @@ function continousMouseInput() { //ran once every frame, good for anything like 
 
     if (isChatting || isElementVisible(pauseDiv)) return
     if (curPlayer && curPlayer.isConcentrating) return;
+    // On mobile, touch input is handled by applyTouchInput — skip mouse simulation
+    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) return;
     if (mouseIsPressed) {
         //converts screen space to global space
         let x = mouseX + camera.pos.x - width / 2;
@@ -775,20 +777,27 @@ function isElementVisible(el) {
 function continousKeyBoardInput() {
     if (getIsChatting() || isElementVisible(pauseDiv)) return
     if (gameState == "playing") {
-        // default all keys to false
-        curPlayer.holding = { w: false, a: false, s: false, d: false };
+        // On mobile, joystick handles movement — skip keyboard polling
+        if (typeof isMobileDevice !== 'undefined' && isMobileDevice && typeof touchJoystick !== 'undefined' && touchJoystick.active) {
+            // Touch joystick is active, don't override with keyboard
+        } else {
+            // default all keys to false
+            curPlayer.holding = { w: false, a: false, s: false, d: false };
 
-        // Player controls
-        if (keyIsDown(Controls_move_Up_code)) curPlayer.holding.w = true; // W
-        if (keyIsDown(Controls_move_Left_code)) curPlayer.holding.a = true; // A
-        if (keyIsDown(Controls_move_Down_code)) curPlayer.holding.s = true; // S
-        if (keyIsDown(Controls_move_Right_code)) curPlayer.holding.d = true; // D
+            // Player controls
+            if (keyIsDown(Controls_move_Up_code)) curPlayer.holding.w = true; // W
+            if (keyIsDown(Controls_move_Left_code)) curPlayer.holding.a = true; // A
+            if (keyIsDown(Controls_move_Down_code)) curPlayer.holding.s = true; // S
+            if (keyIsDown(Controls_move_Right_code)) curPlayer.holding.d = true; // D
+        }
 
-        // Dash key
-        if (keyIsDown(Controls_Dash_code)) {
-            const dashAbility = (window.magicAbilities || []).find(a => a.name.toLowerCase() === 'dash');
-            if (dashAbility && typeof dashAbility.activate === 'function') {
-                dashAbility.activate(curPlayer);
+        // Dash key (keyboard only — touch dash handled in applyTouchInput)
+        if (!(typeof isMobileDevice !== 'undefined' && isMobileDevice)) {
+            if (keyIsDown(Controls_Dash_code)) {
+                const dashAbility = (window.magicAbilities || []).find(a => a.name.toLowerCase() === 'dash');
+                if (dashAbility && typeof dashAbility.activate === 'function') {
+                    dashAbility.activate(curPlayer);
+                }
             }
         }
 

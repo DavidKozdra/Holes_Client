@@ -100,6 +100,11 @@ function setup() {
 
     setupUI();
 
+    // Initialize mobile touch controls if on a touch device
+    if (typeof createTouchControlsUI === 'function') {
+        createTouchControlsUI();
+    }
+
     camera.pos = createVector(0, 0);
     camera.vel = createVector(0, 0);
     camera.shake = { intensity: 0, length: 0 };
@@ -152,7 +157,11 @@ function moveCamera() {
 
 function windowResized() {
     resizeCanvas(innerWidth - 10, innerHeight - 8);
-
+    // Reposition dirtBagUI on resize
+    if (typeof dirtBagUI !== 'undefined' && dirtBagUI.pos) {
+        dirtBagUI.pos.x = width - 180 - 10;
+        dirtBagUI.pos.y = height - 186 - 10;
+    }
 }
 
 function updatePlayerRegen(player) {
@@ -256,8 +265,11 @@ function draw() {
                     renderHotbarUI();
                 }
                 if (renderGhost && ghostBuild) {
-                    ghostBuild.pos.x = mouseX + camera.pos.x - width / 2;
-                    ghostBuild.pos.y = mouseY + camera.pos.y - height / 2;
+                    // On mobile, ghost build is positioned by updateGhostBuildTouch()
+                    if (!(typeof isMobileDevice !== 'undefined' && isMobileDevice)) {
+                        ghostBuild.pos.x = mouseX + camera.pos.x - width / 2;
+                        ghostBuild.pos.y = mouseY + camera.pos.y - height / 2;
+                    }
 
                     if (ghostBuild.canRotate) {
                         ghostBuild.rot = ghostBuild.pos.copy().sub(curPlayer.pos).heading();
@@ -316,7 +328,13 @@ function draw() {
                 updatePlayerRegen(curPlayer)
 
                 // PERF FIX #3: cache chunk key string, use const for INTERACT_RANGE
-                let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
+                let mouseVec;
+                if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+                    // On mobile, use player position for nearby object detection
+                    mouseVec = curPlayer.pos.copy();
+                } else {
+                    mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
+                }
                 let chunkPos = testMap.globalToChunk(mouseVec.x, mouseVec.y);
                 let chunkKey = getChunkKey(chunkPos.x, chunkPos.y);
                 let chunk = testMap.chunks[chunkKey];
@@ -365,7 +383,7 @@ function draw() {
                         textAlign(CENTER, CENTER);
                         textSize(15);
                         textFont(gameUIFont);
-                        text(Controls_Interact_key.toUpperCase(), closest.pos.x - camera.pos.x + (width / 2), closest.pos.y - offY - camera.pos.y + (height / 2));
+                        text((typeof isMobileDevice !== 'undefined' && isMobileDevice) ? '!' : Controls_Interact_key.toUpperCase(), closest.pos.x - camera.pos.x + (width / 2), closest.pos.y - offY - camera.pos.y + (height / 2));
                         pop();
                     }
                     else {
@@ -421,7 +439,7 @@ function draw() {
                                     textAlign(CENTER, CENTER);
                                     textSize(15);
                                     textFont(gameUIFont);
-                                    text(Controls_Interact_key.toUpperCase(), closest.pos.x - camera.pos.x + (width / 2), closest.pos.y - offY - camera.pos.y + (height / 2));
+                                    text((typeof isMobileDevice !== 'undefined' && isMobileDevice) ? '!' : Controls_Interact_key.toUpperCase(), closest.pos.x - camera.pos.x + (width / 2), closest.pos.y - offY - camera.pos.y + (height / 2));
                                     pop();
                                 }
                             }
@@ -599,6 +617,17 @@ function draw() {
     // Draw compass direction if active
     if (typeof drawCompass === 'function') {
         drawCompass();
+    }
+
+    // Update touch controls visibility and apply touch input
+    if (typeof updateTouchControlsVisibility === 'function') {
+        updateTouchControlsVisibility();
+    }
+    if (typeof updateGhostBuildTouch === 'function') {
+        updateGhostBuildTouch();
+    }
+    if (typeof applyTouchInput === 'function') {
+        applyTouchInput();
     }
 
     // Cancel meditate on any key or mouse input

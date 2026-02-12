@@ -789,6 +789,12 @@ function defineBuildUI() {
 }
 
 function renderDirtBagUI() {
+    // Dynamic UI scale based on screen size
+    const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1080 : 1;
+    const bagW = 180 * uiScale;
+    const bagH = 186 * uiScale;
+    const bagMargin = 10 * uiScale;
+
     // Dirt Inventory
     push();
 
@@ -809,8 +815,8 @@ function renderDirtBagUI() {
         //stop dirt bag shake sound
         dirtBagShakeSound.stop();
         dirtBagUI.shake.intensity = 0;
-        dirtBagUI.vel.x = ((width - 180 - 10) - dirtBagUI.pos.x);
-        dirtBagUI.vel.y = ((height - 186 - 10) - dirtBagUI.pos.y);
+        dirtBagUI.vel.x = ((width - bagW - bagMargin) - dirtBagUI.pos.x);
+        dirtBagUI.vel.y = ((height - bagH - bagMargin) - dirtBagUI.pos.y);
         dirtBagUI.vel.setMag(dirtBagUI.vel.mag() / 10);
     }
     dirtBagUI.pos.add(dirtBagUI.vel);
@@ -839,19 +845,19 @@ function renderDirtBagUI() {
         }
     }
 
-    if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, 180, 186);
-    else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, 180, 186);
+    if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, bagW, bagH);
+    else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, bagW, bagH);
 
     fill("#70443C");
-    rect(dirtBagUI.pos.x + 30, dirtBagUI.pos.y + 35 + (120 * (1 - (dirtInv / maxDirtInv))), 120, 120 * (dirtInv / maxDirtInv));
+    rect(dirtBagUI.pos.x + 30 * uiScale, dirtBagUI.pos.y + 35 * uiScale + (120 * uiScale * (1 - (dirtInv / maxDirtInv))), 120 * uiScale, 120 * uiScale * (dirtInv / maxDirtInv));
 
     if (!dirtBagOpen) {
         fill(255);
         stroke(0);
         strokeWeight(5);
         textAlign(CENTER, CENTER);
-        textSize(50);
-        text("Full", dirtBagUI.pos.x + 90, dirtBagUI.pos.y + 100);
+        textSize(50 * uiScale);
+        text("Full", dirtBagUI.pos.x + 90 * uiScale, dirtBagUI.pos.y + 100 * uiScale);
     }
     pop();
 }
@@ -1144,7 +1150,19 @@ function updateManaDisplay(mp, mmp) {
 
 
 function renderPlayerCardUI() {
+    const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1080 : 1;
+    const cardW = 510 * uiScale;
+    const cardH = 125 * uiScale;
+    const cardX = width - cardW - 20 * uiScale;
     push();
+
+    // Scale the entire player card from top-right corner
+    if (uiScale !== 1) {
+        translate(width, 0);
+        scale(uiScale);
+        translate(-width, 0);
+    }
+
     fill(0);
     noStroke();
     rect(width - 530, 0, 510, 125);

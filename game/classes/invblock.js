@@ -218,9 +218,20 @@ class InvBlock{
         if (this.useTimer > 0) this.useTimer--;
         if (this.animationTimer > 0) this.animationTimer -= 0.1;
         if (this.animationTimer < 0) this.animationTimer += 0.1;
+
+        // Dynamic UI scale for mobile
+        const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1080 : 1;
     
         // Hotbar Inventory
         push();
+
+        // Scale the entire hotbar from bottom-right corner
+        if (uiScale !== 1) {
+            translate(width, height);
+            scale(uiScale);
+            translate(-width, -height);
+        }
+
         noFill();
         stroke(255);
         strokeWeight(50);
@@ -326,14 +337,17 @@ class InvBlock{
         endShape(CLOSE);
     
         // Q/E text
-        fill(0);
-        stroke(0);
-        textAlign(CENTER, CENTER);
-        textSize(15);
-        textFont(gameUIFont);
-        text(Controls_MoveHotBarLeft_key.toUpperCase(), width - (0.866 * 255), height - (0.5 * 255) - 3);
-        text(Controls_MoveHotBarRight_key.toUpperCase(), width - (0.5 * 255), height - (0.866 * 255) - 1.5);
-        text(Controls_Build_key.toUpperCase(), width - 350, height - 30);
+        // Hide Q/E/R key labels on mobile (touch buttons handle this)
+        if (!(typeof isMobileDevice !== 'undefined' && isMobileDevice)) {
+            fill(0);
+            stroke(0);
+            textAlign(CENTER, CENTER);
+            textSize(15);
+            textFont(gameUIFont);
+            text(Controls_MoveHotBarLeft_key.toUpperCase(), width - (0.866 * 255), height - (0.5 * 255) - 3);
+            text(Controls_MoveHotBarRight_key.toUpperCase(), width - (0.5 * 255), height - (0.866 * 255) - 1.5);
+            text(Controls_Build_key.toUpperCase(), width - 350, height - 30);
+        }
     
         if(!buildMode) image(hammerImg, width - 385, height - 30, 40, 40);
         else image(Ximage, width - 385, height - 30, 40, 40);

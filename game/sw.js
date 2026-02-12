@@ -1,16 +1,36 @@
 // sw.js
 
 // Change this when you update your assets
-const CACHE_NAME = 'holesgame-v4-cors-fix';
+const CACHE_NAME = 'holesgame-v5-mobile';
 
-// Pre-cache URLs - currently disabled as paths need to be verified
-// Enable these once you have the actual bundled files
+// Pre-cache URLs — critical assets for offline/PWA use
 const PRECACHE_URLS = [
-  // '/',                            // HTML shell
-  // '/bundle.js',                   // your concatenated/minified JS
-  // '/assets/spritesheet.png',      // your big image
-  // '/assets/spritesheet.json',     // atlas manifest
-  // '/audio/dirtbag_shake.ogg'      // critical sound
+  './',
+  './index.html',
+  '../style.css',
+  './manifest.json',
+  './images/ui/title.png',
+  './p5-init.js',
+  './sketch.js',
+  './input.js',
+  './touchControls.js',
+  './ui.js',
+  './socket.js',
+  './transport.js',
+  './coreFunctions.js',
+  './classes/player.js',
+  './classes/map.js',
+  './classes/invblock.js',
+  './classes/items.js',
+  './classes/objects.js',
+  './classes/statblock.js',
+  './magicSystem.js',
+  './magicUI.js',
+  './chatUI.js',
+  './systemUI.js',
+  './mainMenu.js',
+  './preload.js',
+  './diggingFunctions.js'
 ];
 
 // Install: pre-cache the core assets
