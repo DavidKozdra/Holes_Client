@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3b2f2f">
+  <title>Holes — Offline</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Press+Start+2P');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #3b2f2f;
+      color: #f5deb3;
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      text-align: center;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    /* Animated dirt particles */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image:
+        radial-gradient(2px 2px at 20% 30%, #a0522d 50%, transparent 50%),
+        radial-gradient(2px 2px at 40% 70%, #8b4513 50%, transparent 50%),
+        radial-gradient(3px 3px at 60% 20%, #a0522d 50%, transparent 50%),
+        radial-gradient(2px 2px at 80% 50%, #6b3410 50%, transparent 50%),
+        radial-gradient(2px 2px at 10% 80%, #a0522d 50%, transparent 50%),
+        radial-gradient(3px 3px at 90% 90%, #8b4513 50%, transparent 50%);
+      animation: drift 20s linear infinite;
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes drift {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-100px); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+    }
+
+    .icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-12px); }
+    }
+
+    h1 {
+      font-size: 20px;
+      color: #ffd700;
+      margin-bottom: 16px;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    p {
+      font-size: 11px;
+      line-height: 2;
+      margin-bottom: 24px;
+      color: #d2b48c;
+    }
+
+    .retry-btn {
+      display: inline-block;
+      padding: 14px 32px;
+      background: #ffd700;
+      color: #3b2f2f;
+      font-family: inherit;
+      font-size: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 0 #b8960a, 0 6px 20px rgba(0,0,0,0.4);
+    }
+
+    .retry-btn:hover {
+      background: #e6c200;
+    }
+
+    .retry-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #b8960a, 0 3px 10px rgba(0,0,0,0.4);
+    }
+
+    .status {
+      margin-top: 32px;
+      font-size: 9px;
+      color: #8b7355;
+    }
+
+    .status.online {
+      color: #90ee90;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">⛏️</div>
+    <h1>You're Offline</h1>
+    <p>
+      Looks like your connection fell into a hole.<br>
+      Check your internet and dig your way back.
+    </p>
+    <button class="retry-btn" onclick="tryReconnect()">Retry Connection</button>
+    <p class="status" id="status">Waiting for network…</p>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+
+    function tryReconnect() {
+      statusEl.textContent = 'Checking connection…';
+      statusEl.className = 'status';
+
+      fetch('./', { cache: 'no-store', method: 'HEAD' })
+        .then(r => {
+          if (r.ok) {
+            statusEl.textContent = 'Connected! Reloading…';
+            statusEl.className = 'status online';
+            setTimeout(() => window.location.replace('./index.html'), 500);
+          } else {
+            statusEl.textContent = 'Server unreachable. Try again.';
+          }
+        })
+        .catch(() => {
+          statusEl.textContent = 'Still offline. Try again later.';
+        });
+    }
+
+    // Auto-detect when connectivity returns
+    window.addEventListener('online', () => {
+      statusEl.textContent = 'Network detected! Reconnecting…';
+      statusEl.className = 'status online';
+      setTimeout(() => tryReconnect(), 1000);
+    });
+
+    window.addEventListener('offline', () => {
+      statusEl.textContent = 'No network connection.';
+      statusEl.className = 'status';
+    });
+
+    // Initial state
+    if (navigator.onLine) {
+      statusEl.textContent = 'Network available — server may be down.';
+    }
+  </script>
+</body>
+</html>
