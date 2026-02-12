@@ -712,7 +712,8 @@ input.fmt-italic-apply {
 /* Hide mobile-only swap elements on desktop */
 #swap-mobile-tabs,
 #swap-mobile-actions,
-#swap-mobile-close {
+#swap-mobile-close,
+#mobile-hud {
   display: none;
 }
 
@@ -1975,13 +1976,139 @@ input.fmt-italic-apply {
     line-height: 1.4;
   }
 
-  /* ─── Player portrait — smaller on mobile ─── */
+  /* ─── Player portrait — hidden on mobile (integrated into HUD strip) ─── */
   #racePortraitDiv {
-    width: 48px !important;
-    height: 48px !important;
-    right: 10px !important;
-    top: 4px !important;
-    border-width: 1px !important;
+    display: none !important;
+  }
+
+  /* ─── Stats panel — repositioned for mobile ─── */
+  #stats-panel {
+    top: 34px !important;
+    right: 8px !important;
+    left: 8px !important;
+    width: auto !important;
+    z-index: 9980 !important;
+  }
+
+  /* ═══ Mobile HUD strip ═══ */
+  #mobile-hud {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.65) 100%);
+    border-bottom: 1px solid rgba(134,134,134,0.4);
+    z-index: 950;
+    box-sizing: border-box;
+    touch-action: manipulation;
+    user-select: none;
+    font-family: system-ui, -apple-system, Arial, sans-serif;
+  }
+
+  #mhud-portrait {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: 4px;
+    border: 1px solid #868686;
+    background-color: #70443c;
+    background-size: cover;
+    background-position: center;
+  }
+
+  #mhud-bars {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  #mhud-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 1px;
+  }
+
+  #mhud-name {
+    font-size: 7px;
+    font-weight: bold;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 1px 1px 2px #000;
+  }
+
+  #mhud-level {
+    font-size: 7px;
+    color: #4CAF50;
+    font-weight: bold;
+    flex-shrink: 0;
+    margin-left: 4px;
+    text-shadow: 1px 1px 2px #000;
+  }
+
+  .mhud-bar-track {
+    position: relative;
+    width: 100%;
+    height: 7px;
+    background: rgba(50,50,50,0.8);
+    border-radius: 2px;
+    overflow: hidden;
+    border: 1px solid rgba(134,134,134,0.3);
+  }
+
+  .mhud-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.25s ease-out;
+  }
+
+  .mhud-bar-fill.mhud-hp {
+    background: linear-gradient(90deg, #27f50e, #1a9e0a);
+  }
+
+  .mhud-bar-fill.mhud-mp {
+    background: linear-gradient(90deg, #00d4ff, #0080cc);
+  }
+
+  .mhud-bar-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 6px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    pointer-events: none;
+  }
+
+  #mhud-xp-row {
+    width: 100%;
+    height: 2px;
+    background: rgba(50,50,50,0.6);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  #mhud-xp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+    border-radius: 1px;
+    transition: width 0.3s ease-out;
+    width: 0%;
   }
 
   /* ─── Title image on mobile — small, top-left corner ─── */

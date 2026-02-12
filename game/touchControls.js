@@ -161,7 +161,7 @@ function createTouchControlsUI() {
     #touch-use-btn {
       position: fixed;
       right: 16px;
-      bottom: 64px;
+      bottom: 140px;
       width: 64px;
       height: 64px;
       border-radius: 50%;
@@ -189,16 +189,79 @@ function createTouchControlsUI() {
       border-color: rgba(255, 200, 80, 0.8);
     }
 
-    /* ─── Top-bar Buttons (Inventory, Craft, Build, Pause) ─── */
-    #touch-top-buttons {
+    /* ─── DASH Button ─── */
+    #touch-dash-btn {
       position: fixed;
-      top: 8px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9990;
+      right: 90px;
+      bottom: 110px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 3px solid rgba(80, 200, 255, 0.5);
+      background: rgba(20, 60, 90, 0.5);
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
       display: flex;
-      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      touch-action: none;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      z-index: 9990;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      transition: transform 0.1s;
+    }
+
+    #touch-dash-btn:active, #touch-dash-btn.pressed {
+      transform: scale(0.88);
+      background: rgba(40, 120, 160, 0.5);
+      border-color: rgba(80, 200, 255, 0.8);
+    }
+
+    /* ─── Right-side Menu Toggle + Dropdown ─── */
+    #touch-menu-toggle {
+      position: fixed;
+      top: 32px;
+      right: 8px;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      z-index: 9992;
+      transition: transform 0.1s;
+    }
+
+    #touch-menu-toggle:active {
+      transform: scale(0.88);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    #touch-menu-dropdown {
+      position: fixed;
+      top: 72px;
+      right: 8px;
+      z-index: 9991;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
       pointer-events: none;
+    }
+
+    #touch-menu-dropdown.menu-open {
+      display: flex;
     }
 
     .touch-top-btn {
@@ -206,7 +269,7 @@ function createTouchControlsUI() {
       height: 48px;
       border-radius: 10px;
       border: 2px solid rgba(255, 255, 255, 0.25);
-      background: rgba(0, 0, 0, 0.55);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
       font-family: 'Press Start 2P', monospace;
       font-size: 7px;
@@ -310,19 +373,36 @@ function createTouchControlsUI() {
   useBtn.dataset.action = 'use';
   _actionButtons.use = useBtn;
 
-  // ── Top Bar (Inventory, Crafting, Build, Pause) ──
-  const topBar = document.createElement('div');
-  topBar.id = 'touch-top-buttons';
+  // ── DASH button ──
+  const dashBtn = document.createElement('div');
+  dashBtn.id = 'touch-dash-btn';
+  dashBtn.textContent = 'DASH';
+  dashBtn.dataset.action = 'dash';
+  _actionButtons.dash = dashBtn;
+
+  // ── Menu Toggle (hamburger) ──
+  const menuToggle = document.createElement('div');
+  menuToggle.id = 'touch-menu-toggle';
+  menuToggle.textContent = '☰';
+  menuToggle.addEventListener('pointerdown', function(e) {
+    e.stopPropagation();
+    const dropdown = document.getElementById('touch-menu-dropdown');
+    if (dropdown) dropdown.classList.toggle('menu-open');
+  });
+
+  // ── Dropdown menu (INV, CRFT, BLD, ⏸) ──
+  const dropdown = document.createElement('div');
+  dropdown.id = 'touch-menu-dropdown';
 
   _actionButtons.inventory = _createButton('INV', 'touch-top-btn', 'inventory');
   _actionButtons.crafting = _createButton('CRFT', 'touch-top-btn', 'crafting');
   _actionButtons.build = _createButton('BLD', 'touch-top-btn', 'build');
   _actionButtons.pause = _createButton('⏸', 'touch-top-btn', 'pause');
 
-  topBar.appendChild(_actionButtons.inventory);
-  topBar.appendChild(_actionButtons.crafting);
-  topBar.appendChild(_actionButtons.build);
-  topBar.appendChild(_actionButtons.pause);
+  dropdown.appendChild(_actionButtons.inventory);
+  dropdown.appendChild(_actionButtons.crafting);
+  dropdown.appendChild(_actionButtons.build);
+  dropdown.appendChild(_actionButtons.pause);
 
   // ── Hotbar Arrows ──
   const hotbarArrows = document.createElement('div');
@@ -338,7 +418,9 @@ function createTouchControlsUI() {
   _touchControlsRoot.appendChild(_joystickContainer);
   _touchControlsRoot.appendChild(aimArea);
   _touchControlsRoot.appendChild(useBtn);
-  _touchControlsRoot.appendChild(topBar);
+  _touchControlsRoot.appendChild(dashBtn);
+  _touchControlsRoot.appendChild(menuToggle);
+  _touchControlsRoot.appendChild(dropdown);
   _touchControlsRoot.appendChild(hotbarArrows);
   document.body.appendChild(_touchControlsRoot);
 
@@ -613,12 +695,34 @@ function _attachButtonListeners() {
       e.preventDefault();
       btn.classList.remove('pressed');
       _handleOneShotAction(action);
+      // Close menu dropdown after action
+      const dd = document.getElementById('touch-menu-dropdown');
+      if (dd) dd.classList.remove('menu-open');
     }, { passive: false });
 
     btn.addEventListener('touchcancel', function(e) {
       btn.classList.remove('pressed');
     }, { passive: false });
   });
+
+  // Dash button (one-shot)
+  if (_actionButtons.dash) {
+    const dashBtnEl = _actionButtons.dash;
+    dashBtnEl.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      dashBtnEl.classList.add('pressed');
+    }, { passive: false });
+
+    dashBtnEl.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      dashBtnEl.classList.remove('pressed');
+      _handleOneShotAction('dash');
+    }, { passive: false });
+
+    dashBtnEl.addEventListener('touchcancel', function(e) {
+      dashBtnEl.classList.remove('pressed');
+    }, { passive: false });
+  }
 
   // Hotbar arrows (one-shot with repeat ability)
   ['hotbarLeft', 'hotbarRight'].forEach(function(action) {
@@ -727,6 +831,17 @@ function _handleOneShotAction(action) {
       } else if (gameState === 'pause') {
         gameState = 'playing';
         if (typeof pauseDiv !== 'undefined') pauseDiv.hide();
+      }
+      // Close menu dropdown after action
+      const dd1 = document.getElementById('touch-menu-dropdown');
+      if (dd1) dd1.classList.remove('menu-open');
+      break;
+
+    case 'dash':
+      if (gameState !== 'playing' || !curPlayer) return;
+      const dashAbility = (window.magicAbilities || []).find(a => a.name.toLowerCase() === 'dash');
+      if (dashAbility && typeof dashAbility.activate === 'function') {
+        dashAbility.activate(curPlayer);
       }
       break;
   }
@@ -949,12 +1064,18 @@ function updateTouchControlsVisibility() {
   var useBtnEl = document.getElementById('touch-use-btn');
   if (useBtnEl) useBtnEl.style.display = inGame ? '' : 'none';
 
+  // DASH button - only during gameplay
+  var dashBtnEl = document.getElementById('touch-dash-btn');
+  if (dashBtnEl) dashBtnEl.style.display = inGame ? '' : 'none';
+
   // Hotbar arrows - only during gameplay
   document.getElementById('touch-hotbar-arrows').style.display = inGame ? '' : 'none';
 
-  // Top buttons - always visible in game (to let them close menus)
-  const topBtns = document.getElementById('touch-top-buttons');
-  topBtns.style.display = (inGame || inMenu) ? '' : 'none';
+  // Menu toggle + dropdown - always visible in game (to let them close menus)
+  var menuToggleEl = document.getElementById('touch-menu-toggle');
+  if (menuToggleEl) menuToggleEl.style.display = (inGame || inMenu) ? '' : 'none';
+  var menuDropdownEl = document.getElementById('touch-menu-dropdown');
+  if (menuDropdownEl && !inGame && !inMenu) menuDropdownEl.classList.remove('menu-open');
 
   // Reset pressed states when switching states
   if (!inGame) {

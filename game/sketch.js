@@ -213,15 +213,19 @@ function draw() {
 
         MusicPlayer.playMainTheme()
         // Hide gameplay UI that shouldn't be visible in the main menu
+        if (typeof _mobileHUD !== 'undefined' && _mobileHUD) _mobileHUD.style.display = 'none';
         if (uiHiddenForPlay) {
             if (typeof hideSwapInv === 'function') hideSwapInv();
             if (typeof spaceBarDiv !== 'undefined' && spaceBarDiv) spaceBarDiv.hide();
+            if (typeof statsPanel !== 'undefined' && statsPanel) statsPanel.hide();
         }
         uiHiddenForPlay = false; // reset guard when leaving gameplay
     }
     else if (gameState === "race_selection") {
         drawSelection();
         renderLinks();
+        // Also hide HUD during race selection
+        if (typeof _mobileHUD !== 'undefined' && _mobileHUD) _mobileHUD.style.display = 'none';
         uiHiddenForPlay = false;
     }
 

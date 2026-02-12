@@ -1057,6 +1057,7 @@ function updateRacePortrait() {
 // Create the stats panel
 function defineStatsPanel() {
     statsPanel = createDiv();
+    statsPanel.id("stats-panel");
     statsPanel.style("position", "fixed");
     statsPanel.style("top", "110px");
     statsPanel.style("right", "30px");
@@ -1071,6 +1072,121 @@ function defineStatsPanel() {
     statsPanel.style("color", "#fff");
     statsPanel.style("font-family", "Arial, sans-serif");
     statsPanel.style("display", "none");
+
+    /* ── Mobile HUD strip (always created — CSS hides on desktop) ── */
+    _createMobileHUD();
+}
+
+/* ─── Mobile HUD ─── */
+var _mobileHUD = null;
+
+function _createMobileHUD() {
+    if (_mobileHUD) return;
+
+    const hud = document.createElement('div');
+    hud.id = 'mobile-hud';
+    hud.innerHTML = `
+        <div id="mhud-portrait"></div>
+        <div id="mhud-bars">
+            <div id="mhud-name-row">
+                <span id="mhud-name"></span>
+                <span id="mhud-level">Lv 1</span>
+            </div>
+            <div class="mhud-bar-track">
+                <div id="mhud-hp-fill" class="mhud-bar-fill mhud-hp"></div>
+                <span id="mhud-hp-text" class="mhud-bar-label">HP</span>
+            </div>
+            <div class="mhud-bar-track">
+                <div id="mhud-mp-fill" class="mhud-bar-fill mhud-mp"></div>
+                <span id="mhud-mp-text" class="mhud-bar-label">MP</span>
+            </div>
+            <div id="mhud-xp-row">
+                <div id="mhud-xp-fill"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(hud);
+
+    // Tap the HUD strip → toggle stats panel
+    hud.addEventListener('pointerdown', function(e) {
+        e.stopPropagation();
+        if (statsPanel && statsPanel.style("display") === "none") {
+            updateStatsPanel();
+            statsPanel.show();
+        } else if (statsPanel) {
+            statsPanel.hide();
+        }
+    });
+
+    _mobileHUD = hud;
+}
+
+function updateMobileHUD() {
+    if (!_mobileHUD || !curPlayer || !curPlayer.statBlock) {
+        if (_mobileHUD) _mobileHUD.style.display = 'none';
+        return;
+    }
+    _mobileHUD.style.display = 'flex';
+    const s = curPlayer.statBlock.stats;
+    const sb = curPlayer.statBlock;
+
+    // Name + level
+    const nameEl = document.getElementById('mhud-name');
+    const lvlEl = document.getElementById('mhud-level');
+    if (nameEl) nameEl.textContent = curPlayer.name || '';
+    if (lvlEl) lvlEl.textContent = 'Lv ' + (sb.level || 1);
+
+    // HP bar
+    const maxHp = Math.max(1, s.mhp || 1);
+    const hpPct = Math.min(1, Math.max(0, s.hp / maxHp)) * 100;
+    const hpFill = document.getElementById('mhud-hp-fill');
+    const hpText = document.getElementById('mhud-hp-text');
+    if (hpFill) hpFill.style.width = hpPct + '%';
+    if (hpText) hpText.textContent = Math.floor(s.hp) + ' / ' + Math.floor(maxHp);
+
+    // HP color shift: green → yellow → red
+    if (hpFill) {
+        if (hpPct > 50) hpFill.style.background = 'linear-gradient(90deg, #27f50e, #1a9e0a)';
+        else if (hpPct > 25) hpFill.style.background = 'linear-gradient(90deg, #f5e60e, #c9a800)';
+        else hpFill.style.background = 'linear-gradient(90deg, #f54e0e, #c91800)';
+    }
+
+    // MP bar
+    const maxMp = Math.max(1, s.mmp || 1);
+    const mpPct = Math.min(1, Math.max(0, s.mp / maxMp)) * 100;
+    const mpFill = document.getElementById('mhud-mp-fill');
+    const mpText = document.getElementById('mhud-mp-text');
+    if (mpFill) mpFill.style.width = mpPct + '%';
+    if (mpText) mpText.textContent = Math.floor(s.mp) + ' / ' + Math.floor(maxMp);
+
+    // XP bar (thin bar under the others)
+    const xpPct = sb.xpNeeded > 0 ? Math.min(1, sb.xp / sb.xpNeeded) * 100 : 0;
+    const xpFill = document.getElementById('mhud-xp-fill');
+    if (xpFill) xpFill.style.width = xpPct + '%';
+
+    // Portrait (update once, cache)
+    const portraitEl = document.getElementById('mhud-portrait');
+    if (portraitEl && !portraitEl.dataset.loaded) {
+        let raceName = typeof races !== 'undefined' ? races[curPlayer.race] : null;
+        if (raceName && raceImages[raceName] && raceImages[raceName].portrait) {
+            let src = raceImages[raceName].portrait.canvas.toDataURL();
+            portraitEl.style.backgroundImage = `url(${src})`;
+            portraitEl.dataset.loaded = '1';
+        }
+    }
+
+    // Team color on name
+    if (nameEl) {
+        let dc;
+        if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
+            dc = curPlayer.color;
+        } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+            dc = window.allTeams[curPlayer.teamId].color;
+        } else {
+            dc = teamColors[curPlayer.color] || teamColors[0];
+        }
+        if (dc) nameEl.style.color = `rgb(${dc.r}, ${dc.g}, ${dc.b})`;
+    }
 }
 
 // Update stats panel content with current player stats
@@ -1144,18 +1260,21 @@ function updateManaDisplay(mp, mmp) {
 
 
 function renderPlayerCardUI() {
-    const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1600 : 1;
+    // ── Mobile: skip the complex canvas card, use DOM HUD instead ──
+    const _isMobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ||
+                      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    if (_isMobile) {
+        updateMobileHUD();
+        updateMoveHotbarDOM(curPlayer);
+        if (nameBtn) nameBtn.hide();
+        return;
+    }
+
+    const uiScale = 1;
     const cardW = 510 * uiScale;
     const cardH = 125 * uiScale;
     const cardX = width - cardW - 20 * uiScale;
     push();
-
-    // Scale the entire player card from top-right corner
-    if (uiScale !== 1) {
-        translate(width, 0);
-        scale(uiScale);
-        translate(-width, 0);
-    }
 
     fill(0);
     noStroke();
@@ -1309,24 +1428,15 @@ function renderPlayerCardUI() {
     );
 
     let nx, ny;
-    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
-        // On mobile, place name below the scaled card at top-right
-        nx = width - (cardW / 2) - 10 * uiScale;
-        ny = cardH + 4;
-        nameBtn.style('font-size', (14 * uiScale) + 'px');
-    } else {
-        nx = width - 530 + 6 + 45 + 350 / 2;
-        ny = 19;
-        nameBtn.style('font-size', '20px');
-    }
+    nx = width - 530 + 6 + 45 + 350 / 2;
+    ny = 19;
+    nameBtn.style('font-size', '20px');
     nameBtn.position(nx, ny);
     nameBtn.show();
 
-    // Draw underline on canvas (desktop only — on mobile the name is below the card)
-    if (!(typeof isMobileDevice !== 'undefined' && isMobileDevice)) {
-        let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
-        line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
-    }
+    // Draw underline on canvas
+    let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
+    line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
 
     pop();
 }
