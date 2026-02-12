@@ -240,7 +240,7 @@ function renderServerBrowser() {
 
         // Position the container in the center
         serverBrowserContainer.style("position", "fixed");
-        serverBrowserContainer.style("top", "58%");
+        serverBrowserContainer.style("top", "55%");
         serverBrowserContainer.style("left", "50%");
         serverBrowserContainer.style("transform", "translate(-50%, -50%)");
 
@@ -294,7 +294,7 @@ function renderServerBrowser() {
 
         // Parent section that holds the "Add New Server" header and collapsible content
         let addServerSection = createDiv();
-        addServerSection.style("margin-top", "100px");
+        addServerSection.style("margin-top", "20px");
         addServerSection.style("padding", "15px");
         addServerSection.style("background", "#2a2a2a");
         addServerSection.style("border-radius", "10px");
@@ -304,7 +304,7 @@ function renderServerBrowser() {
         let addServerTitle = createDiv("Add New Server ▼");
 
         addServerTitle.style("font-weight", "bold");
-        addServerTitle.style("font-size", "1.8em");
+        addServerTitle.style("font-size", "clamp(0.8em, 2vw, 1.4em)");
         addServerTitle.style("margin-bottom", "10px");
         addServerTitle.style("text-align", "center");
         addServerTitle.style("cursor", "pointer"); // Indicate it can be clicked
@@ -486,19 +486,19 @@ function renderSingleServerEntry(server, indexInFullList) {
     let serverName = createDiv(server.name);
     serverName.style("font-weight", "bold");
     serverName.style("color", "white");
-    serverName.style("margin-bottom", "20px");
+    serverName.style("margin-bottom", "6px");
     serverName.parent(textContainer);
 
     // IP
     let serverIP = createDiv(`IP: ${server.ip}`);
     serverIP.style("color", "yellow");
-    serverIP.style("margin-bottom", "15px");
+    serverIP.style("margin-bottom", "4px");
     serverIP.parent(textContainer);
 
     // Status
     let serverStatus = createDiv("Status: Loading...");
     serverStatus.style("color", "var(--color-gold)");
-    serverStatus.style("margin-bottom", "15px");
+    serverStatus.style("margin-bottom", "4px");
     serverEntry.style("pointer-events", "none");
     serverEntry.style("opacity", "0.5");
     serverStatus.parent(textContainer);
@@ -506,7 +506,7 @@ function renderSingleServerEntry(server, indexInFullList) {
     // Player Count
     let playerCount = createDiv("Players: Loading...");
     playerCount.style("color", "#00ffff");
-    playerCount.style("margin-bottom", "5px");
+    playerCount.style("margin-bottom", "2px");
     playerCount.parent(textContainer);
 
     textContainer.parent(serverEntry);
@@ -809,7 +809,7 @@ function setupRaceSelectionUI() {
         // Build color-coded stats HTML
         let statsText = allowedStats
             .map(stat => `<span style="color: ${statColors[stat] || '#fff'};">${stat}: ${raceStats[stat]}</span>`)
-            .join(" <br/><br/> ");
+            .join("<br/>");
 
         // Create a label for the stats
         let raceStatsLbl = createP(statsText);
