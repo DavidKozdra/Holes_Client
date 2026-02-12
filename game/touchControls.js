@@ -90,8 +90,9 @@ var touchActions = {
 
 // ─── Touch Controls DOM ─────────────────────────────
 var _touchControlsRoot = null;
-var _joystickContainer = null; // now holds the D-pad
-var _dpadButtons = {};
+var _joystickContainer = null;
+var _joystickBase = null;
+var _joystickThumb = null;
 var _actionButtons = {};
 
 function createTouchControlsUI() {
@@ -114,91 +115,76 @@ function createTouchControlsUI() {
   const style = document.createElement('style');
   style.id = 'touch-controls-styles';
   style.textContent = `
-    /* ─── D-Pad (visible movement control) ─── */
-    #touch-dpad-area {
+    /* ─── Visible Joystick ─── */
+    #touch-joystick-area {
       position: fixed;
-      left: 10px;
-      bottom: 20px;
-      width: 160px;
-      height: 160px;
+      left: 16px;
+      bottom: 56px;
+      width: 120px;
+      height: 120px;
       z-index: 9990;
       touch-action: none;
-      pointer-events: none;
-    }
-
-    #touch-dpad-area .dpad-grid {
-      display: grid;
-      grid-template-columns: 52px 52px 52px;
-      grid-template-rows: 52px 52px 52px;
-      gap: 2px;
-      width: 160px;
-      height: 160px;
-    }
-
-    .dpad-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-      border: 2px solid rgba(255, 255, 255, 0.25);
-      background: rgba(0, 0, 0, 0.45);
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 22px;
-      touch-action: none;
       pointer-events: auto;
-      user-select: none;
-      -webkit-user-select: none;
-      transition: transform 0.08s, background 0.08s;
     }
 
-    .dpad-btn:active, .dpad-btn.pressed {
-      transform: scale(0.9);
-      background: rgba(255, 255, 255, 0.25);
-      border-color: rgba(255, 255, 255, 0.6);
-      color: #fff;
-    }
-
-    .dpad-center {
+    #touch-joystick-base {
+      position: absolute;
+      left: 0; top: 0;
+      width: 120px;
+      height: 120px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.06);
-      border: 2px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.07);
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      box-sizing: border-box;
       pointer-events: none;
     }
 
-    .dpad-empty {
-      background: transparent;
-      border: none;
+    #touch-joystick-thumb {
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      transform: translate(-50%, -50%);
       pointer-events: none;
+      transition: background 0.1s;
+    }
+
+    #touch-joystick-thumb.active {
+      background: radial-gradient(circle, rgba(255,255,255,0.75), rgba(255,255,255,0.3));
+      border-color: rgba(255, 255, 255, 0.7);
     }
 
     /* ─── Action Buttons Container ─── */
     #touch-action-buttons {
       position: fixed;
       right: 12px;
-      bottom: 220px;
+      bottom: 60px;
       z-index: 9990;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       pointer-events: none;
     }
 
     .touch-btn-row {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       justify-content: flex-end;
       pointer-events: none;
     }
 
     .touch-btn {
-      width: 62px;
-      height: 62px;
+      width: 54px;
+      height: 54px;
       border-radius: 50%;
-      border: 3px solid rgba(255, 255, 255, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.3);
       background: rgba(0, 0, 0, 0.45);
       color: white;
       font-family: 'Press Start 2P', monospace;
-      font-size: 9px;
+      font-size: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -219,9 +205,9 @@ function createTouchControlsUI() {
     }
 
     .touch-btn.primary {
-      width: 76px;
-      height: 76px;
-      font-size: 10px;
+      width: 64px;
+      height: 64px;
+      font-size: 9px;
       border-color: rgba(255, 200, 80, 0.5);
       background: rgba(90, 60, 20, 0.5);
     }
@@ -283,9 +269,9 @@ function createTouchControlsUI() {
     #touch-aim-area {
       position: fixed;
       right: 0;
-      bottom: 0;
+      bottom: 52px;
       width: 60vw;
-      height: 50vh;
+      height: 45vh;
       z-index: 9985;
       touch-action: none;
       pointer-events: auto;
@@ -294,22 +280,23 @@ function createTouchControlsUI() {
     /* ─── Hotbar swipe arrows ─── */
     #touch-hotbar-arrows {
       position: fixed;
-      right: 12px;
-      bottom: 140px;
+      left: 155px;
+      bottom: 52px;
       z-index: 9990;
       display: flex;
-      gap: 12px;
+      flex-direction: column;
+      gap: 6px;
       pointer-events: none;
     }
 
     .touch-hotbar-arrow {
-      width: 50px;
-      height: 50px;
-      border-radius: 10px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
       border: 2px solid rgba(255, 255, 255, 0.25);
       background: rgba(0, 0, 0, 0.45);
       color: white;
-      font-size: 22px;
+      font-size: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -335,35 +322,18 @@ function createTouchControlsUI() {
   _touchControlsRoot = document.createElement('div');
   _touchControlsRoot.id = 'touch-controls-root';
 
-  // ── D-Pad Area (left side, always visible) ──
+  // ── Joystick Area (left side, always visible) ──
   _joystickContainer = document.createElement('div');
-  _joystickContainer.id = 'touch-dpad-area';
+  _joystickContainer.id = 'touch-joystick-area';
 
-  var dpadGrid = document.createElement('div');
-  dpadGrid.className = 'dpad-grid';
+  _joystickBase = document.createElement('div');
+  _joystickBase.id = 'touch-joystick-base';
 
-  // Grid layout (3×3): top-left=UL, top-center=UP, top-right=UR, etc.
-  var dpadLayout = [
-    { dir: 'ul', label: '↖' }, { dir: 'up',    label: '▲' }, { dir: 'ur', label: '↗' },
-    { dir: 'left', label: '◀' }, { dir: 'center', label: '' },   { dir: 'right', label: '▶' },
-    { dir: 'dl', label: '↙' }, { dir: 'down',  label: '▼' }, { dir: 'dr', label: '↘' }
-  ];
+  _joystickThumb = document.createElement('div');
+  _joystickThumb.id = 'touch-joystick-thumb';
 
-  _dpadButtons = {};
-  dpadLayout.forEach(function(item) {
-    var btn = document.createElement('div');
-    if (item.dir === 'center') {
-      btn.className = 'dpad-center';
-    } else {
-      btn.className = 'dpad-btn';
-      btn.dataset.dir = item.dir;
-      _dpadButtons[item.dir] = btn;
-    }
-    btn.textContent = item.label;
-    dpadGrid.appendChild(btn);
-  });
-
-  _joystickContainer.appendChild(dpadGrid);
+  _joystickContainer.appendChild(_joystickBase);
+  _joystickContainer.appendChild(_joystickThumb);
 
   // ── Aim Area (right side, for drag-to-aim digging) ──
   const aimArea = document.createElement('div');
@@ -426,7 +396,7 @@ function createTouchControlsUI() {
   document.body.appendChild(_touchControlsRoot);
 
   // ── Attach Event Listeners ──
-  _attachDpadListeners();
+  _attachJoystickListeners();
   _attachAimListeners(aimArea);
   _attachButtonListeners();
 }
@@ -445,82 +415,89 @@ function _createButton(label, className, action) {
   return btn;
 }
 
-// ─── D-Pad Listeners ────────────────────────────────
-var _dpadState = { w: false, a: false, s: false, d: false };
-var _activeDpadTouches = {}; // identifier → direction
+// ─── Joystick Listeners ─────────────────────────────
+function _attachJoystickListeners() {
+  var joyRect; // cached bounding rect
+  var joyRadius = 60; // half of 120px base
+  var thumbRadius = 45; // max travel distance for thumb
+  var deadzone = 0.15;
 
-function _attachDpadListeners() {
-  // Direction → WASD mapping
-  var dirMap = {
-    up:    { w: true,  a: false, s: false, d: false },
-    down:  { w: false, a: false, s: true,  d: false },
-    left:  { w: false, a: true,  s: false, d: false },
-    right: { w: false, a: false, s: false, d: true  },
-    ul:    { w: true,  a: true,  s: false, d: false },
-    ur:    { w: true,  a: false, s: false, d: true  },
-    dl:    { w: false, a: true,  s: true,  d: false },
-    dr:    { w: false, a: false, s: true,  d: true  }
+  function _getCenterOfJoystick() {
+    joyRect = _joystickContainer.getBoundingClientRect();
+    return { x: joyRect.left + joyRect.width / 2, y: joyRect.top + joyRect.height / 2 };
+  }
+
+  _joystickContainer.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    if (touchJoystick.active) return;
+    var t = e.changedTouches[0];
+    var center = _getCenterOfJoystick();
+    touchJoystick.active = true;
+    touchJoystick.identifier = t.identifier;
+    touchJoystick.origin.x = center.x;
+    touchJoystick.origin.y = center.y;
+    _updateJoystick(t.clientX, t.clientY);
+    _joystickThumb.classList.add('active');
+  }, { passive: false });
+
+  _joystickContainer.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i];
+      if (t.identifier === touchJoystick.identifier) {
+        _updateJoystick(t.clientX, t.clientY);
+        break;
+      }
+    }
+  }, { passive: false });
+
+  var _endJoystick = function(e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === touchJoystick.identifier) {
+        touchJoystick.active = false;
+        touchJoystick.identifier = -1;
+        touchJoystick.vector.x = 0;
+        touchJoystick.vector.y = 0;
+        // Snap thumb back to center
+        _joystickThumb.style.left = '50%';
+        _joystickThumb.style.top = '50%';
+        _joystickThumb.classList.remove('active');
+        break;
+      }
+    }
   };
 
-  Object.keys(_dpadButtons).forEach(function(dir) {
-    var btn = _dpadButtons[dir];
+  _joystickContainer.addEventListener('touchend', _endJoystick, { passive: false });
+  _joystickContainer.addEventListener('touchcancel', _endJoystick, { passive: false });
 
-    btn.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        _activeDpadTouches[e.changedTouches[i].identifier] = dir;
-      }
-      btn.classList.add('pressed');
-      touchJoystick.active = true;
-      _recalcDpadState();
-    }, { passive: false });
+  function _updateJoystick(cx, cy) {
+    var dx = cx - touchJoystick.origin.x;
+    var dy = cy - touchJoystick.origin.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
 
-    btn.addEventListener('touchend', function(e) {
-      e.preventDefault();
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        delete _activeDpadTouches[e.changedTouches[i].identifier];
-      }
-      btn.classList.remove('pressed');
-      _recalcDpadState();
-      // If no d-pad buttons held, mark joystick inactive
-      if (Object.keys(_activeDpadTouches).length === 0) {
-        touchJoystick.active = false;
-      }
-    }, { passive: false });
+    // Clamp to radius
+    if (dist > thumbRadius) {
+      dx = (dx / dist) * thumbRadius;
+      dy = (dy / dist) * thumbRadius;
+      dist = thumbRadius;
+    }
 
-    btn.addEventListener('touchcancel', function(e) {
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        delete _activeDpadTouches[e.changedTouches[i].identifier];
-      }
-      btn.classList.remove('pressed');
-      _recalcDpadState();
-      if (Object.keys(_activeDpadTouches).length === 0) {
-        touchJoystick.active = false;
-      }
-    }, { passive: false });
-  });
+    // Normalize to -1..1
+    var nx = dx / thumbRadius;
+    var ny = dy / thumbRadius;
+    var mag = Math.sqrt(nx * nx + ny * ny);
 
-  function _recalcDpadState() {
-    // Merge all currently-held directions into one combined state
-    _dpadState = { w: false, a: false, s: false, d: false };
-    var vx = 0, vy = 0;
-    Object.values(_activeDpadTouches).forEach(function(dir) {
-      var m = dirMap[dir];
-      if (m) {
-        if (m.w) _dpadState.w = true;
-        if (m.a) _dpadState.a = true;
-        if (m.s) _dpadState.s = true;
-        if (m.d) _dpadState.d = true;
-      }
-    });
-    // Update the joystick vector for aim/ghost-build compatibility
-    if (_dpadState.d) vx += 1;
-    if (_dpadState.a) vx -= 1;
-    if (_dpadState.s) vy += 1;
-    if (_dpadState.w) vy -= 1;
-    var mag = Math.sqrt(vx * vx + vy * vy);
-    touchJoystick.vector.x = mag > 0 ? vx / mag : 0;
-    touchJoystick.vector.y = mag > 0 ? vy / mag : 0;
+    if (mag < deadzone) {
+      touchJoystick.vector.x = 0;
+      touchJoystick.vector.y = 0;
+    } else {
+      touchJoystick.vector.x = nx;
+      touchJoystick.vector.y = ny;
+    }
+
+    // Move thumb visual relative to center of base
+    _joystickThumb.style.left = 'calc(50% + ' + dx + 'px)';
+    _joystickThumb.style.top = 'calc(50% + ' + dy + 'px)';
   }
 }
 
@@ -870,14 +847,16 @@ function applyTouchInput() {
   if (typeof curPlayer === 'undefined' || !curPlayer) return;
   if (gameState !== 'playing') return;
 
-  // ── D-Pad → Movement ──
-  if (typeof _dpadState !== 'undefined' && (touchJoystick.active || _dpadState.w || _dpadState.a || _dpadState.s || _dpadState.d)) {
-    curPlayer.holding.w = _dpadState.w;
-    curPlayer.holding.a = _dpadState.a;
-    curPlayer.holding.s = _dpadState.s;
-    curPlayer.holding.d = _dpadState.d;
+  // ── Joystick → Movement ──
+  if (touchJoystick.active) {
+    var vx = touchJoystick.vector.x;
+    var vy = touchJoystick.vector.y;
+    curPlayer.holding.w = vy < -0.3;
+    curPlayer.holding.a = vx < -0.3;
+    curPlayer.holding.s = vy > 0.3;
+    curPlayer.holding.d = vx > 0.3;
   } else {
-    // No D-pad buttons held — stop the player
+    // Joystick released — stop the player
     curPlayer.holding.w = false;
     curPlayer.holding.a = false;
     curPlayer.holding.s = false;
@@ -1053,7 +1032,7 @@ function updateTouchControlsVisibility() {
                   gameState === 'swap_inv' || gameState === 'pause' ||
                   gameState === 'dead' || gameState === 'player_status');
 
-  // D-Pad area - only during gameplay
+  // Joystick area - only during gameplay
   _joystickContainer.style.display = inGame ? '' : 'none';
 
   // Aim area

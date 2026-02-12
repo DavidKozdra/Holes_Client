@@ -6,14 +6,42 @@ let chatContainer, chatMessagesBox, chatInput, chatSendButton;
 let chatRendered = false;
 let toggleChatButton; // Button to collapse/expand chat
 let inputContainer;   // Reference to hide/show input container
-let isChatOpen = true; // Track whether the chat is currently open or collapsed
+let isChatOpen = true; // Will be set to false on mobile in renderChatUI()
 let unreadChatCount = 0; // Track number of unread messages
 let chatNotificationBadge; // Badge element for unread count
 let lastReadTimestamp = Date.now(); // Track when user last viewed chat
+let chatFloatingBtn = null; // Mobile floating chat button
+let chatFloatingBadge = null; // Badge on floating button
 
 function renderChatUI() {
     if (chatRendered) return;
     chatRendered = true;
+
+    const mobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice);
+
+    // ── Mobile: create floating chat icon button ──
+    if (mobile) {
+        chatFloatingBtn = createDiv('💬');
+        chatFloatingBtn.id('chat-floating-btn');
+        chatFloatingBtn.mousePressed(function() {
+            // Open the bottom-sheet chat
+            chatContainer.addClass('chat-open');
+            chatMessagesBox.show();
+            inputContainer.show();
+            isChatOpen = true;
+            markChatAsRead();
+            updateToggleChatButtonText();
+            // Scroll to bottom and focus input
+            chatMessagesBox.elt.scrollTop = chatMessagesBox.elt.scrollHeight;
+            setTimeout(function() { chatInput.elt.focus(); }, 100);
+        });
+
+        // Badge on the floating button
+        chatFloatingBadge = createSpan('');
+        chatFloatingBadge.class('chat-badge');
+        chatFloatingBadge.style('display', 'none');
+        chatFloatingBadge.parent(chatFloatingBtn);
+    }
 
     // Create main chat container
     chatContainer = createDiv();
@@ -108,20 +136,39 @@ function renderChatUI() {
     chatSendButton.style('cursor', 'pointer');
     chatSendButton.mousePressed(sendChatMessage);
 
-    // Make sure chat is open by default
-    isChatOpen = true;
+    // On mobile, start hidden (CSS hides it, floating btn opens it); on desktop, start open
+    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+        isChatOpen = false;
+        // CSS `display: none !important` on #chat-container keeps it hidden
+        // Adding .chat-open class shows it
+    } else {
+        isChatOpen = true;
+    }
     updateToggleChatButtonText();
     updateChatNotificationBadge();
-    chatContainer.show();
 }
 
 function toggleChatDropdown() {
+    const mobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice);
     if (isChatOpen) {
-        chatMessagesBox.hide();
-        inputContainer.hide();
+        if (mobile) {
+            // Close the bottom-sheet
+            chatContainer.removeClass('chat-open');
+        } else {
+            chatMessagesBox.hide();
+            inputContainer.hide();
+        }
     } else {
-        chatMessagesBox.show();
-        inputContainer.show();
+        if (mobile) {
+            chatContainer.addClass('chat-open');
+            chatMessagesBox.show();
+            inputContainer.show();
+            chatMessagesBox.elt.scrollTop = chatMessagesBox.elt.scrollHeight;
+            setTimeout(function() { chatInput.elt.focus(); }, 100);
+        } else {
+            chatMessagesBox.show();
+            inputContainer.show();
+        }
         markChatAsRead();
     }
     isChatOpen = !isChatOpen;
@@ -130,8 +177,14 @@ function toggleChatDropdown() {
 
 function updateToggleChatButtonText() {
     const playerCount = Object.keys(players).length + 1;
-    const arrow = isChatOpen ? "▼" : "▲";
-    toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
+    const mobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice);
+    if (mobile) {
+        // On mobile the toggle button is a "Close" button inside the overlay
+        toggleChatButton.html(`✕ Close Chat (${playerCount} online)`);
+    } else {
+        const arrow = isChatOpen ? "▼" : "▲";
+        toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
+    }
     if (chatNotificationBadge) {
         chatNotificationBadge.parent(toggleChatButton);
     }
@@ -140,9 +193,14 @@ function updateToggleChatButtonText() {
 
 function updatePlayerCount() {
     const playerCount = Object.keys(players).length + 1;
-    const arrow = isChatOpen ? "▼" : "▲";
+    const mobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice);
     if (toggleChatButton != undefined) {
-        toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
+        if (mobile) {
+            toggleChatButton.html(`✕ Close Chat (${playerCount} online)`);
+        } else {
+            const arrow = isChatOpen ? "▼" : "▲";
+            toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
+        }
         if (chatNotificationBadge) {
             chatNotificationBadge.parent(toggleChatButton);
         }
@@ -228,6 +286,15 @@ function updateChatNotificationBadge() {
         chatNotificationBadge.style("display", "flex");
     } else {
         chatNotificationBadge.style("display", "none");
+    }
+    // Also update the floating button badge on mobile
+    if (chatFloatingBadge) {
+        if (unreadChatCount > 0) {
+            chatFloatingBadge.html(unreadChatCount > 99 ? "99+" : String(unreadChatCount));
+            chatFloatingBadge.style("display", "block");
+        } else {
+            chatFloatingBadge.style("display", "none");
+        }
     }
 }
 

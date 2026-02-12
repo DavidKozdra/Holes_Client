@@ -991,6 +991,7 @@ function keyCodeToHuman(keyCode) {
 function defineRacePortrait() {
     racePortraitDiv = createDiv();
     racePortraitDiv.style("position", "fixed");
+    racePortraitDiv.id("racePortraitDiv");
     racePortraitDiv.style("top", "7px");
     racePortraitDiv.style("right", "30px");
     racePortraitDiv.style("width", "98px");
@@ -1150,7 +1151,7 @@ function updateManaDisplay(mp, mmp) {
 
 
 function renderPlayerCardUI() {
-    const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1080 : 1;
+    const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1600 : 1;
     const cardW = 510 * uiScale;
     const cardH = 125 * uiScale;
     const cardX = width - cardW - 20 * uiScale;
