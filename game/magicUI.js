@@ -252,7 +252,7 @@ function ensureMoveHotbarDOM() {
         left: 50%;
         bottom: 22px;
         transform: translateX(-50%);
-        z-index: 9999;
+        z-index: 900;
         pointer-events: none;
         user-select: none;
         font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;

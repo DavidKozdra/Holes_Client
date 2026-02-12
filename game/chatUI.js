@@ -40,16 +40,7 @@ function renderChatUI() {
         chatFloatingBtn.style('cursor', 'pointer');
         chatFloatingBtn.style('touch-action', 'manipulation');
         chatFloatingBtn.mousePressed(function() {
-            // Open the bottom-sheet chat
-            chatContainer.addClass('chat-open');
-            chatMessagesBox.show();
-            inputContainer.show();
-            isChatOpen = true;
-            markChatAsRead();
-            updateToggleChatButtonText();
-            // Scroll to bottom and focus input
-            chatMessagesBox.elt.scrollTop = chatMessagesBox.elt.scrollHeight;
-            setTimeout(function() { chatInput.elt.focus(); }, 100);
+            toggleChatDropdown();
         });
 
         // Badge on the floating button
