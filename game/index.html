@@ -7,7 +7,18 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#3b2f2f">
+  <meta name="theme-color" content="#3b2f2f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#3b2f2f" media="(prefers-color-scheme: light)">
+  <meta name="color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-TileColor" content="#3b2f2f">
+  <meta name="msapplication-TileImage" content="./images/ui/icon-144.png">
+
+  <!-- PWA Icons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./images/ui/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="./images/ui/icon-48.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="./images/ui/icon-96.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./images/ui/icon-192.png">
 
   <title>Holes: Martyr of Dirt</title>
   <meta name="description"
@@ -24,7 +35,6 @@
   <!-- Font preload removed to avoid 404; CSS import will load font -->
   <!-- Preload & favicon -->
   <link rel="preload" as="image" href="./images/ui/title.png">
-  <link rel="icon" href="./images/ui/title.png" type="image/png">
 
   <!-- Your main CSS -->
   <link rel="stylesheet" href="../style.css">
@@ -72,8 +82,8 @@
   <meta name="twitter:title"      content='Holes: "Martyr of Dirt"'>
   <meta name="twitter:description"
         content='Build. Dig. Survive. Become the Martyr of Dirt in this 2D sandbox survival game.'>
-  <meta name="twitter:image"
-        content="https://yourdomain.com/game/images/title.png">
+  <meta property="og:image" content="./images/ui/title.png">
+  <meta name="twitter:image" content="./images/ui/title.png">
 
   <!-- Defer all JS (p5 core, then sound addon, then socket.io, then game bootstrap) -->
   <script defer src="https://cdn.jsdelivr.net/npm/p5@1.11.1/lib/p5.min.js"></script>
