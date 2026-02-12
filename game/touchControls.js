@@ -302,18 +302,16 @@ function createTouchControlsUI() {
       pointer-events: auto;
     }
 
-    /* ─── Hotbar swipe arrows — inside bottom bar ─── */
+    /* ─── Hotbar swipe arrows — vertical, left of item arc ─── */
     #touch-hotbar-arrows {
       position: fixed;
-      bottom: 4px;
-      left: 50%;
-      transform: translateX(-50%);
+      bottom: 70px;
+      right: 155px;
       z-index: 10001;
       display: flex;
-      gap: 4px;
+      flex-direction: column;
+      gap: 6px;
       pointer-events: none;
-      /* Sit just above the move slots row */
-      margin-bottom: 46px;
     }
 
     .touch-hotbar-arrow {
@@ -410,8 +408,8 @@ function createTouchControlsUI() {
   const hotbarArrows = document.createElement('div');
   hotbarArrows.id = 'touch-hotbar-arrows';
 
-  _actionButtons.hotbarLeft = _createButton('◀', 'touch-hotbar-arrow', 'hotbarLeft');
-  _actionButtons.hotbarRight = _createButton('▶', 'touch-hotbar-arrow', 'hotbarRight');
+  _actionButtons.hotbarLeft = _createButton('▲', 'touch-hotbar-arrow', 'hotbarLeft');
+  _actionButtons.hotbarRight = _createButton('▼', 'touch-hotbar-arrow', 'hotbarRight');
 
   hotbarArrows.appendChild(_actionButtons.hotbarLeft);
   hotbarArrows.appendChild(_actionButtons.hotbarRight);

@@ -683,7 +683,7 @@ function drawSelection() {
     race_back_button.style("position", "fixed");
     race_back_button.style("left", "50%");
     race_back_button.style("transform", "translateX(-50%)");
-    race_back_button.style("bottom", "max(22dvh, 80px)");
+    race_back_button.style("bottom", "max(10dvh, 40px)");
     race_back_button.style("z-index", "101");
     race_back_button.style("padding", "8px 20px");
     race_back_button.style("background", "rgba(0,0,0,0.6)");

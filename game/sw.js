@@ -1,7 +1,7 @@
 // sw.js
 
 // Change this when you update your assets
-const CACHE_NAME = 'holesgame-v17-mobile';
+const CACHE_NAME = 'holesgame-v23-mobile';
 
 // Pre-cache URLs — critical assets for offline/PWA use
 const PRECACHE_URLS = [

@@ -77,7 +77,11 @@ function defineMovesEditorUI() {
     const backBtn = createButton("Back to Inventory").parent(header);
     backBtn.style("padding", "8px 16px");
     backBtn.style("cursor", "pointer");
-    backBtn.mousePressed(() => {
+    backBtn.style("touch-action", "manipulation");
+    backBtn.style("pointer-events", "auto");
+    backBtn.elt.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
         if (curPlayer && curPlayer.movesSlots) {
             socket.emit("update_moves", {
                 playerId: curPlayer.id,
@@ -129,14 +133,25 @@ function refreshMovesEditorUI() {
         slotBtn.style("font-size", "14px");
         slotBtn.style("font-weight", i === selectedMoveSlotIdx ? "bold" : "normal");
         slotBtn.style("transition", "all 0.2s");
-        slotBtn.mousePressed(() => { selectedMoveSlotIdx = i; refreshMovesEditorUI(); });
+        slotBtn.style("touch-action", "manipulation");
+        slotBtn.style("pointer-events", "auto");
+        slotBtn.elt.addEventListener('pointerdown', (function(idx) {
+            return function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                selectedMoveSlotIdx = idx;
+                refreshMovesEditorUI();
+            };
+        })(i));
         
         const clearBtn = createImg("images/ui/x.png", "Clear").parent(slotBtn);
-        clearBtn.style("width", "16px");
-        clearBtn.style("height", "16px");
+        clearBtn.style("width", "24px");
+        clearBtn.style("height", "24px");
+        clearBtn.style("padding", "4px");
         clearBtn.style("float", "right");
         clearBtn.style("cursor", "pointer");
         clearBtn.style("image-rendering", "pixelated");
+        clearBtn.style("touch-action", "manipulation");
         clearBtn.mousePressed((e) => {
             e.stopPropagation();
             curPlayer.movesSlots[i] = null;
@@ -210,25 +225,28 @@ function refreshMovesEditorUI() {
     html += '</div>';
     movesAllList.html(html);
     
-    // Add event listeners for assign buttons
+    // Add event listeners for assign buttons (touch + click)
     movesAllList.elt.querySelectorAll('.assign-move-btn').forEach(btn => {
-        btn.onclick = (e) => {
+        const handler = (e) => {
             e.stopPropagation();
+            e.preventDefault();
             const moveId = btn.getAttribute('data-moveid');
             curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
             refreshMovesEditorUI();
         };
+        btn.addEventListener('pointerdown', handler);
     });
     
-    // Add event listeners for spell cards (click anywhere to assign)
+    // Add event listeners for spell cards (tap anywhere to assign)
     movesAllList.elt.querySelectorAll('.spell-card').forEach(card => {
-        const assignBtn = card.querySelector('.assign-move-btn');
-        card.onclick = (e) => {
-            if (e.target === assignBtn) return; // Let button handle its own click
+        const handler = (e) => {
+            if (e.target.closest('.assign-move-btn')) return;
+            e.preventDefault();
             const moveId = card.getAttribute('data-moveid');
             curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
             refreshMovesEditorUI();
         };
+        card.addEventListener('pointerdown', handler);
     });
 }
 
@@ -252,8 +270,8 @@ function ensureMoveHotbarDOM() {
         left: 50%;
         bottom: 22px;
         transform: translateX(-50%);
-        z-index: 900;
-        pointer-events: none;
+        z-index: 9986;
+        pointer-events: auto;
         user-select: none;
         font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
         max-width: 50dvw;
@@ -436,12 +454,15 @@ function ensureMoveHotbarDOM() {
       slot.style.cursor = 'pointer';
       slot.style.touchAction = 'manipulation';
       (function(slotIdx) {
-        slot.addEventListener('pointerdown', function(e) {
+        function castSlot(e) {
           e.stopPropagation();
+          e.preventDefault();
           if (typeof triggerMoveSlot === 'function') {
             triggerMoveSlot(slotIdx);
           }
-        });
+        }
+        slot.addEventListener('touchstart', castSlot, { passive: false });
+        slot.addEventListener('pointerdown', castSlot);
       })(i);
 
       bar.appendChild(slot);
