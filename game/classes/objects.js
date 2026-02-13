@@ -220,7 +220,6 @@ function dirtBinUpdate() {
 
     // If the player is holding a shovel or an empty hand
     if (curPlayer == undefined) return; // No player to interact with
-    //console.log(curPlayer);
     if (buildMode) return;
 
     // Throttle dirt bin network updates to ~10/sec
@@ -228,57 +227,104 @@ function dirtBinUpdate() {
     const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
     const heldItem = heldItemName ? curPlayer.invBlock.items[heldItemName] : null;
     if (heldItemName == "" || (heldItem && heldItem.type == "Shovel")) {
-        //convert mouse cords to world cords
-        let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
-        // check if the mouse is over the dirt bin
-        if (mouseVec.dist(this.pos) < (this.size.w + this.size.h) / 4) {
-            // If the player clicks, add dirt to the bin
-            if (mouseIsPressed && mouseButton === RIGHT) {
-                // Check if the player has dirt in their inventory
-                if (dirtInv > 0 && this.hp < this.mhp) {
-                    let amt = Math.min(4, dirtInv, this.mhp - this.hp);
-                    if (amt > 0) {
-                        dirtInv -= amt;
-                        this.hp += amt;
-                        const _now = Date.now();
-                        if (_now - this._lastBinEmit >= 100) {
-                            this._lastBinEmit = _now;
-                            socket.emit("update_obj", {
-                                cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                                cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                                objName: this.objName,
-                                pos: { x: this.pos.x, y: this.pos.y },
-                                z: this.z,
-                                update_name: "hp",
-                                update_value: this.hp
-                            });
-                        }
-                    }
-                }
+        const isMobile = typeof isMobileDevice !== 'undefined' && isMobileDevice;
+
+        // On mobile use player position + facing direction; on desktop use mouse
+        let interactVec;
+        if (isMobile) {
+            // Offset interact point in player's facing direction
+            const faceDist = 2 * TILESIZE;
+            let fdx = 0, fdy = 0;
+            switch (curPlayer.direction) {
+                case 'up':    fdy = -1; break;
+                case 'down':  fdy = 1;  break;
+                case 'left':  fdx = -1; break;
+                case 'right': fdx = 1;  break;
             }
-            if (mouseIsPressed && mouseButton === LEFT) {
-                if (dirtInv < maxDirtInv && this.hp > 1) {
-                    let amt = Math.min(4, this.hp - 1, maxDirtInv - dirtInv);
-                    if (amt > 0) {
-                        dirtInv += amt;
-                        this.hp -= amt;
-                        const _now2 = Date.now();
-                        if (_now2 - this._lastBinEmit >= 100) {
-                            this._lastBinEmit = _now2;
-                            socket.emit("update_obj", {
-                                cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                                cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                                objName: this.objName,
-                                pos: { x: this.pos.x, y: this.pos.y },
-                                z: this.z,
-                                update_name: "hp",
-                                update_value: this.hp
-                            });
-                        }
-                    }
-                }
-            }
+            interactVec = createVector(curPlayer.pos.x + fdx * faceDist, curPlayer.pos.y + fdy * faceDist);
+        } else {
+            interactVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
         }
+
+        // check if within range of the dirt bin
+        if (interactVec.dist(this.pos) < (isMobile ? 4 * TILESIZE : (this.size.w + this.size.h) / 4)) {
+            // --- Mobile touch handling ---
+            if (isMobile) {
+                // Track how long the USE button has been held for hold-to-drop
+                if (typeof touchActions !== 'undefined' && touchActions.dig) {
+                    if (!this._touchHoldStart) this._touchHoldStart = Date.now();
+                    const holdTime = Date.now() - this._touchHoldStart;
+                    const HOLD_THRESHOLD = 350; // ms — hold USE to drop dirt
+
+                    if (holdTime >= HOLD_THRESHOLD) {
+                        // HOLD = drop dirt into bin (right-click equivalent)
+                        if (dirtInv > 0 && this.hp < this.mhp) {
+                            let amt = Math.min(4, dirtInv, this.mhp - this.hp);
+                            if (amt > 0) {
+                                dirtInv -= amt;
+                                this.hp += amt;
+                                _dirtBinEmitUpdate(this);
+                            }
+                        }
+                    } else {
+                        // SHORT press = take dirt from bin (left-click equivalent)
+                        if (dirtInv < maxDirtInv && this.hp > 1) {
+                            let amt = Math.min(4, this.hp - 1, maxDirtInv - dirtInv);
+                            if (amt > 0) {
+                                dirtInv += amt;
+                                this.hp -= amt;
+                                _dirtBinEmitUpdate(this);
+                            }
+                        }
+                    }
+                } else {
+                    this._touchHoldStart = 0;
+                }
+            } else {
+                // --- Desktop mouse handling ---
+                if (mouseIsPressed && mouseButton === RIGHT) {
+                    // Drop dirt into bin
+                    if (dirtInv > 0 && this.hp < this.mhp) {
+                        let amt = Math.min(4, dirtInv, this.mhp - this.hp);
+                        if (amt > 0) {
+                            dirtInv -= amt;
+                            this.hp += amt;
+                            _dirtBinEmitUpdate(this);
+                        }
+                    }
+                }
+                if (mouseIsPressed && mouseButton === LEFT) {
+                    // Take dirt from bin
+                    if (dirtInv < maxDirtInv && this.hp > 1) {
+                        let amt = Math.min(4, this.hp - 1, maxDirtInv - dirtInv);
+                        if (amt > 0) {
+                            dirtInv += amt;
+                            this.hp -= amt;
+                            _dirtBinEmitUpdate(this);
+                        }
+                    }
+                }
+            }
+        } else {
+            this._touchHoldStart = 0;
+        }
+    }
+}
+
+// Helper: emit bin HP update, throttled to ~10/sec
+function _dirtBinEmitUpdate(bin) {
+    const _now = Date.now();
+    if (_now - bin._lastBinEmit >= 100) {
+        bin._lastBinEmit = _now;
+        socket.emit("update_obj", {
+            cx: testMap.globalToChunk(bin.pos.x, bin.pos.y).x,
+            cy: testMap.globalToChunk(bin.pos.x, bin.pos.y).y,
+            objName: bin.objName,
+            pos: { x: bin.pos.x, y: bin.pos.y },
+            z: bin.z,
+            update_name: "hp",
+            update_value: bin.hp
+        });
     }
 }
 defineCustomObj("Dirt Bin", [[399, 96, 15, 15]], [["Log", 3]], 16 * 4, 16 * 4, 2, 1, dirtBinUpdate, false, true);

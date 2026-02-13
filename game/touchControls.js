@@ -1000,9 +1000,10 @@ function applyTouchInput() {
 }
 
 function _getPlayerFacingDir() {
-  // Determine player facing from last movement or default right
+  // Determine player facing from curPlayer.direction (persists after stopping)
   if (typeof curPlayer === 'undefined' || !curPlayer) return { x: 1, y: 0 };
 
+  // First check active movement keys
   const h = curPlayer.holding;
   let fx = 0, fy = 0;
   if (h.d) fx += 1;
@@ -1010,13 +1011,19 @@ function _getPlayerFacingDir() {
   if (h.s) fy += 1;
   if (h.w) fy -= 1;
 
-  if (fx === 0 && fy === 0) {
-    // Use player's animation type to guess facing
-    return { x: 1, y: 0 }; // default right
+  if (fx !== 0 || fy !== 0) {
+    const mag = Math.sqrt(fx * fx + fy * fy);
+    return { x: fx / mag, y: fy / mag };
   }
 
-  const mag = Math.sqrt(fx * fx + fy * fy);
-  return { x: fx / mag, y: fy / mag };
+  // Fall back to player's last facing direction
+  switch (curPlayer.direction) {
+    case 'up':    return { x: 0, y: -1 };
+    case 'down':  return { x: 0, y: 1 };
+    case 'left':  return { x: -1, y: 0 };
+    case 'right': return { x: 1, y: 0 };
+    default:      return { x: 0, y: 1 }; // default down
+  }
 }
 
 function _touchPlaceBuild(worldX, worldY) {

@@ -489,8 +489,13 @@ function draw() {
                         text("Dirt Bin", panelX + pad, panelY + pad);
                         textStyle(NORMAL);
                         textSize(12.5);
-                        text("Left click: take dirt", panelX + pad, panelY + pad + row);
-                        text("Right click: drop dirt", panelX + pad, panelY + pad + row * 2 - 2);
+                        if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+                            text("Tap USE: take dirt", panelX + pad, panelY + pad + row);
+                            text("Hold USE: drop dirt", panelX + pad, panelY + pad + row * 2 - 2);
+                        } else {
+                            text("Left click: take dirt", panelX + pad, panelY + pad + row);
+                            text("Right click: drop dirt", panelX + pad, panelY + pad + row * 2 - 2);
+                        }
                         pop();
                     }
                 }
