@@ -1364,15 +1364,16 @@ input.fmt-italic-apply {
     font-size: 0.85rem !important;
   }
 
-  /* ─── Build dialog — repositioned on mobile ─── */
+  /* ─── Build dialog — repositioned on mobile (left-aligned) ─── */
   #buildOptionsDiv {
     position: fixed !important;
-    left: 50% !important;
+    left: 12px !important;
+    right: auto !important;
     bottom: 60px !important;
     top: auto !important;
-    transform: translateX(-50%) !important;
-    width: 80vw !important;
-    max-width: 320px !important;
+    transform: none !important;
+    width: 70vw !important;
+    max-width: 300px !important;
     z-index: 9989 !important;
   }
 
@@ -1671,12 +1672,12 @@ input.fmt-italic-apply {
   /* ─── Build options panel ─── */
   #buildOptionsDiv {
     right: auto !important;
-    left: 50% !important;
-    bottom: auto !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    width: 85vw !important;
-    max-width: 400px !important;
+    left: 12px !important;
+    bottom: 60px !important;
+    top: auto !important;
+    transform: none !important;
+    width: 70vw !important;
+    max-width: 300px !important;
     max-height: 60vh !important;
   }
 

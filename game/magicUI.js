@@ -279,10 +279,10 @@ function ensureMoveHotbarDOM() {
 
       #moveHotbarBar {
         display: flex;
-        gap: 22px;
+        gap: 10px;
         align-items: flex-end;
-        padding: 14px 18px;
-        border-radius: 14px;
+        padding: 8px 10px;
+        border-radius: 10px;
         background: rgba(0,0,0,0.45);
         box-shadow: 0 10px 30px rgba(0,0,0,0.35);
         border: 1px solid rgba(255,255,255,0.10);
@@ -290,10 +290,10 @@ function ensureMoveHotbarDOM() {
 
       .moveSlot {
         position: relative;
-        width: 112px;
-        height: 112px;
-        border-radius: 12px;
-        border: 4px solid rgba(140,240,140,0.9);
+        width: 56px;
+        height: 56px;
+        border-radius: 8px;
+        border: 2px solid rgba(140,240,140,0.9);
         background: rgba(30,30,30,0.75);
         overflow: hidden;
       }

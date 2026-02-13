@@ -336,6 +336,14 @@ function createTouchControlsUI() {
       background: rgba(255, 255, 255, 0.2);
     }
 
+    /* Tablet: hotbar arrows nudged right, reversed */
+    @media (min-width: 481px) {
+      #touch-hotbar-arrows {
+        right: 135px;
+        flex-direction: column-reverse;
+      }
+    }
+
     /* Hide keyboard-only hints on mobile */
     .mobile-hidden {
       display: none !important;
@@ -388,7 +396,7 @@ function createTouchControlsUI() {
     if (dropdown) dropdown.classList.toggle('menu-open');
   });
 
-  // ── Dropdown menu (INV, CRFT, BLD, ⏸) ──
+  // ── Dropdown menu (INV, CRFT, BLD, PAUSE) ──
   const dropdown = document.createElement('div');
   dropdown.id = 'touch-menu-dropdown';
 
@@ -396,7 +404,8 @@ function createTouchControlsUI() {
   _actionButtons.crafting = _createButton('CRFT', 'touch-top-btn', 'crafting');
   _actionButtons.build = _createButton('BLD', 'touch-top-btn', 'build');
   _actionButtons.team = _createButton('TEAM', 'touch-top-btn', 'team');
-  _actionButtons.pause = _createButton('⏸', 'touch-top-btn', 'pause');
+  _actionButtons.pause = _createButton('', 'touch-top-btn', 'pause');
+  _actionButtons.pause.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="20" height="20"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 
   dropdown.appendChild(_actionButtons.inventory);
   dropdown.appendChild(_actionButtons.crafting);

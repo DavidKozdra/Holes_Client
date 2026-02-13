@@ -683,7 +683,7 @@ function drawSelection() {
     race_back_button.style("position", "fixed");
     race_back_button.style("left", "50%");
     race_back_button.style("transform", "translateX(-50%)");
-    race_back_button.style("bottom", "max(10dvh, 40px)");
+    race_back_button.style("bottom", "max(5dvh, 30px)");
     race_back_button.style("z-index", "101");
     race_back_button.style("padding", "8px 20px");
     race_back_button.style("background", "rgba(0,0,0,0.6)");
@@ -742,7 +742,7 @@ function setupRaceSelectionUI() {
     raceContainer.style("border-radius", "10px");
     raceContainer.style("width", "95vw");
     raceContainer.style("max-width", "100vw");
-    raceContainer.style("max-height", "clamp(200px, 40dvh, 45dvh)");
+    raceContainer.style("max-height", "clamp(200px, 48dvh, 55dvh)");
     raceContainer.style("overflow-y", "auto");
     raceContainer.style("overflow-x", "hidden");
     raceContainer.style("touch-action", "pan-y");
@@ -763,11 +763,11 @@ function setupRaceSelectionUI() {
         card.style("flex-direction", "column");
         card.style("align-items", "center");
 
-        // Responsive card width: based on canvas width, constrained between 150 and 300px
-        let cardWidth = constrain(width * 0.15, 150, 400);
+        // Responsive card width: based on canvas width, constrained between 150 and 240px
+        let cardWidth = constrain(width * 0.15, 150, 240);
         card.style("width", cardWidth + "px");
         card.style("border-radius", "10px");
-        card.style("padding", "25px");
+        card.style("padding", "14px");
         card.style("cursor", "pointer");
         card.selected = false; // custom property for selection
 
@@ -782,11 +782,12 @@ function setupRaceSelectionUI() {
         // Create an image element for the race portrait
         let raceImgPath = `images/characters/${raceName}/${raceName}_portrait.png`;
         let raceImg = createImg(raceImgPath, `${raceName} image`);
-        raceImg.style("width", "clamp(60px, 15vw, 150px)");
+        raceImg.style("width", "clamp(60px, 60%, 120px)");
         raceImg.style("height", "auto");
         raceImg.style("aspect-ratio", "1");
         raceImg.style("object-fit", "contain");
         raceImg.style("image-rendering", "pixelated");
+        raceImg.style("margin", "6px 0");
         raceImg.parent(card);
 
         // Retrieve stats from BASE_STATS (assumes the same order as races)
@@ -813,11 +814,12 @@ function setupRaceSelectionUI() {
 
         // Create a label for the stats
         let raceStatsLbl = createP(statsText);
-        raceStatsLbl.style("font-size", "clamp(9px, 1.5vw, 14px)");
-        raceStatsLbl.style("font-weight", "bold");
-        raceStatsLbl.style("margin", "0");
-        raceStatsLbl.style("align-self", "flex-end");
-        raceStatsLbl.style("text-align", "right");
+        raceStatsLbl.style("font-size", "clamp(9px, 1.2vw, 12px)");
+        raceStatsLbl.style("font-weight", "normal");
+        raceStatsLbl.style("margin", "8px 0 0 0");
+        raceStatsLbl.style("align-self", "stretch");
+        raceStatsLbl.style("text-align", "left");
+        raceStatsLbl.style("line-height", "1.4");
         raceStatsLbl.parent(card);
 
         // Hover out styling
@@ -863,7 +865,7 @@ function setupRaceSelectionUI() {
     var nameGoContainer = createDiv();
     nameGoContainer.id('nameGoContainer');
     nameGoContainer.style("position", "fixed");
-    nameGoContainer.style("bottom", "max(18dvh, env(safe-area-inset-bottom))");
+    nameGoContainer.style("bottom", "max(12dvh, env(safe-area-inset-bottom))");
     nameGoContainer.style("left", "50%");
     nameGoContainer.style("transform", "translateX(-50%)");
     nameGoContainer.style("display", "flex");
