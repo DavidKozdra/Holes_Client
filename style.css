@@ -355,11 +355,6 @@ button:hover::before {
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
-  .canvas-container {
-    width: 90vw;
-    height: 90vh;
-  }
-
   button {
     font-size: 16px;
     padding: 10px 25px;

@@ -24,8 +24,10 @@ function setup() {
         console.warn('[Setup] Running after preload timeout — some assets may be missing');
     }
 
-    // Create a responsive canvas
-    let cnv = createCanvas(innerWidth - 10, innerHeight - 8);
+    // Create a responsive canvas — full viewport on mobile, slight inset on desktop
+    var _canvasW = isMobileDevice ? innerWidth : innerWidth - 10;
+    var _canvasH = isMobileDevice ? innerHeight : innerHeight - 8;
+    let cnv = createCanvas(_canvasW, _canvasH);
     cnv.parent("canvas-container");
     document.getElementById("canvas-container").style.display = "none";
 
@@ -156,7 +158,9 @@ function moveCamera() {
 }
 
 function windowResized() {
-    resizeCanvas(innerWidth - 10, innerHeight - 8);
+    var _rw = isMobileDevice ? innerWidth : innerWidth - 10;
+    var _rh = isMobileDevice ? innerHeight : innerHeight - 8;
+    resizeCanvas(_rw, _rh);
     // Reposition dirtBagUI on resize
     if (typeof dirtBagUI !== 'undefined' && dirtBagUI.pos) {
         dirtBagUI.pos.x = width - 180 - 10;

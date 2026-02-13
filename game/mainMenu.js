@@ -638,18 +638,17 @@ function drawSelection() {
         if (linkContainer) linkContainer.style("display", "none");
         if (markee) markee.style("display", "none");
     }
+    // Show the flex wrapper
+    if (window._raceWrapper) {
+        window._raceWrapper.style("display", "flex");
+    }
     raceContainer.style("display", "flex");
     // ---------------------------------------------------
-    //  Create Title (centered, larger & responsive)
+    //  Create Title (centered, responsive)
     // ---------------------------------------------------
     raceTitle.id("raceTitle");
     raceTitle.elt.innerHTML = "Select Your Race";
-    raceTitle.style("position", "absolute");
-    raceTitle.style("top", "clamp(120px, 20dvh, 22dvh)");
     raceTitle.style("z-index", "11");
-
-    raceTitle.style("left", "50%");
-    raceTitle.style("transform", "translateX(-50%)");
     raceTitle.style("max-width", "90vw");
     raceTitle.style("white-space", "normal");
 
@@ -680,14 +679,11 @@ function drawSelection() {
     race_back_button.style("color", "#fff");
     race_back_button.style("border", "none");
     race_back_button.style("border-radius", "8px");
-    race_back_button.style("position", "fixed");
-    race_back_button.style("left", "50%");
-    race_back_button.style("transform", "translateX(-50%)");
-    race_back_button.style("bottom", "max(5dvh, 30px)");
     race_back_button.style("z-index", "101");
     race_back_button.style("padding", "8px 20px");
     race_back_button.style("background", "rgba(0,0,0,0.6)");
     race_back_button.style("cursor", "pointer");
+    race_back_button.style("pointer-events", "auto");
 
     race_back_button.mousePressed(() => {
         //console.log("pressed")
@@ -712,8 +708,9 @@ function hideRaceSelect() {
         card.hide();
     });
     race_back_button.hide();
-    raceContainer.style("display", "none"); // Hide the container
+    raceContainer.style("display", "none");
     raceTitle.style("display", "none");
+    if (window._raceWrapper) window._raceWrapper.style("display", "none");
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -723,16 +720,35 @@ function hideRaceSelect() {
 function setupRaceSelectionUI() {
     raceTitle = createDiv();
     // ---------------------------------------------------
-    //  Create a container for race selection cards (centered)
+    //  Create a full-page flex wrapper for race selection
+    // ---------------------------------------------------
+    window._raceWrapper = createDiv();
+    window._raceWrapper.id('raceWrapper');
+    window._raceWrapper.style("position", "fixed");
+    window._raceWrapper.style("inset", "0");
+    window._raceWrapper.style("display", "none");
+    window._raceWrapper.style("flex-direction", "column");
+    window._raceWrapper.style("align-items", "center");
+    window._raceWrapper.style("justify-content", "center");
+    window._raceWrapper.style("gap", "clamp(12px, 2dvh, 24px)");
+    window._raceWrapper.style("z-index", "10");
+    window._raceWrapper.style("padding", "20px");
+    window._raceWrapper.style("box-sizing", "border-box");
+    window._raceWrapper.style("overflow-y", "auto");
+    window._raceWrapper.style("pointer-events", "none");
+
+    // Parent title into wrapper
+    raceTitle.parent(window._raceWrapper);
+    raceTitle.style("pointer-events", "auto");
+
+    // ---------------------------------------------------
+    //  Create a container for race selection cards
     // ---------------------------------------------------
     raceContainer = createDiv();
     race_back_button = createButton("<- Back");
     race_back_button.id("raceBackButton");
     raceContainer.id("raceContainer");
-    raceContainer.style("position", "absolute");
-    raceContainer.style("top", "clamp(180px, 28dvh, 34dvh)");
-    raceContainer.style("left", "50%");
-    raceContainer.style("transform", "translateX(-50%)");
+    raceContainer.parent(window._raceWrapper);
     raceContainer.style("display", "none");
     raceContainer.style("flex-wrap", "wrap");
     raceContainer.style("justify-content", "center");
@@ -741,12 +757,13 @@ function setupRaceSelectionUI() {
     raceContainer.style("padding", "10px");
     raceContainer.style("border-radius", "10px");
     raceContainer.style("width", "95vw");
-    raceContainer.style("max-width", "100vw");
-    raceContainer.style("max-height", "clamp(200px, 48dvh, 55dvh)");
+    raceContainer.style("max-width", "900px");
+    raceContainer.style("max-height", "clamp(200px, 50dvh, 60dvh)");
     raceContainer.style("overflow-y", "auto");
     raceContainer.style("overflow-x", "hidden");
     raceContainer.style("touch-action", "pan-y");
     raceContainer.style("-webkit-overflow-scrolling", "touch");
+    raceContainer.style("pointer-events", "auto");
     // ---------------------------------------------------
     //  Create cards for each race (with responsive sizing)
     // Allowed stats to display
@@ -809,7 +826,7 @@ function setupRaceSelectionUI() {
         
         // Build color-coded stats HTML
         let statsText = allowedStats
-            .map(stat => `<span style="color: ${statColors[stat] || '#fff'};">${stat}: ${raceStats[stat]}</span>`)
+            .map(stat => `<span style="color: ${statColors[stat] || '#fff'}; text-shadow: 0 0 3px #000, 0 0 6px #000;">${stat}: ${raceStats[stat]}</span>`)
             .join("<br/>");
 
         // Create a label for the stats
@@ -857,6 +874,7 @@ function setupRaceSelectionUI() {
     });
 
     race_back_button.hide();
+    race_back_button.parent(window._raceWrapper);
 
     // ---------------------------------------------------
     //   Name Input Field (centered, larger & responsive)
@@ -864,16 +882,14 @@ function setupRaceSelectionUI() {
     // ── Name + Go container (flex row, positioned at bottom) ──
     var nameGoContainer = createDiv();
     nameGoContainer.id('nameGoContainer');
-    nameGoContainer.style("position", "fixed");
-    nameGoContainer.style("bottom", "max(12dvh, env(safe-area-inset-bottom))");
-    nameGoContainer.style("left", "50%");
-    nameGoContainer.style("transform", "translateX(-50%)");
+    nameGoContainer.parent(window._raceWrapper);
     nameGoContainer.style("display", "flex");
     nameGoContainer.style("align-items", "center");
     nameGoContainer.style("gap", "10px");
     nameGoContainer.style("z-index", "100");
     nameGoContainer.style("width", "auto");
     nameGoContainer.style("max-width", "90vw");
+    nameGoContainer.style("pointer-events", "auto");
     nameGoContainer.hide();
 
     nameInput = createInput("");
