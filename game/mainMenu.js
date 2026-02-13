@@ -72,9 +72,9 @@ function renderLinks() {
     titleImage.id("titleImage");
 
     // Apply styles to the image using .style()
-    titleImage.style("width", "clamp(180px, 30vw, 500px)");
+    titleImage.style("width", "clamp(180px, 28vw, 440px)");
     titleImage.style("height", "auto");
-    titleImage.style("border", "5px solid #000");
+    titleImage.style("border", "4px solid #000");
     titleImage.style("display", "block");
     titleImage.style("margin", "0 auto");
     titleImage.style("top", "10px");
@@ -82,6 +82,8 @@ function renderLinks() {
     titleImage.style("transform", "translateX(-50%)");
     titleImage.style("position", "absolute");
     titleImage.style("z-index", "10");
+    titleImage.style("box-shadow", "0 6px 20px rgba(0,0,0,0.6)");
+    titleImage.style("border-radius", "6px");
     
     let randItem1 = Math.floor(Math.random() * markeeText.length);
     // Suppose we want 5 distinct random items
@@ -98,10 +100,11 @@ function renderLinks() {
     markee.id("mainMenuMarquee");
     markee.style("position", "fixed");
     markee.style("bottom", "0px");
-    markee.style("width", "80%");
-    markee.style("margin-right", "4%");
-    markee.style("font-size", "1.5rem");
-    markee.style("color", "white");
+    markee.style("left", "50%");
+    markee.style("transform", "translateX(-50%)");
+    markee.style("width", "70%");
+    markee.style("font-size", "clamp(0.9rem, 1.2vw, 1.4rem)");
+    markee.style("color", "rgba(255,255,255,0.75)");
     markee.style("scrolldelay", "0");
 
     // Parent container for buttons (Bottom Right)
@@ -757,7 +760,7 @@ function setupRaceSelectionUI() {
     raceContainer.style("padding", "10px");
     raceContainer.style("border-radius", "10px");
     raceContainer.style("width", "95vw");
-    raceContainer.style("max-width", "900px");
+    raceContainer.style("max-width", "1000px");
     raceContainer.style("max-height", "clamp(200px, 50dvh, 60dvh)");
     raceContainer.style("overflow-y", "auto");
     raceContainer.style("overflow-x", "hidden");
@@ -780,8 +783,8 @@ function setupRaceSelectionUI() {
         card.style("flex-direction", "column");
         card.style("align-items", "center");
 
-        // Responsive card width: based on canvas width, constrained between 150 and 240px
-        let cardWidth = constrain(width * 0.15, 150, 240);
+        // Responsive card width: wider on desktop for better readability
+        let cardWidth = constrain(width * 0.18, 160, 280);
         card.style("width", cardWidth + "px");
         card.style("border-radius", "10px");
         card.style("padding", "14px");
@@ -799,12 +802,13 @@ function setupRaceSelectionUI() {
         // Create an image element for the race portrait
         let raceImgPath = `images/characters/${raceName}/${raceName}_portrait.png`;
         let raceImg = createImg(raceImgPath, `${raceName} image`);
-        raceImg.style("width", "clamp(60px, 60%, 120px)");
+        raceImg.style("width", "clamp(64px, 65%, 140px)");
         raceImg.style("height", "auto");
         raceImg.style("aspect-ratio", "1");
         raceImg.style("object-fit", "contain");
         raceImg.style("image-rendering", "pixelated");
-        raceImg.style("margin", "6px 0");
+        raceImg.style("margin", "8px 0");
+        raceImg.style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.5))");
         raceImg.parent(card);
 
         // Retrieve stats from BASE_STATS (assumes the same order as races)
@@ -831,7 +835,7 @@ function setupRaceSelectionUI() {
 
         // Create a label for the stats
         let raceStatsLbl = createP(statsText);
-        raceStatsLbl.style("font-size", "clamp(9px, 1.2vw, 12px)");
+        raceStatsLbl.style("font-size", "clamp(10px, 1.2vw, 14px)");
         raceStatsLbl.style("font-weight", "normal");
         raceStatsLbl.style("margin", "8px 0 0 0");
         raceStatsLbl.style("align-self", "stretch");
@@ -839,11 +843,18 @@ function setupRaceSelectionUI() {
         raceStatsLbl.style("line-height", "1.4");
         raceStatsLbl.parent(card);
 
+        // Hover in styling
+        card.mouseOver(() => {
+            if (!card.selected) {
+                card.style("transform", "translateY(-4px) scale(1.03)");
+                card.style("box-shadow", "0 8px 24px rgba(0,0,0,0.5), 0 0 12px rgba(255,215,0,0.15)");
+            }
+        });
+
         // Hover out styling
         card.mouseOut(() => {
             card.style("transform", "scale(1)");
-            card.style("box-shadow", "none");
-
+            card.style("box-shadow", card.selected ? "0 0 16px rgba(76,175,80,0.5)" : "0 4px 12px rgba(0,0,0,0.4)");
             card.style("background-color", card.selected ? "#4CAF50" : "#222");
         });
 
@@ -860,6 +871,7 @@ function setupRaceSelectionUI() {
             // Select this card
             card.selected = true;
             card.style("background-color", "#4CAF50");
+            card.style("box-shadow", "0 0 16px rgba(76,175,80,0.5)");
 
             raceSelected = true;
             curRace = selectedItem;
@@ -874,7 +886,6 @@ function setupRaceSelectionUI() {
     });
 
     race_back_button.hide();
-    race_back_button.parent(window._raceWrapper);
 
     // ---------------------------------------------------
     //   Name Input Field (centered, larger & responsive)
@@ -971,6 +982,9 @@ function setupRaceSelectionUI() {
     goButton.mousePressed(() => {
         startGame();
     });
+
+    // Parent back button after nameGoContainer so it appears below
+    race_back_button.parent(window._raceWrapper);
 }
 
 // ─────────────────────────────────────────────────────────────────────
