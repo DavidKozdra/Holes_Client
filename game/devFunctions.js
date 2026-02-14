@@ -1,15 +1,16 @@
 function getPlayerChunk(){
     let temp = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-    return temp.x + "," + temp.y;
+    return temp.key || getChunkKey(temp.x, temp.y);
 }
 
 function cleanChunk(cx,cy){  //removes all dirt in a chunk
-    let chunk = testMap.chunks[cx+","+cy];
+    const chunkKey = getChunkKey(cx, cy);
+    let chunk = testMap.chunks[chunkKey];
     for (let x = 0; x < CHUNKSIZE; x++){
         for (let y = 0; y < CHUNKSIZE; y++){
             let index = x + y * CHUNKSIZE;
             chunk.data[index] = 0; 
-            //socket.emit("update_node", {chunkPos: (cx+","+cy), index: index, val: 0});
+            //socket.emit("update_node", {chunkPos: chunkKey, index: index, val: 0});
         }
     }
 }
@@ -67,12 +68,13 @@ function createTestChunk(cx, cy){ //makes the dirt in a specific way to test the
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ]
-    let chunk = testMap.chunks[cx+","+cy];
+    const chunkKey = getChunkKey(cx, cy);
+    let chunk = testMap.chunks[chunkKey];
     for (let x = 0; x < CHUNKSIZE; x++){
         for (let y = 0; y < CHUNKSIZE; y++){
             let index = x + y * CHUNKSIZE;
             chunk.data[index] = testChunk[y][x]/9; 
-            socket.emit("update_node", {chunkPos: (cx+","+cy), index: index, val: testChunk[y][x]/9});
+            socket.emit("update_node", {chunkPos: chunkKey, index: index, val: testChunk[y][x]/9});
         }
     }
 }
@@ -80,11 +82,11 @@ function createTestChunk(cx, cy){ //makes the dirt in a specific way to test the
 function teleportToChunk(cx,cy){ //teleports you to the top left corner of a chunk
     curPlayer.pos.x = cx*CHUNKSIZE*TILESIZE;
     curPlayer.pos.y = cy*CHUNKSIZE*TILESIZE;
-    socket.emit("update_pos", {
-        id: curPlayer.id,
-        pos: curPlayer.pos,
-        holding: curPlayer.holding
-    });
+    if (typeof playerStateBatcher !== 'undefined') {
+        playerStateBatcher.setPosition(curPlayer.pos);
+        playerStateBatcher.setHolding(curPlayer.holding);
+        playerStateBatcher.flushImmediate();
+    }
     return true;
 }
 
@@ -93,11 +95,11 @@ function teleportToPlayer(name){ //teleports you to another player
     for(let i = 0; i < keys.length; i++){
         if(players[keys[i]].name === name){
             curPlayer.pos = players[keys[i]].pos.copy();
-            socket.emit("update_pos", {
-                id: curPlayer.id,
-                pos: curPlayer.pos,
-                holding: curPlayer.holding
-            });
+            if (typeof playerStateBatcher !== 'undefined') {
+                playerStateBatcher.setPosition(curPlayer.pos);
+                playerStateBatcher.setHolding(curPlayer.holding);
+                playerStateBatcher.flushImmediate();
+            }
             return true;
         }
     }
@@ -152,9 +154,11 @@ function giveDefaultItems(){
 
 function spawnObj(name, x, y, rot = 0, color = 0, id = "", ownerName = ""){
     let chunkPos = testMap.globalToChunk(x,y);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    const chunk = testMap.chunks[chunkKey];
     let temp = createObject(name, x, y, rot, color, id, ownerName);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(temp);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+    chunk.objects.push(temp);
+    chunk.objects.sort((a,b) => a.z - b.z);
     socket.emit("new_object", {
         cx: chunkPos.x, 
         cy: chunkPos.y, 
@@ -197,10 +201,10 @@ function goToRaceEntities() {
     curPlayer.pos.y = 200;
     camera.pos.x = 200;
     camera.pos.y = 200;
-    socket.emit("update_pos", {
-        id: curPlayer.id,
-        pos: curPlayer.pos,
-        holding: curPlayer.holding
-    });
+    if (typeof playerStateBatcher !== 'undefined') {
+        playerStateBatcher.setPosition(curPlayer.pos);
+        playerStateBatcher.setHolding(curPlayer.holding);
+        playerStateBatcher.flushImmediate();
+    }
     console.log("✅ At spawn area! Look around for Hostile Gnome, Wild Aylah, Feral Skizzard, and Ant.");
 }

@@ -122,7 +122,13 @@ function turretUpdate() {
                 }
             }
         }
-        socket.emit("update_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z, update_name: "rot", update_value: this.rot });
+        // Throttle rotation sync to ~10/sec to avoid flooding the server
+        if (!this._lastRotEmit) this._lastRotEmit = 0;
+        const _now = Date.now();
+        if (_now - this._lastRotEmit >= 100) {
+            this._lastRotEmit = _now;
+            socket.emit("update_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z, update_name: "rot", update_value: this.rot });
+        }
     }
 }
 defineCustomObj("Turret", [[352, 96, 32, 32], [0, 96, 32, 32], [32, 96, 32, 32], [64, 96, 32, 32], [96, 96, 32, 32], [128, 96, 32, 32], [160, 96, 32, 32], [192, 96, 32, 32], [224, 96, 32, 32], [256, 96, 32, 32], [288, 96, 32, 32], [320, 96, 32, 32]], [["Metal", 3], ["Tech", 1], ["Rock", 5]], 60, 60, 2, 100, turretUpdate, true, true);
@@ -214,53 +220,111 @@ function dirtBinUpdate() {
 
     // If the player is holding a shovel or an empty hand
     if (curPlayer == undefined) return; // No player to interact with
-    //console.log(curPlayer);
     if (buildMode) return;
 
-    if (curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "" || curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Shovel") {
-        //convert mouse cords to world cords
-        let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
-        // check if the mouse is over the dirt bin
-        if (mouseVec.dist(this.pos) < (this.size.w + this.size.h) / 4) {
-            // If the player clicks, add dirt to the bin
-            if (mouseIsPressed && mouseButton === RIGHT) {
-                // Check if the player has dirt in their inventory
-                if (dirtInv > 0 && this.hp < this.mhp) {
-                    let amt = Math.min(4, dirtInv, this.mhp - this.hp);
-                    if (amt > 0) {
-                        dirtInv -= amt;
-                        this.hp += amt;
-                        socket.emit("update_obj", {
-                            cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                            cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                            objName: this.objName,
-                            pos: { x: this.pos.x, y: this.pos.y },
-                            z: this.z,
-                            update_name: "hp",
-                            update_value: this.hp
-                        });
-                    }
-                }
+    // Throttle dirt bin network updates to ~10/sec
+    if (!this._lastBinEmit) this._lastBinEmit = 0;
+    const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+    const heldItem = heldItemName ? curPlayer.invBlock.items[heldItemName] : null;
+    if (heldItemName == "" || (heldItem && heldItem.type == "Shovel")) {
+        const isMobile = typeof isMobileDevice !== 'undefined' && isMobileDevice;
+
+        // On mobile use player position + facing direction; on desktop use mouse
+        let interactVec;
+        if (isMobile) {
+            // Offset interact point in player's facing direction
+            const faceDist = 2 * TILESIZE;
+            let fdx = 0, fdy = 0;
+            switch (curPlayer.direction) {
+                case 'up':    fdy = -1; break;
+                case 'down':  fdy = 1;  break;
+                case 'left':  fdx = -1; break;
+                case 'right': fdx = 1;  break;
             }
-            if (mouseIsPressed && mouseButton === LEFT) {
-                if (dirtInv < maxDirtInv && this.hp > 1) {
-                    let amt = Math.min(4, this.hp - 1, maxDirtInv - dirtInv);
-                    if (amt > 0) {
-                        dirtInv += amt;
-                        this.hp -= amt;
-                        socket.emit("update_obj", {
-                            cx: testMap.globalToChunk(this.pos.x, this.pos.y).x,
-                            cy: testMap.globalToChunk(this.pos.x, this.pos.y).y,
-                            objName: this.objName,
-                            pos: { x: this.pos.x, y: this.pos.y },
-                            z: this.z,
-                            update_name: "hp",
-                            update_value: this.hp
-                        });
-                    }
-                }
-            }
+            interactVec = createVector(curPlayer.pos.x + fdx * faceDist, curPlayer.pos.y + fdy * faceDist);
+        } else {
+            interactVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
         }
+
+        // check if within range of the dirt bin
+        if (interactVec.dist(this.pos) < (isMobile ? 4 * TILESIZE : (this.size.w + this.size.h) / 4)) {
+            // --- Mobile touch handling ---
+            if (isMobile) {
+                // Track how long the USE button has been held for hold-to-drop
+                if (typeof touchActions !== 'undefined' && touchActions.dig) {
+                    if (!this._touchHoldStart) this._touchHoldStart = Date.now();
+                    const holdTime = Date.now() - this._touchHoldStart;
+                    const HOLD_THRESHOLD = 350; // ms — hold USE to drop dirt
+
+                    if (holdTime >= HOLD_THRESHOLD) {
+                        // HOLD = drop dirt into bin (right-click equivalent)
+                        if (dirtInv > 0 && this.hp < this.mhp) {
+                            let amt = Math.min(4, dirtInv, this.mhp - this.hp);
+                            if (amt > 0) {
+                                dirtInv -= amt;
+                                this.hp += amt;
+                                _dirtBinEmitUpdate(this);
+                            }
+                        }
+                    } else {
+                        // SHORT press = take dirt from bin (left-click equivalent)
+                        if (dirtInv < maxDirtInv && this.hp > 1) {
+                            let amt = Math.min(4, this.hp - 1, maxDirtInv - dirtInv);
+                            if (amt > 0) {
+                                dirtInv += amt;
+                                this.hp -= amt;
+                                _dirtBinEmitUpdate(this);
+                            }
+                        }
+                    }
+                } else {
+                    this._touchHoldStart = 0;
+                }
+            } else {
+                // --- Desktop mouse handling ---
+                if (mouseIsPressed && mouseButton === RIGHT) {
+                    // Drop dirt into bin
+                    if (dirtInv > 0 && this.hp < this.mhp) {
+                        let amt = Math.min(4, dirtInv, this.mhp - this.hp);
+                        if (amt > 0) {
+                            dirtInv -= amt;
+                            this.hp += amt;
+                            _dirtBinEmitUpdate(this);
+                        }
+                    }
+                }
+                if (mouseIsPressed && mouseButton === LEFT) {
+                    // Take dirt from bin
+                    if (dirtInv < maxDirtInv && this.hp > 1) {
+                        let amt = Math.min(4, this.hp - 1, maxDirtInv - dirtInv);
+                        if (amt > 0) {
+                            dirtInv += amt;
+                            this.hp -= amt;
+                            _dirtBinEmitUpdate(this);
+                        }
+                    }
+                }
+            }
+        } else {
+            this._touchHoldStart = 0;
+        }
+    }
+}
+
+// Helper: emit bin HP update, throttled to ~10/sec
+function _dirtBinEmitUpdate(bin) {
+    const _now = Date.now();
+    if (_now - bin._lastBinEmit >= 100) {
+        bin._lastBinEmit = _now;
+        socket.emit("update_obj", {
+            cx: testMap.globalToChunk(bin.pos.x, bin.pos.y).x,
+            cy: testMap.globalToChunk(bin.pos.x, bin.pos.y).y,
+            objName: bin.objName,
+            pos: { x: bin.pos.x, y: bin.pos.y },
+            z: bin.z,
+            update_name: "hp",
+            update_value: bin.hp
+        });
     }
 }
 defineCustomObj("Dirt Bin", [[399, 96, 15, 15]], [["Log", 3]], 16 * 4, 16 * 4, 2, 1, dirtBinUpdate, false, true);
@@ -304,17 +368,22 @@ function expOrbUpdate() {
         let attraction = closestPlayer.pos.copy().sub(this.pos);
         attraction.setMag(map(closestDist, 0, 200, 2, 0) * (deltaTime / 30)); // stronger when closer
         this.pos.add(attraction);
-        //tell the server to update the position of the orb
-        let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        socket.emit("update_obj", {
-            cx: chunkPos.x, cy: chunkPos.y,
-            objName: this.objName,
-            pos: { x: this.pos.x, y: this.pos.y },
-            z: this.z,
-            id: this.id,
-            update_name: "hp",
-            update_value: this.hp
-        });
+        // Throttle position sync to ~10/sec to avoid flooding the server
+        if (!this._lastOrbEmit) this._lastOrbEmit = 0;
+        const _now = Date.now();
+        if (_now - this._lastOrbEmit >= 100) {
+            this._lastOrbEmit = _now;
+            let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+            socket.emit("update_obj", {
+                cx: chunkPos.x, cy: chunkPos.y,
+                objName: this.objName,
+                pos: { x: this.pos.x, y: this.pos.y },
+                z: this.z,
+                id: this.id,
+                update_name: "hp",
+                update_value: this.hp
+            });
+        }
     }
 
     // Pickup if very close to current player
@@ -583,7 +652,18 @@ class Placeable {
         if (t == "green") tint(100, 200, 100, 100);
         if (t == "red") tint(200, 100, 100, 100);
         if (this.alpha < 255) tint(255, this.alpha);
-        image(objImgs[this.imgNum][this.color % (objImgs[this.imgNum].length)], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
+        
+        // Handle team color (object with {r, g, b}) vs numeric color index
+        let colorIndex = 0;
+        if (typeof this.color === 'number') {
+            colorIndex = this.color % (objImgs[this.imgNum].length);
+        } else if (this.color && typeof this.color === 'object' && this.color.r !== undefined) {
+            // Apply team color tint
+            colorIndex = 0;
+            tint(this.color.r, this.color.g, this.color.b);
+        }
+        
+        image(objImgs[this.imgNum][colorIndex], -this.size.w / 2, -this.size.h / 2, this.size.w, this.size.h);
         pop();
 
         if (this.hp < this.mhp) {
@@ -600,7 +680,7 @@ class Placeable {
         let touchingObjs = [];
 
         let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+        let chunk = getChunkFromPos(testMap.chunks, chunkPos);
         for (let j = 0; j < chunk.objects.length; j++) {
             if (this.z == chunk.objects[j].z) {
                 let d = chunk.objects[j].pos.dist(this.pos);
@@ -666,6 +746,7 @@ class Placeable {
 
     checkCollisions(xOffset, yOffset) {
         let chunkPos = testMap.globalToChunk(this.pos.x + (xOffset * TILESIZE), this.pos.y + (yOffset * TILESIZE));
+        const chunk = getChunkFromPos(testMap.chunks, chunkPos);
 
         let x = floor(this.pos.x / TILESIZE) - (chunkPos.x * CHUNKSIZE) + xOffset;
         let y = floor(this.pos.y / TILESIZE) - (chunkPos.y * CHUNKSIZE) + yOffset;
@@ -683,8 +764,8 @@ class Placeable {
             y: (y + 0.5) * TILESIZE,
             cx: chunkPos.x,
             cy: chunkPos.y,
-            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE],
-            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + y * CHUNKSIZE]
+            val: chunk.data[x + y * CHUNKSIZE],
+            iron_val: chunk.iron_data[x + y * CHUNKSIZE]
         };
 
     }
@@ -730,7 +811,7 @@ class Plant extends Placeable {
             let bagInv = [];
 
             if (this.stage == (objImgs[this.imgNum].length - 1)) {
-                bagInv = objDic[this.objName].cost;
+                bagInv = (objDic[this.objName].cost || []).map(c => c.slice());
             }
 
             socket.emit("delete_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z, cost: bagInv });
@@ -756,13 +837,15 @@ class Plant extends Placeable {
                     if (random() < 0.2) {
                         let spreadPos = createVector(this.pos.x + random(-100, 100), this.pos.y + random(-100, 100));
                         let chunkPos = testMap.globalToChunk(spreadPos.x, spreadPos.y);
-                        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] != undefined) {
+                        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                        const spreadChunk = testMap.chunks[chunkKey];
+                        if (spreadChunk != undefined) {
 
                             let index = floor((spreadPos.x - (chunkPos.x * CHUNKSIZE * TILESIZE)) / TILESIZE) + (floor((spreadPos.y - (chunkPos.y * CHUNKSIZE * TILESIZE)) / TILESIZE) / CHUNKSIZE);
                             //if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] == undefined) {console.log("undefined data")}
-                            if (testMap.chunks[chunkPos.x + "," + chunkPos.y].data[index] == 0 && testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[index] == 0) {
+                            if (spreadChunk.data[index] == 0 && spreadChunk.iron_data[index] == 0) {
                                 let newPlant = createObject(this.objName, spreadPos.x, spreadPos.y, 0, this.color, this.id, this.ownerName);
-                                testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(newPlant);
+                                spreadChunk.objects.push(newPlant);
                                 socket.emit("new_object", {
                                     cx: chunkPos.x,
                                     cy: chunkPos.y,
@@ -868,7 +951,7 @@ update() {
 
                     continue;
                 }else{
-                    console.log(ob.type)
+                    //console.log(ob.type)
                 }
                 // ensure entity is actually standing on that tile
                 let ex = floor(ob.pos.x / TILE);
@@ -896,7 +979,8 @@ update() {
 
             // play sound
             let temp = new SoundObj("hit.ogg", t.pos.x, t.pos.y);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
+            const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+            testMap.chunks[chunkKey].soundObjs.push(temp);
             socket.emit("new_sound", {
                 sound: "hit.ogg",
                 cPos: chunkPos,
@@ -904,16 +988,36 @@ update() {
                 id: temp.id
             });
 
-            // apply damage
-            if (t.statBlock && t.statBlock.stats) {
-                // Use centralized damage method for players
-                if (t === curPlayer) {
-                    let actualDamage = t.statBlock.takeDamage(this.damage, false);
-                } else {
-                    t.statBlock.stats.hp -= this.damage;
+            // Check if on same team - prevent friendly fire
+            let isTeammate = false;
+            if (this.ownerName && t.name) {
+                // Find owner player
+                let ownerPlayer = null;
+                for (let id in players) {
+                    if (players[id] && players[id].name === this.ownerName) {
+                        ownerPlayer = players[id];
+                        break;
+                    }
                 }
-            } else {
-                t.hp -= this.damage;
+                
+                // Prevent damage if both on same team
+                if (ownerPlayer && ownerPlayer.teamId && t.teamId && ownerPlayer.teamId === t.teamId) {
+                    isTeammate = true;
+                }
+            }
+            
+            // apply damage only if not a teammate
+            if (!isTeammate) {
+                if (t.statBlock && t.statBlock.stats) {
+                    // Use centralized damage method for players
+                    if (t === curPlayer) {
+                        let actualDamage = t.statBlock.takeDamage(this.damage, false);
+                    } else {
+                        t.statBlock.stats.hp -= this.damage;
+                    }
+                } else {
+                    t.hp -= this.damage;
+                }
             }
 
             // screen shake only for local player
@@ -925,6 +1029,23 @@ update() {
             // explode if needed
             if (this.explodes) {
                 createExplosion(this);
+
+                // Remove dirt and iron in explosion radius
+                socket.emit("update_nodes", {
+                    cx: chunkPos.x,
+                    cy: chunkPos.y,
+                    pos: { x: this.pos.x, y: this.pos.y },
+                    radius: 5,
+                    amt: 1
+                });
+
+                socket.emit("update_iron_nodes", {
+                    cx: chunkPos.x,
+                    cy: chunkPos.y,
+                    pos: { x: this.pos.x, y: this.pos.y },
+                    radius: 5,
+                    amt: 1
+                });
             }
 
             // send update to server
@@ -984,9 +1105,10 @@ function createExplosion(origin) {
 
         //play hit noise and tell server
         let temp = new SoundObj("snd_bizarreexplode.ogg", curPlayer.pos.x, curPlayer.pos.y);
-        testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp);
+        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+        testMap.chunks[chunkKey].soundObjs.push(temp);
         socket.emit("new_sound", { sound: "snd_bizarreexplode.ogg", cPos: chunkPos, pos: { x: curPlayer.pos.x, y: curPlayer.pos.y }, id: temp.id });
-    let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+    let chunk = testMap.chunks[chunkKey];
     if (chunk != undefined) {
         for (let i = 0; i < chunk.objects.length; i++) {
             if (chunk.objects[i].pos.dist(origin.pos) < 33 + (6 * (origin.size.w + origin.size.h) / 4)) {
@@ -1036,7 +1158,7 @@ class InvObj extends Placeable {
                     if (curPlayer.otherInv.invBlock.invId == this.invBlock.invId) {
                         if (gameState == "swap_inv") {
                             gameState = "playing";
-                            swapInvDiv.hide();
+                            hideSwapInv();
                             spaceBarDiv.hide();
                         }
                     }
@@ -1057,7 +1179,7 @@ class InvObj extends Placeable {
             curPlayer.invBlock.curItem = "";
             curPlayer.otherInv.invBlock.curItem = "";
             updateSwapItemLists(this.invBlock);
-            swapInvDiv.show();
+            showSwapInv();
             return;
         }
 
@@ -1069,7 +1191,7 @@ class InvObj extends Placeable {
                 curPlayer.invBlock.curItem = "";
                 curPlayer.otherInv.invBlock.curItem = "";
                 updateSwapItemLists(this.invBlock);
-                swapInvDiv.show();
+                showSwapInv();
             }
         }
         else { //when unlocked all team members can open
@@ -1079,7 +1201,7 @@ class InvObj extends Placeable {
                 curPlayer.invBlock.curItem = "";
                 curPlayer.otherInv.invBlock.curItem = "";
                 updateSwapItemLists(this.invBlock);
-                swapInvDiv.show();
+                showSwapInv();
             }
         }
     }
@@ -1103,6 +1225,24 @@ class Entity extends Placeable {
         this.statBlock = new StatBlock(this.race, health);
         if (level !== undefined) {
             this.statBlock.level = level;
+                // Scale stats to level
+                for (let i = 2; i <= level; i++) {
+                    const growth = BASE_STATS[this.race].growth;
+                    if(!growth) {
+                        // flat health increase if no growth defined
+                        this.statBlock.stats.mhp += 10;
+                        this.statBlock.stats.hp += 10;
+                        // Fallback bump to attack when no growth table exists
+                        this.statBlock.stats.attack += 2;
+                        continue;
+                    }
+                    for (let key in growth) {
+                        if (this.statBlock.stats[key] !== undefined) {
+                            this.statBlock.stats[key] += growth[key];
+                        }
+                    }
+                    
+                }
         }
         if (xp !== undefined) {
             this.statBlock.xp = xp;
@@ -1136,33 +1276,56 @@ class Entity extends Placeable {
                 testMap.brains.push(b);
             }
         }
-    }
+        }
+
+        // Level up the entity, scale stats and optionally heal
+        levelUp() {
+            this.statBlock.level++;
+            const growth = BASE_STATS[this.race].growth;
+            for (let key in growth) {
+                if (this.statBlock.stats[key] !== undefined) {
+                    this.statBlock.stats[key] += growth[key];
+                }
+            }
+            // Optionally restore HP to max
+            if (this.statBlock.stats.mhp !== undefined) {
+                this.statBlock.stats.hp = this.statBlock.stats.mhp;
+            }
+        }
+    
 
     update() {
         if (this.hp <= 0) {
             this.deleteTag = true;
             let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+            // Drop XP orbs based on level: 5 base + 2 per level
+            const orbCount = (this.statBlock.level/5 + 1);
+            for (let i = 0; i < orbCount; i++) {
+                let expOrb = createObject(
+                    "ExpOrb",
+                    this.pos.x + random(-10, 10),
+                    this.pos.y + random(-10, 10),
+                    0,
+                    0,
+                    `xp_orb_${Date.now()}_${i}`,
+                    this.name
+                );
+                expOrb.id = random(1000000);
+                const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                const chunk = testMap.chunks[chunkKey];
+                chunk.objects.push(expOrb);
+                chunk.objects.sort((a, b) => a.z - b.z);
+                socket.emit("new_object", {
+                    cx: chunkPos.x,
+                    cy: chunkPos.y,
+                    obj: expOrb
+                });
+            }
 
-            let expOrb = createObject(
-                "ExpOrb",                         // name
-                this.pos.x + random(-10, 10), // x (add slight offset)
-                this.pos.y + random(-10, 10), // y (add slight offset)
-                0,                                 // rot
-                0,                                 // color/team
-                `xp_orb_${Date.now()}`,            // unique id
-                this.name                     // owner (optional)
-            );
-            expOrb.id = random(1000000);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(expOrb);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a, b) => a.z - b.z);
-
-            socket.emit("new_object", {
-                cx: chunkPos.x,
-                cy: chunkPos.y,
-                obj: expOrb
-            });
-
-            let cost = objDic[this.objName].cost;
+            // Clone cost array so we don't permanently mutate the objDic definition
+            let cost = (objDic[this.objName].cost || []).map(c => c.slice());
+            // Roll entity-specific loot from ENTITY_DROP_TABLE
+            cost = cost.concat(rollEntityDrops(this.objName));
             if (random() < 0.5) {
                 cost.push(["Philosopher's Stone", 1]);
             }
@@ -1171,7 +1334,8 @@ class Entity extends Placeable {
                 objName: this.objName,
                 pos: { x: this.pos.x, y: this.pos.y },
                 z: this.z,
-                cost: cost
+                cost: cost,
+                brainID: this.brainID
             });
 
             for (let i = testMap.brains.length - 1; i >= 0; i--) {
@@ -1319,7 +1483,18 @@ class Entity extends Placeable {
 
         // Draw text without white outline
         noStroke();
-        fill(teamColors[this.color].r, teamColors[this.color].g, teamColors[this.color].b);
+        
+        // Determine text color: use team color if available (object), otherwise use index-based color
+        let textColor;
+        if (typeof this.color === 'object' && this.color !== null && this.color.r !== undefined) {
+            // Team color (RGB object)
+            textColor = this.color;
+        } else {
+            // Index-based color from teamColors array
+            textColor = teamColors[this.color] || teamColors[0];
+        }
+        
+        fill(textColor.r, textColor.g, textColor.b);
         textFont(gameUIFont);
         text(
             nameText, 

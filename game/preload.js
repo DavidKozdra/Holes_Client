@@ -108,6 +108,25 @@ function preload() {
 
     dirtBagShakeSound = loadSound("audio/dirtbag_shake.ogg");
     dirtBagShakeSound.setVolume(0.1);
+
+    // ── Preload safety timeout ──────────────────────────────────
+    // If any asset hangs, force p5 to proceed after 8 seconds so
+    // the player isn't stuck on the loading screen forever.
+    window._preloadTimedOut = false;
+    window._preloadTimer = setTimeout(() => {
+        try {
+            const inst = p5.instance;
+            if (inst && inst._preloadCount > 0) {
+                console.warn(
+                    `[Preload] Timed out after 8 s with ${inst._preloadCount} asset(s) still pending — forcing start`
+                );
+                window._preloadTimedOut = true;
+                inst._preloadCount = 0;   // p5 polls this; 0 triggers setup()
+            }
+        } catch (e) {
+            console.error('[Preload] Timeout handler error:', e);
+        }
+    }, 8000);
 }
 
 function loadDefaultImage(){

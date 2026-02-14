@@ -101,9 +101,11 @@ class InvBlock{
         }
     }
     let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(itemBag);
-
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+    let chunk = testMap.getChunk(chunkPos.x, chunkPos.y);
+    if (!chunk || !chunk.objects) return;
+    
+    chunk.objects.push(itemBag);
+    chunk.objects.sort((a,b) => a.z - b.z);
 
     socket.emit("new_object", {
         cx: chunkPos.x, 
@@ -121,8 +123,8 @@ class InvBlock{
         curPlayer.name                     // owner (optional)
     );
     expOrb.id = random(1000000);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(expOrb);
-    testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+    chunk.objects.push(expOrb);
+    chunk.objects.sort((a,b) => a.z - b.z);
 
     socket.emit("new_object", {
         cx: chunkPos.x,
@@ -216,9 +218,20 @@ class InvBlock{
         if (this.useTimer > 0) this.useTimer--;
         if (this.animationTimer > 0) this.animationTimer -= 0.1;
         if (this.animationTimer < 0) this.animationTimer += 0.1;
+
+        // Dynamic UI scale for mobile
+        const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1080 : 1;
     
         // Hotbar Inventory
         push();
+
+        // Scale the entire hotbar from bottom-right corner
+        if (uiScale !== 1) {
+            translate(width, height);
+            scale(uiScale);
+            translate(-width, -height);
+        }
+
         noFill();
         stroke(255);
         strokeWeight(50);
@@ -250,12 +263,19 @@ class InvBlock{
                 let slotIndex = slots[i];
                 let hotBarKey = this.hotbar[slotIndex];
                 if (hotBarKey !== "") {
+                    // Check if item actually exists in inventory
+                    let item = this.items[hotBarKey];
+                    if (!item) {
+                        // Item no longer exists, clear the hotbar slot
+                        this.hotbar[slotIndex] = "";
+                        continue;
+                    }
+                    
                     // Compute position based on your original logic
                     let x = width  - (cos(15 + 15*i + 15*this.animationTimer) * 300);
                     let y = height - (sin(15 + 15*i + 15*this.animationTimer) * 300);
             
                     // Draw the item image
-                    let item = this.items[hotBarKey];
                     item.renderImage(x, y);
             
                     // If there's more than one of this item, render the amount
@@ -275,8 +295,10 @@ class InvBlock{
             }
 
             if(this.hotbar[this.selectedHotBar] != ""){
-                if(this.items[this.hotbar[this.selectedHotBar]].itemName == "Compass"){
-                    //COMPASS
+                const item = this.items[this.hotbar[this.selectedHotBar]];
+                if(item && item.itemName == "Compass"){
+                    // Compass is selected - functionality is handled in compassUse() when item is used
+                    
                 }
             }
         }
@@ -290,7 +312,10 @@ class InvBlock{
                 //render the buildOption[slotIndex]
                 let x = width  - (cos(15 + 15*i + 15*this.animationTimer) * 300);
                 let y = height - (sin(15 + 15*i + 15*this.animationTimer) * 300);
-                image(objImgs[buildOptions[slotIndex].images2][curPlayer.color % objImgs[buildOptions[slotIndex].images2].length], x, y, 60, 60);
+                
+                // Get color index: use numeric if available, otherwise use 0 for team colors
+                let colorIndex = typeof curPlayer.color === 'number' ? curPlayer.color : 0;
+                image(objImgs[buildOptions[slotIndex].images2][colorIndex % objImgs[buildOptions[slotIndex].images2].length], x, y, 60, 60);
             }
         }
     
@@ -312,14 +337,17 @@ class InvBlock{
         endShape(CLOSE);
     
         // Q/E text
-        fill(0);
-        stroke(0);
-        textAlign(CENTER, CENTER);
-        textSize(15);
-        textFont(gameUIFont);
-        text(Controls_MoveHotBarLeft_key.toUpperCase(), width - (0.866 * 255), height - (0.5 * 255) - 3);
-        text(Controls_MoveHotBarRight_key.toUpperCase(), width - (0.5 * 255), height - (0.866 * 255) - 1.5);
-        text(Controls_Build_key.toUpperCase(), width - 350, height - 30);
+        // Hide Q/E/R key labels on mobile (touch buttons handle this)
+        if (!(typeof isMobileDevice !== 'undefined' && isMobileDevice)) {
+            fill(0);
+            stroke(0);
+            textAlign(CENTER, CENTER);
+            textSize(15);
+            textFont(gameUIFont);
+            text(Controls_MoveHotBarLeft_key.toUpperCase(), width - (0.866 * 255), height - (0.5 * 255) - 3);
+            text(Controls_MoveHotBarRight_key.toUpperCase(), width - (0.5 * 255), height - (0.866 * 255) - 1.5);
+            text(Controls_Build_key.toUpperCase(), width - 350, height - 30);
+        }
     
         if(!buildMode) image(hammerImg, width - 385, height - 30, 40, 40);
         else image(Ximage, width - 385, height - 30, 40, 40);

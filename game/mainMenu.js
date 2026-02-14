@@ -26,6 +26,9 @@ let serverList = JSON.parse(localStorage.getItem("servers")) || [
 
 serverList[0] = { ip: "muddygame.net", name: "Holes Offical", status: "Online" };
 
+// Tracks whether the currently selected server is hardcore/permadeath
+window.isHardcoreServer = false;
+
 let selectedServer = null;
 let serverBrowserContainer, inputIP, inputStatus, addServerButton, serverListDiv;
 let renderedserverBrowserContainer = false;
@@ -66,16 +69,21 @@ function renderLinks() {
 
     // draw title image
     titleImage = createImg("./images/ui/title.png");
+    titleImage.id("titleImage");
 
     // Apply styles to the image using .style()
-    titleImage.style("width", "28dvw"); // Set the width of the image
-    titleImage.style("height", "9dvw"); // Automatically adjust the height
-    titleImage.style("border", "5px solid #000"); // Add a border
-    titleImage.style("display", "block"); // Make it a block element (to prevent inline styling)
-    titleImage.style("margin", "10px auto");
-    titleImage.style("padding-bottom", "20px auto");
-    titleImage.style("top", "0");
+    titleImage.style("width", "clamp(180px, 28vw, 440px)");
+    titleImage.style("height", "auto");
+    titleImage.style("border", "4px solid #000");
+    titleImage.style("display", "block");
+    titleImage.style("margin", "0 auto");
+    titleImage.style("top", "10px");
+    titleImage.style("left", "50%");
+    titleImage.style("transform", "translateX(-50%)");
     titleImage.style("position", "absolute");
+    titleImage.style("z-index", "10");
+    titleImage.style("box-shadow", "0 6px 20px rgba(0,0,0,0.6)");
+    titleImage.style("border-radius", "6px");
     
     let randItem1 = Math.floor(Math.random() * markeeText.length);
     // Suppose we want 5 distinct random items
@@ -89,16 +97,19 @@ function renderLinks() {
         .map(i => markeeText[i]).join("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
 
     markee = createElement("marquee", marqueeContent);
+    markee.id("mainMenuMarquee");
     markee.style("position", "fixed");
     markee.style("bottom", "0px");
-    markee.style("width", "80%");
-    markee.style("margin-right", "4%");
-    markee.style("font-size", "1.5rem");
-    markee.style("color", "white");
+    markee.style("left", "50%");
+    markee.style("transform", "translateX(-50%)");
+    markee.style("width", "70%");
+    markee.style("font-size", "clamp(0.9rem, 1.2vw, 1.4rem)");
+    markee.style("color", "rgba(255,255,255,0.75)");
     markee.style("scrolldelay", "0");
 
     // Parent container for buttons (Bottom Right)
     linkContainer = createDiv();
+    linkContainer.id("socialLinksPanel");
     linkContainer.class("container");
 
     applyStyle(linkContainer, {
@@ -119,6 +130,7 @@ function renderLinks() {
 
     // Parent container for settings (Bottom Left)
     settingsToggle = createDiv();
+    settingsToggle.id("settingsToggle");
     settingsToggle.class("container");
     applyStyle(settingsToggle, {
         position: "fixed",
@@ -217,11 +229,13 @@ function renderServerBrowser() {
         serverBrowserContainer = createDiv();
         serverBrowserContainer.id("serverBrowserContainer");
         serverBrowserContainer.class("container");
-        serverBrowserContainer.style("overflow-y", "scroll");
-        // Main container styling
-        serverBrowserContainer.style("max-width", "50dvw");
+        serverBrowserContainer.style("overflow-y", "auto");
+        // Main container styling — clamp ensures usability on phones AND desktops
+        serverBrowserContainer.style("max-width", "clamp(320px, 90vw, 50dvw)");
         serverBrowserContainer.style("max-height", "75%");
-        serverBrowserContainer.style("overflow-y", "hide");
+        serverBrowserContainer.style("overflow-y", "auto");
+        serverBrowserContainer.style("touch-action", "pan-y");
+        serverBrowserContainer.style("-webkit-overflow-scrolling", "touch");
         serverBrowserContainer.style("border-radius", "15px");
         serverBrowserContainer.style("color", "#fff");
         serverBrowserContainer.style("font-family", "Arial, sans-serif");
@@ -229,13 +243,13 @@ function renderServerBrowser() {
 
         // Position the container in the center
         serverBrowserContainer.style("position", "fixed");
-        serverBrowserContainer.style("top", "58%");
+        serverBrowserContainer.style("top", "55%");
         serverBrowserContainer.style("left", "50%");
         serverBrowserContainer.style("transform", "translate(-50%, -50%)");
 
         // Title
         let title = createDiv("Select A Server");
-        title.style("font-size", "2.5rem");
+        title.style("font-size", "clamp(1.2rem, 4vw, 2.5rem)");
         title.style("font-weight", "bold");
         title.style("margin-bottom", "15px");
         title.style("text-align", "center");
@@ -261,13 +275,10 @@ function renderServerBrowser() {
 
         searchInput.elt.addEventListener("focus", () => {
             lastGameState = gameState;
-            gameState = "search";
         });
 
         searchInput.elt.addEventListener("blur", () => {
-            if (gameState === "search") {
-                gameState = lastGameState;
-            }
+       
         });
 
         searchInput.elt.addEventListener("input", () => {
@@ -286,7 +297,7 @@ function renderServerBrowser() {
 
         // Parent section that holds the "Add New Server" header and collapsible content
         let addServerSection = createDiv();
-        addServerSection.style("margin-top", "100px");
+        addServerSection.style("margin-top", "20px");
         addServerSection.style("padding", "15px");
         addServerSection.style("background", "#2a2a2a");
         addServerSection.style("border-radius", "10px");
@@ -296,7 +307,7 @@ function renderServerBrowser() {
         let addServerTitle = createDiv("Add New Server ▼");
 
         addServerTitle.style("font-weight", "bold");
-        addServerTitle.style("font-size", "1.8em");
+        addServerTitle.style("font-size", "clamp(0.8em, 2vw, 1.4em)");
         addServerTitle.style("margin-bottom", "10px");
         addServerTitle.style("text-align", "center");
         addServerTitle.style("cursor", "pointer"); // Indicate it can be clicked
@@ -355,9 +366,9 @@ function renderServerBrowser() {
         let connectButton = createButton("▶ Connect");
         connectButton.parent(serverBrowserContainer);
         connectButton.style("width", "80%");
-        connectButton.style("height", "5dvw");
+        connectButton.style("min-height", "clamp(48px, 8vw, 70px)");
 
-        connectButton.style("font-size", "2rem");
+        connectButton.style("font-size", "clamp(1rem, 3vw, 2rem)");
         connectButton.style("margin-top", "20px");
         connectButton.style("padding", "12px");
         connectButton.style("background", "#4CAF50");
@@ -380,7 +391,17 @@ function renderServerBrowser() {
                     }
                 }
 
-                socket = io.connect(getServerUrl(selectedServer));
+                // Set hardcore flag from fresh status response
+                window.isHardcoreServer = !!(data.hardcore || data.permaDeath);
+                selectedServer.hardcore = window.isHardcoreServer;
+
+                socket = io.connect(getServerUrl(selectedServer), {
+                    reconnection: true,
+                    reconnectionAttempts: 20,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 10000,
+                    timeout: 15000,
+                });
                 socketSetup();
                 testMap = new Map();
                 // ghostBuild will be created later when needed in input.js
@@ -426,20 +447,22 @@ function renderSingleServerEntry(server, indexInFullList) {
     serverEntry.class("serverEntry");
 
     // Basic layout styling
-    serverEntry.style("font-size", "2rem");
-    serverEntry.style("padding", "12px");
-    serverEntry.style("margin-bottom", "12px");
+    serverEntry.style("font-size", "clamp(0.7rem, 2vw, 2rem)");
+    serverEntry.style("padding", "clamp(8px, 2vw, 12px)");
+    serverEntry.style("margin-bottom", "8px");
     serverEntry.style("background-color", "var(--color-dirt-dark)");
     serverEntry.style("cursor", "pointer");
     serverEntry.style("display", "flex");
     serverEntry.style("align-items", "center");
-    serverEntry.style("gap", "12px");
+    serverEntry.style("gap", "clamp(8px, 2vw, 12px)");
     serverEntry.style("transition", "transform 0.15s ease-in-out");
+    serverEntry.style("touch-action", "manipulation");
 
     // === Logo Container ===
     let logoContainer = createDiv();
-    logoContainer.style("width", "100px");
-    logoContainer.style("height", "100px");
+    logoContainer.style("width", "clamp(48px, 12vw, 100px)");
+    logoContainer.style("height", "clamp(48px, 12vw, 100px)");
+    logoContainer.style("flex-shrink", "0");
     logoContainer.style("display", "flex");
     logoContainer.style("border-radius", "8px");
     logoContainer.style("overflow", "hidden");
@@ -466,19 +489,19 @@ function renderSingleServerEntry(server, indexInFullList) {
     let serverName = createDiv(server.name);
     serverName.style("font-weight", "bold");
     serverName.style("color", "white");
-    serverName.style("margin-bottom", "20px");
+    serverName.style("margin-bottom", "6px");
     serverName.parent(textContainer);
 
     // IP
     let serverIP = createDiv(`IP: ${server.ip}`);
     serverIP.style("color", "yellow");
-    serverIP.style("margin-bottom", "15px");
+    serverIP.style("margin-bottom", "4px");
     serverIP.parent(textContainer);
 
     // Status
     let serverStatus = createDiv("Status: Loading...");
     serverStatus.style("color", "var(--color-gold)");
-    serverStatus.style("margin-bottom", "15px");
+    serverStatus.style("margin-bottom", "4px");
     serverEntry.style("pointer-events", "none");
     serverEntry.style("opacity", "0.5");
     serverStatus.parent(textContainer);
@@ -486,17 +509,20 @@ function renderSingleServerEntry(server, indexInFullList) {
     // Player Count
     let playerCount = createDiv("Players: Loading...");
     playerCount.style("color", "#00ffff");
-    playerCount.style("margin-bottom", "5px");
+    playerCount.style("margin-bottom", "2px");
     playerCount.parent(textContainer);
 
     textContainer.parent(serverEntry);
 
     // Fetch server status
     fetchServerStatus(server, (data) => {
+        const isHardcore = !!(data.hardcore || data.permaDeath);
+        server.hardcore = isHardcore;
+
         serverStatus.html(`Status: ${data.status}`);
         serverStatus.style("color", data.status === "Online" ? "#4CAF50" : "#F44336");
         serverStatus.style("background-color", data.status === "Online" ? "black" : "white");
-        serverName.html(data.name || "Unnamed Server");
+        serverName.html(`${isHardcore ? "  ☠️  " : ""}${data.name || "Unnamed Server"}`);
         playerCount.html(`Players: ${data.playerCount}` + (!data.max ? `` : `/ ${data.max}`));
         serverLogo.attribute("src", data.image);
 
@@ -507,14 +533,18 @@ function renderSingleServerEntry(server, indexInFullList) {
     // Remove server button
     let removeButton = createButton(" &#x20E0; &nbsp; Remove ");
     removeButton.parent(serverEntry);
-    removeButton.style("margin-left", "10px");
-    removeButton.style("padding", "15px");
+    removeButton.style("margin-left", "auto");
+    removeButton.style("padding", "clamp(8px, 2vw, 15px)");
+    removeButton.style("min-width", "44px");
+    removeButton.style("min-height", "44px");
+    removeButton.style("font-size", "clamp(0.6rem, 1.5vw, 1rem)");
     removeButton.style("background-color", "#F44336");
     removeButton.style("color", "#fff");
     removeButton.style("border", "none");
-    removeButton.style("border-radius", "3px");
+    removeButton.style("border-radius", "5px");
     removeButton.style("cursor", "pointer");
     removeButton.style("pointer-events", "auto");
+    removeButton.style("flex-shrink", "0");
 
     removeButton.mousePressed(() => {
         serverList.splice(indexInFullList, 1);
@@ -530,6 +560,7 @@ function renderSingleServerEntry(server, indexInFullList) {
         }
         serverEntry.style("background-color", "#4CAF50");
         selectedServer = server;
+        window.isHardcoreServer = !!server.hardcore;
     });
 
     serverEntry.parent(serverListDiv);
@@ -605,17 +636,22 @@ function hideServerBrowser() {
 
 // Show the selection UI elements
 function drawSelection() {
+    // Hide social links & marquee on mobile during race selection
+    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+        if (linkContainer) linkContainer.style("display", "none");
+        if (markee) markee.style("display", "none");
+    }
+    // Show the flex wrapper
+    if (window._raceWrapper) {
+        window._raceWrapper.style("display", "flex");
+    }
     raceContainer.style("display", "flex");
     // ---------------------------------------------------
-    //  Create Title (centered, larger & responsive)
+    //  Create Title (centered, responsive)
     // ---------------------------------------------------
     raceTitle.id("raceTitle");
     raceTitle.elt.innerHTML = "Select Your Race";
-    raceTitle.style("position", "absolute");
-    raceTitle.style("top", "min(25%, 30dvh)");
-
-    raceTitle.style("left", "50%");
-    raceTitle.style("transform", "translateX(-50%)");
+    raceTitle.style("z-index", "11");
     raceTitle.style("max-width", "90vw");
     raceTitle.style("white-space", "normal");
 
@@ -633,6 +669,9 @@ function drawSelection() {
     raceTitle.style("border-radius", "10px");
     raceTitle.style("text-align", "center");
 
+    // Show the combined name+go container
+    var ngc = document.getElementById('nameGoContainer');
+    if (ngc) ngc.style.display = 'flex';
     nameInput.show();
     goButton.show();
 
@@ -643,8 +682,11 @@ function drawSelection() {
     race_back_button.style("color", "#fff");
     race_back_button.style("border", "none");
     race_back_button.style("border-radius", "8px");
-    race_back_button.style("position", "absolute");
-    race_back_button.style("top", "50dvh");
+    race_back_button.style("z-index", "101");
+    race_back_button.style("padding", "8px 20px");
+    race_back_button.style("background", "rgba(0,0,0,0.6)");
+    race_back_button.style("cursor", "pointer");
+    race_back_button.style("pointer-events", "auto");
 
     race_back_button.mousePressed(() => {
         //console.log("pressed")
@@ -653,24 +695,25 @@ function drawSelection() {
     });
 
     race_back_button.show();
-    race_back_button.parent(raceContainer);
+    // Don't parent to raceContainer — it would scroll away
     raceButtons.forEach((card) => {
         card.show();
     });
     // Enable the "Go" button only when a race is selected and a name is entered
 }
-
+// Hide UI elements during gameplay
 function hideRaceSelect() {
-    // Hide UI elements during gameplay
     nameInput.hide();
     goButton.hide();
+    var ngc = document.getElementById('nameGoContainer');
+    if (ngc) ngc.style.display = 'none';
     raceButtons.forEach((card) => {
         card.hide();
     });
     race_back_button.hide();
-    raceContainer.style("display", "none"); // Hide the container
-    // If using raceTitle, hide it as well
+    raceContainer.style("display", "none");
     raceTitle.style("display", "none");
+    if (window._raceWrapper) window._raceWrapper.style("display", "none");
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -680,23 +723,50 @@ function hideRaceSelect() {
 function setupRaceSelectionUI() {
     raceTitle = createDiv();
     // ---------------------------------------------------
-    //  Create a container for race selection cards (centered)
+    //  Create a full-page flex wrapper for race selection
+    // ---------------------------------------------------
+    window._raceWrapper = createDiv();
+    window._raceWrapper.id('raceWrapper');
+    window._raceWrapper.style("position", "fixed");
+    window._raceWrapper.style("inset", "0");
+    window._raceWrapper.style("display", "none");
+    window._raceWrapper.style("flex-direction", "column");
+    window._raceWrapper.style("align-items", "center");
+    window._raceWrapper.style("justify-content", "center");
+    window._raceWrapper.style("gap", "clamp(12px, 2dvh, 24px)");
+    window._raceWrapper.style("z-index", "10");
+    window._raceWrapper.style("padding", "20px");
+    window._raceWrapper.style("box-sizing", "border-box");
+    window._raceWrapper.style("overflow-y", "auto");
+    window._raceWrapper.style("pointer-events", "none");
+
+    // Parent title into wrapper
+    raceTitle.parent(window._raceWrapper);
+    raceTitle.style("pointer-events", "auto");
+
+    // ---------------------------------------------------
+    //  Create a container for race selection cards
     // ---------------------------------------------------
     raceContainer = createDiv();
     race_back_button = createButton("<- Back");
+    race_back_button.id("raceBackButton");
     raceContainer.id("raceContainer");
-    raceContainer.style("position", "absolute");
-    raceContainer.style("top", "40dvh");
-    raceContainer.style("left", "50%");
-    raceContainer.style("transform", "translateX(-50%)");
+    raceContainer.parent(window._raceWrapper);
     raceContainer.style("display", "none");
     raceContainer.style("flex-wrap", "wrap");
     raceContainer.style("justify-content", "center");
-    raceContainer.style("align-items", "center");
-    raceContainer.style("gap", "30px");
-    raceContainer.style("padding", "0px");
+    raceContainer.style("align-items", "flex-start");
+    raceContainer.style("gap", "clamp(10px, 2vw, 30px)");
+    raceContainer.style("padding", "10px");
     raceContainer.style("border-radius", "10px");
-    raceContainer.style("min-width", "100dvw");
+    raceContainer.style("width", "95vw");
+    raceContainer.style("max-width", "1000px");
+    raceContainer.style("max-height", "clamp(200px, 50dvh, 60dvh)");
+    raceContainer.style("overflow-y", "auto");
+    raceContainer.style("overflow-x", "hidden");
+    raceContainer.style("touch-action", "pan-y");
+    raceContainer.style("-webkit-overflow-scrolling", "touch");
+    raceContainer.style("pointer-events", "auto");
     // ---------------------------------------------------
     //  Create cards for each race (with responsive sizing)
     // Allowed stats to display
@@ -713,11 +783,11 @@ function setupRaceSelectionUI() {
         card.style("flex-direction", "column");
         card.style("align-items", "center");
 
-        // Responsive card width: based on canvas width, constrained between 150 and 300px
-        let cardWidth = constrain(width * 0.15, 150, 400);
+        // Responsive card width: wider on desktop for better readability
+        let cardWidth = constrain(width * 0.18, 160, 280);
         card.style("width", cardWidth + "px");
         card.style("border-radius", "10px");
-        card.style("padding", "25px");
+        card.style("padding", "14px");
         card.style("cursor", "pointer");
         card.selected = false; // custom property for selection
 
@@ -732,9 +802,13 @@ function setupRaceSelectionUI() {
         // Create an image element for the race portrait
         let raceImgPath = `images/characters/${raceName}/${raceName}_portrait.png`;
         let raceImg = createImg(raceImgPath, `${raceName} image`);
-        raceImg.style("max-width", "15dvw");
-        raceImg.style("height", "15dvh");
+        raceImg.style("width", "clamp(64px, 65%, 140px)");
+        raceImg.style("height", "auto");
+        raceImg.style("aspect-ratio", "1");
+        raceImg.style("object-fit", "contain");
         raceImg.style("image-rendering", "pixelated");
+        raceImg.style("margin", "8px 0");
+        raceImg.style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.5))");
         raceImg.parent(card);
 
         // Retrieve stats from BASE_STATS (assumes the same order as races)
@@ -756,23 +830,31 @@ function setupRaceSelectionUI() {
         
         // Build color-coded stats HTML
         let statsText = allowedStats
-            .map(stat => `<span style="color: ${statColors[stat] || '#fff'};">${stat}: ${raceStats[stat]}</span>`)
-            .join(" <br/><br/> ");
+            .map(stat => `<span style="color: ${statColors[stat] || '#fff'}; text-shadow: 0 0 3px #000, 0 0 6px #000;">${stat}: ${raceStats[stat]}</span>`)
+            .join("<br/>");
 
         // Create a label for the stats
         let raceStatsLbl = createP(statsText);
-        raceStatsLbl.style("font-size", "calc(0.6vw + 2px)");
-        raceStatsLbl.style("font-weight", "bold");
-        raceStatsLbl.style("margin", "0");
-        raceStatsLbl.style("align-self", "flex-end");
-        raceStatsLbl.style("text-align", "right");
+        raceStatsLbl.style("font-size", "clamp(10px, 1.2vw, 14px)");
+        raceStatsLbl.style("font-weight", "normal");
+        raceStatsLbl.style("margin", "8px 0 0 0");
+        raceStatsLbl.style("align-self", "stretch");
+        raceStatsLbl.style("text-align", "left");
+        raceStatsLbl.style("line-height", "1.4");
         raceStatsLbl.parent(card);
+
+        // Hover in styling
+        card.mouseOver(() => {
+            if (!card.selected) {
+                card.style("transform", "translateY(-4px) scale(1.03)");
+                card.style("box-shadow", "0 8px 24px rgba(0,0,0,0.5), 0 0 12px rgba(255,215,0,0.15)");
+            }
+        });
 
         // Hover out styling
         card.mouseOut(() => {
             card.style("transform", "scale(1)");
-            card.style("box-shadow", "none");
-
+            card.style("box-shadow", card.selected ? "0 0 16px rgba(76,175,80,0.5)" : "0 4px 12px rgba(0,0,0,0.4)");
             card.style("background-color", card.selected ? "#4CAF50" : "#222");
         });
 
@@ -789,6 +871,7 @@ function setupRaceSelectionUI() {
             // Select this card
             card.selected = true;
             card.style("background-color", "#4CAF50");
+            card.style("box-shadow", "0 0 16px rgba(76,175,80,0.5)");
 
             raceSelected = true;
             curRace = selectedItem;
@@ -807,16 +890,22 @@ function setupRaceSelectionUI() {
     // ---------------------------------------------------
     //   Name Input Field (centered, larger & responsive)
     // ---------------------------------------------------
-    nameInput = createInput("");
-    nameInput.hide();
-    let inputWidth = constrain(width * 0.5, 100, 200); // Responsive width
+    // ── Name + Go container (flex row, positioned at bottom) ──
+    var nameGoContainer = createDiv();
+    nameGoContainer.id('nameGoContainer');
+    nameGoContainer.parent(window._raceWrapper);
+    nameGoContainer.style("display", "flex");
+    nameGoContainer.style("align-items", "center");
+    nameGoContainer.style("gap", "10px");
+    nameGoContainer.style("z-index", "100");
+    nameGoContainer.style("width", "auto");
+    nameGoContainer.style("max-width", "90vw");
+    nameGoContainer.style("pointer-events", "auto");
+    nameGoContainer.hide();
 
-    // Use CSS positioning instead of .position() to prevent movement
-    nameInput.style("position", "absolute");
-    nameInput.style("left", "45%");
-    nameInput.style("top", "85dvh");
-    nameInput.style("transform", "translateX(-50%)");
-    nameInput.style("width", "20%");
+    nameInput = createInput("");
+    nameInput.parent(nameGoContainer);
+    nameInput.style("width", "clamp(150px, 40vw, 300px)");
 
     // Responsive base styling
     nameInput.style("font-size", width < 500 ? "14px" : "18px");
@@ -870,19 +959,16 @@ function setupRaceSelectionUI() {
     //   "Go" Button (centered, larger & responsive)
     // ---------------------------------------------------
     goButton = createButton("Go");
-    goButton.hide();
-    // Position near the name input with a fixed offset
-    goButton.style("position", "absolute");
-    goButton.style("left", "calc(50% + 130px)");
-    goButton.style("top", "85dvh"); // or "80%" if more stable
+    goButton.parent(nameGoContainer);
 
-    goButton.style("font-size", "20px");
+    goButton.style("font-size", "clamp(16px, 3vw, 20px)");
     goButton.style("color", "#fff");
     goButton.style("border", "none");
     goButton.style("border-radius", "8px");
     goButton.style("padding", "10px 20px");
+    goButton.style("min-height", "44px");
+    goButton.style("min-width", "60px");
 
-    goButton.style("margin-left", "20px");
     goButton.style("cursor", "pointer");
     goButton.style("transition", "background-color 0.2s, transform 0.2s");
 
@@ -896,6 +982,9 @@ function setupRaceSelectionUI() {
     goButton.mousePressed(() => {
         startGame();
     });
+
+    // Parent back button after nameGoContainer so it appears below
+    race_back_button.parent(window._raceWrapper);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -903,14 +992,12 @@ function setupRaceSelectionUI() {
 // ─────────────────────────────────────────────────────────────────────
 
 function startGame() {
-    //console.log(raceSelected, "sasd")
     if (!selectedServer) {
         alert("Issue with server retry.");
         return;
     }
     if (!raceSelected) {
         alert("Pick a race.");
-        //console.log("SDSD")
         return;
     }
 
@@ -919,10 +1006,8 @@ function startGame() {
         return;
     }
 
-    // 1) Pull the value from the name input.
     const nameVal = nameInput.value().trim();
 
-    // 2) Check length
     if (nameVal.length === 0) {
         alert("Name cannot be empty.");
         return;
@@ -931,20 +1016,15 @@ function startGame() {
         alert("Name is too long (max 20 chars).");
         return;
     }
-
-    // 3) Disallow spaces
     if (/\s/.test(nameVal)) {
         alert("Name cannot contain spaces.");
         return;
     }
-
-    // 4) Letters and digits only
     if (!/^[A-Za-z0-9]+$/.test(nameVal)) {
         alert("Name can only contain letters and digits.");
         return;
     }
 
-    // 5) Check forbidden words
     const badWords = ["badword", "someoffensiveword"];
     for (let badWord of badWords) {
         if (nameVal.toLowerCase().includes(badWord)) {
@@ -953,54 +1033,123 @@ function startGame() {
         }
     }
 
-    // If all checks pass, make their character and send it to the server
-    curPlayer = new Player(
-        200, //random(-200*TILESIZE, 200*TILESIZE)
-        200, //random(-200*TILESIZE, 200*TILESIZE)
+    const pendingPlayer = new Player(
+        200,
+        200,
         undefined,
         curID,
         0,
         curRace,
         nameVal
-    ); // Default race index 0
+    );
 
-    camera.pos = createVector(curPlayer.pos.x, curPlayer.pos.y);
+    const basePayload = {
+        id: pendingPlayer.id,
+        name: pendingPlayer.name,
+        race: pendingPlayer.race,
+        color: pendingPlayer.color,
+        pos: { x: pendingPlayer.pos.x, y: pendingPlayer.pos.y },
+        statBlock: {
+            level: pendingPlayer.statBlock.level,
+            xp: pendingPlayer.statBlock.xp,
+            xpNeeded: pendingPlayer.statBlock.xpNeeded,
+            stats: pendingPlayer.statBlock.stats
+        },
+        invBlock: null,
+        teamId: pendingPlayer.teamId || null
+    };
 
-    //load in some chunks for easy start
-    let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-    for (let yOff = -2; yOff < 3; yOff++) {
-        for (let xOff = -2; xOff < 3; xOff++) {
-            testMap.getChunk(chunkPos.x + xOff, chunkPos.y + yOff);
+    const tryJoin = (passwordAttempt = "") => {
+        const payload = { ...basePayload };
+        if (passwordAttempt) {
+            payload.password = passwordAttempt;
         }
-    }
 
-    // DON'T give default items yet - wait for server to check if we need them
-    // Server will respond with old kit OR tell us to give starter kit
+        socket.emit("new_player", payload, (resp) => {
+            if (!resp || resp.ok !== true) {
+                const code = resp?.code || "UNKNOWN";
+                if (code === "PASSWORD_REQUIRED" || code === "BAD_PASSWORD") {
+                    const promptMsg = resp?.message || "Enter password for this player:";
+                    const pw = prompt(promptMsg, "");
+                    if (pw === null) {
+                        alert("Join cancelled.");
+                        return;
+                    }
+                    tryJoin(pw);
+                    return;
+                } else if (code === "NAME_IN_USE") {
+                    alert("That name is already in use.");
+                } else {
+                    alert(resp?.message || "Unable to join.");
+                }
+                return;
+            }
 
-    document.getElementById("canvas-container").style.display = "block";
-    socket.emit("new_player", curPlayer);
+            curPlayer = pendingPlayer;
+            playerJoined = true; // Server confirmed registration — allow batcher to send
 
-    // Request items from server - it will restore old kit or tell us to give starter kit
-    socket.emit("request_my_items", { name: nameVal });
+            // Password can now be set/changed in Settings menu after login
 
-    // Request current teams list
-    socket.emit("get_teams");
+            camera.pos = createVector(curPlayer.pos.x, curPlayer.pos.y);
 
-    gameState = "playing";
-    hideRaceSelect();
+            let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
+            for (let yOff = -2; yOff < 3; yOff++) {
+                for (let xOff = -2; xOff < 3; xOff++) {
+                    testMap.getChunk(chunkPos.x + xOff, chunkPos.y + yOff);
+                }
+            }
 
-    if (localStorage.getItem("tut_seen") == "true") {
-        tutorialDiv.hide();
-    } else {
-        tutorialDiv.show();
-        localStorage.setItem("tut_seen", "true");
-    }
+            document.getElementById("canvas-container").style.display = "block";
 
-    // Clear a small area around the player (example logic)
-    for (let y = -5; y < 5; y++) {
-        for (let x = -5; x < 5; x++) {
-            dig(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
-            mine(curPlayer.pos.x + x * TILESIZE, curPlayer.pos.y + y * TILESIZE, 1, false);
-        }
-    }
+            socket.emit("request_my_items", { name: nameVal });
+            socket.emit("get_teams");
+
+            gameState = "playing";
+            hideRaceSelect();
+
+            if (localStorage.getItem("tut_seen") == "true") {
+                tutorialDiv.hide();
+            } else {
+                tutorialDiv.show();
+                localStorage.setItem("tut_seen", "true");
+            }
+
+            // Clear spawn area — use update_nodes (single bulk event) instead of
+            // 200 individual dig/mine calls that would flood the socket
+            {
+                const spawnChunk = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
+                socket.emit('update_nodes', {
+                    cx: spawnChunk.x, cy: spawnChunk.y,
+                    pos: { x: curPlayer.pos.x, y: curPlayer.pos.y },
+                    radius: 5, amt: 1
+                });
+                socket.emit('update_iron_nodes', {
+                    cx: spawnChunk.x, cy: spawnChunk.y,
+                    pos: { x: curPlayer.pos.x, y: curPlayer.pos.y },
+                    radius: 5, amt: 1
+                });
+                // Also apply locally for immediate visual feedback
+                for (let y = -5; y < 5; y++) {
+                    for (let x = -5; x < 5; x++) {
+                        const wx = curPlayer.pos.x + x * TILESIZE;
+                        const wy = curPlayer.pos.y + y * TILESIZE;
+                        const cp = testMap.globalToChunk(wx, wy);
+                        const ck = cp.key || getChunkKey(cp.x, cp.y);
+                        const ch = testMap.chunks[ck];
+                        if (ch) {
+                            const lx = floor(wx / TILESIZE) - cp.x * CHUNKSIZE;
+                            const ly = floor(wy / TILESIZE) - cp.y * CHUNKSIZE;
+                            const idx = lx + ly * CHUNKSIZE;
+                            if (idx >= 0 && idx < CHUNKSIZE * CHUNKSIZE) {
+                                if (ch.data[idx] > 0) ch.data[idx] = 0;
+                                if (ch.iron_data && ch.iron_data[idx] > 0) ch.iron_data[idx] = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    };
+
+    tryJoin();
 }

@@ -2,7 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#3b2f2f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#3b2f2f" media="(prefers-color-scheme: light)">
+  <meta name="color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-TileColor" content="#3b2f2f">
+  <meta name="msapplication-TileImage" content="./images/ui/icon-144.png">
+
+  <!-- PWA Icons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./images/ui/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="./images/ui/icon-48.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="./images/ui/icon-96.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./images/ui/icon-192.png">
 
   <title>Holes: Martyr of Dirt</title>
   <meta name="description"
@@ -19,7 +35,6 @@
   <!-- Font preload removed to avoid 404; CSS import will load font -->
   <!-- Preload & favicon -->
   <link rel="preload" as="image" href="./images/ui/title.png">
-  <link rel="icon" href="./images/ui/title.png" type="image/png">
 
   <!-- Your main CSS -->
   <link rel="stylesheet" href="../style.css">
@@ -67,16 +82,16 @@
   <meta name="twitter:title"      content='Holes: "Martyr of Dirt"'>
   <meta name="twitter:description"
         content='Build. Dig. Survive. Become the Martyr of Dirt in this 2D sandbox survival game.'>
-  <meta name="twitter:image"
-        content="https://yourdomain.com/game/images/title.png">
+  <meta property="og:image" content="./images/ui/title.png">
+  <meta name="twitter:image" content="./images/ui/title.png">
 
-  <!-- Defer all JS -->
-  <script defer src="p5-init.js"></script>
-  <script defer src="https://cdn.socket.io/4.4.1/socket.io.min.js"
-          integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
-          crossorigin="anonymous"></script>
+  <!-- Defer all JS (p5 core, then sound addon, then socket.io, then game bootstrap) -->
   <script defer src="https://cdn.jsdelivr.net/npm/p5@1.11.1/lib/p5.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.1/addons/p5.sound.min.js"></script>
+  <script defer src="https://cdn.socket.io/4.4.1/socket.io.min.js"
+        integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
+        crossorigin="anonymous"></script>
+  <script defer src="p5-init.js"></script>
 
   <!-- App code -->
   <script defer src="coreFunctions.js"></script>
@@ -92,14 +107,23 @@
   <script defer src="classes/invblock.js"></script>
   <script defer src="classes/player.js"></script>
   <script defer src="preload.js"></script>
+  <script defer src="lib/geckos.io-client.min.js"></script>
+  <script defer src="transport.js"></script>
+  <script defer src="connectionHealth.js"></script>
   <script defer src="socket.js"></script>
+  <script defer src="touchControls.js"></script>
   <script defer src="input.js"></script>
   <script defer src="mainMenu.js"></script>
   <script defer src="systemUI.js"></script>
-  <script defer src="swapInventory.js"></script>
-  <script defer src="craftingUI.js"></script>
+  <script defer src="magicSystem.js"></script>
+  <script defer src="magicUI.js"></script>
+  <script defer src="chatUI.js"></script>
+  <!-- Consolidated UI Module -->
+  <script defer src="ui/inventoryUI.js"></script>
   <script defer src="ui.js"></script>
+  <script defer src="inputCancelMeditate.js"></script>
   <script defer src="sketch.js"></script>
+  <script defer src="backgroundLoop.js"></script>
   <script defer src="classes/musicSystem.js"> </script>
   <script defer src="classes/brain.js"> </script>
 
@@ -109,6 +133,6 @@
 </head>
 
 <body>
-  <div id="canvas-container"></div>
+  <div id="canvas-container" class="canvas-container"></div>
 </body>
 </html>

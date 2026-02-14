@@ -56,13 +56,13 @@ if (typeof window !== 'undefined') {
 }
 
 defineShovel("Basic Shovel", [[4,4]], [1,["Log",1],["Rock",1]], 1, 100, 0.12, 3, 1, "A basic shovel for digging dirt", ItemRarity.GOOD, true);
-defineShovel("Better Shovel", [[5,4]], [1,["Log",1],["Gem",2]], 1, 100, 0.18, 3, 1, "A better shovel for digging dirt", ItemRarity.GOOD, true);
-defineShovel("God Shovel", [[6,4]], [1,["Rock",2],["Philosopher's Stone",2]], 1, 100, 0.3, 3, 1, "A godly shovel for digging dirt", ItemRarity.GOD, true);
+defineShovel("Better Shovel", [[5,4]], [1,["Log",1],["Metal",2]], 1, 100, 0.18, 3, 1, "A better shovel for digging dirt", ItemRarity.GOOD, true);
+defineShovel("God Shovel", [[6,4]], [1,["Metal",5],["Philosopher's Stone",4]], 1, 100, 0.3, 3, 1, "A godly shovel for digging dirt", ItemRarity.GOD, true);
 defineShovel("Pickaxe", [[1,4]], [1,["Log",2],["Rock",3]], 1, 100, 0.2, 3, 1, "A basic pickaxe for mining iron", ItemRarity.GOOD, true);
 
 defineMelee("Mush Knife", [[4,3]], [1,["Mushroom",1],["Rock",1],["Mushroom Fiber",1]], 1, 60, 8, 3, 50, 60, 80, 35, false, "A basic knife", ItemRarity.GOOD, true);
 defineMelee("Basic Sword", [[1,5]], [1,["Log",1],["Rock",3],["Mushroom Fiber",2]], 1, 70, 15, 3, 45, 55, 75, 45, false, "A basic sword for slashing", ItemRarity.GOOD, true);
-defineMelee("Better Sword", [[2,5]], [1,["Log",2],["Rock",2],["Gem",5],["Mushroom Fiber", 3]], 1, 120, 24, 25, 55, 65, 95, 22, false, "A better sword for slashing", ItemRarity.GREAT, true);
+defineMelee("Better Sword", [[2,5]], [1,["Log",2],["Rock",2],["Metal",5],["Mushroom Fiber", 3]], 1, 120, 24, 25, 55, 65, 95, 22, false, "A better sword for slashing", ItemRarity.GREAT, true);
 defineMelee("Gem Sword", [[2,2]], [1,["Gem",3],["Philosopher's Stone",1],["Black Gem",2],["Tech",4]], 1, 160, 45, 7, 65, 75, 105, 16, false, "A legendary sword for slashing, really really green", ItemRarity.LEGENDARY, true);
 defineMelee("Evil Apple on Stick", [[5,1]], [1,["Bad Apple",1],["Log",1]], 1, 80, 20, 4, 90, 50, 25, 12, false, "Now it'll bite your opponets", ItemRarity.GREAT, true);
 defineMelee("Scythe", [[3,4]], [1,["Log",2],["Rock",4],["Mushroom Fiber",1]], 1, 110, 25, 4, 60, 140, 140, 100, false, "Just gotta make sure they are on the blade", ItemRarity.GOOD, true);
@@ -96,12 +96,145 @@ defineFood("Salad", [[5,5]], [1,["Mushroom",1],["Apple",1],["Log",1]], 1, 100, 5
 defineFood("Skizzard Tail", [[6,5]], [], 1, 100, 5, 5, "A raw tail", ItemRarity.BASIC, false);
 defineFood("Roasted Tail", [[7,5]], [1,["Skizzard Tail", 1]], 1, 100, 30, 15, "A roasted tail", ItemRarity.GOOD, false);
 
-defineSeed("Red Acorn", [[1,0]], [1,["Apple", 1]], 1, "AppleTree", 0.5, "Will grow into an apple tree", ItemRarity.GOOD, true);
+// Increase seed outputs to make tree and mushroom farming less grindy
+defineSeed("Red Acorn", [[1,0]], [2,["Apple", 1]], 1, "AppleTree", 0.5, "Will grow into an apple tree", ItemRarity.GOOD, true);
 defineSeed("Acorn", [[0,0]], [2,["Log", 1],["Mushroom Fiber",2]], 1, "Tree", 0.5, "Will grow into a tree", ItemRarity.GOOD, true);
-defineSeed("Mushroom Seed", [[5,3]], [1,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores", ItemRarity.GOOD, true);
+defineSeed("Mushroom Seed", [[5,3]], [3,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores", ItemRarity.GOOD, true);
 defineSimpleItem("Mushroom Fiber", [[3,3]], [3,["Mushroom",1]], 1, "A stringy component of many tools", ItemRarity.BASIC, true);
 
-function compassUse(x,y,mouseButton){}
+// Global compass state for display
+var compassTarget = null;
+var compassDuration = 300; // frames to show compass info (5 seconds at 60 fps)
+
+function compassUse(x,y,mouseButton){
+    if (!curPlayer || !players || typeof players !== 'object' || !testMap) {
+        console.log('[Compass] No player data available');
+        return;
+    }
+    
+    // Get all nearby players (excluding yourself)
+    const playerIds = Object.keys(players);
+    const nearbyPlayers = [];
+    
+    for (let playerId of playerIds) {
+        const player = players[playerId];
+        if (player && player.pos && player.name && player.name !== curPlayer.name) {
+            nearbyPlayers.push({ id: playerId, data: player });
+        }
+    }
+    
+    if (nearbyPlayers.length === 0) {
+        console.log('[Compass] No other players nearby');
+        compassTarget = null;
+        // Show message to user (using 'heal' type for green/neutral color)
+        if (typeof spawnFloatingText === 'function') {
+            spawnFloatingText("No players", curPlayer.pos.x, curPlayer.pos.y - 50, "heal", false);
+        }
+        return;
+    }
+    
+    // Find the nearest player
+    let nearest = null;
+    let minDistance = Infinity;
+    
+    for (let entry of nearbyPlayers) {
+        const p = entry.data;
+        const d = dist(curPlayer.pos.x, curPlayer.pos.y, p.pos.x, p.pos.y);
+        if (d < minDistance) {
+            minDistance = d;
+            nearest = entry;
+        }
+    }
+    
+    if (nearest) {
+        const p = nearest.data;
+        const dx = p.pos.x - curPlayer.pos.x;
+        const dy = p.pos.y - curPlayer.pos.y;
+        const angle = atan2(dy, dx);
+        let angleDegrees = angle * 180 / PI;
+        if (angleDegrees < 0) angleDegrees += 360;
+
+        const chunk = testMap.globalToChunk(p.pos.x, p.pos.y);
+
+        console.log(`[Compass] Nearest player: "${p.name}" - Distance: ${minDistance.toFixed(0)}px, Direction: ${angleDegrees.toFixed(0)}°`);
+        
+        // Store compass target for visual display
+        compassTarget = {
+            playerId: nearest.id,
+            playerName: p.name,
+            distance: minDistance,
+            angle: angle,
+            angleDegrees: angleDegrees,
+            chunk: chunk,
+            duration: compassDuration,
+            maxDuration: compassDuration
+        };
+    }
+}
+
+function drawCompass(){
+    if (!compassTarget) return;
+
+    // Refresh target info if player still exists
+    if (players && compassTarget.playerId && players[compassTarget.playerId] && players[compassTarget.playerId].pos) {
+        const p = players[compassTarget.playerId];
+        const dx = p.pos.x - curPlayer.pos.x;
+        const dy = p.pos.y - curPlayer.pos.y;
+        compassTarget.distance = dist(curPlayer.pos.x, curPlayer.pos.y, p.pos.x, p.pos.y);
+        compassTarget.angle = atan2(dy, dx);
+        compassTarget.angleDegrees = compassTarget.angle * 180 / PI;
+        if (compassTarget.angleDegrees < 0) compassTarget.angleDegrees += 360;
+        compassTarget.chunk = testMap.globalToChunk(p.pos.x, p.pos.y);
+    }
+
+    if (compassTarget.duration <= 0) {
+        compassTarget = null;
+        return;
+    }
+
+    compassTarget.duration--;
+    const alpha = map(compassTarget.duration, 0, compassTarget.maxDuration, 60, 200);
+
+    // Draw compass bezel
+    const centerX = width / 2;
+    const centerY = 80;
+    const radius = 70;
+
+    push();
+    translate(centerX, centerY);
+    stroke(255, 215, 0, alpha);
+    strokeWeight(2);
+    noFill();
+    circle(0, 0, radius * 2);
+
+    // Arrow
+    rotate(compassTarget.angle);
+    stroke(255, 215, 0, alpha);
+    strokeWeight(4);
+    line(0, 0, 0, -radius + 12);
+    fill(255, 215, 0, alpha);
+    noStroke();
+    triangle(0, -radius - 6, -10, -radius + 10, 10, -radius + 10);
+    pop();
+
+    // Info label
+    const chunkLabel = compassTarget.chunk ? `${compassTarget.chunk.x},${-compassTarget.chunk.y}` : "?";
+    const labelY = centerY + 55;
+    push();
+    fill(0, 0, 0, alpha * 0.6);
+    noStroke();
+    rectMode(CENTER);
+    rect(centerX, labelY + 20, 220, 65, 8);
+
+    fill(255, 215, 0, alpha + 40);
+    textAlign(CENTER);
+    textSize(16);
+    text(compassTarget.playerName, centerX, labelY);
+    textSize(14);
+    text(`${compassTarget.distance.toFixed(0)} px  •  ${compassTarget.angleDegrees.toFixed(0)}°`, centerX, labelY + 18);
+    text(`Chunk ${chunkLabel}`, centerX, labelY + 36);
+    pop();
+}
 defineCustomItem("Compass", [[1,1]], [1,["Metal", 1],["Tech", 1]], 1, 1, "A compass that points to the nearest player", compassUse, ItemRarity.GOOD, true);
 
 function mapUse(x,y,mouseButton){}
@@ -123,6 +256,21 @@ defineCustomItem("Teleport Receiver", [[3,5]], [1,["Metal", 1],["Tech", 2],["Phi
 function dirtBagUpgradeUse(x,y,mouseButton){
     if(curPlayer.invBlock.useTimer <= 0){
         maxDirtInv += 150;
+        // Keep server snapshot in sync so dirt capacity persists across reconnects
+        curPlayer.maxDirtInv = maxDirtInv;
+        if (typeof playerStateBatcher !== 'undefined' && playerStateBatcher) {
+            playerStateBatcher.addUpdate('maxDirtInv', maxDirtInv);
+            playerStateBatcher.setPosition(curPlayer.pos);
+            playerStateBatcher.setHolding(curPlayer.holding);
+        } else if (socket && socket.connected && curPlayer) {
+            socket.emit('update_player', {
+                id: curPlayer.id,
+                pos: curPlayer.pos,
+                holding: curPlayer.holding,
+                update_names: ['maxDirtInv'],
+                update_values: [maxDirtInv]
+            });
+        }
         curPlayer.invBlock.decreaseAmount("Dirt Bag Upgrade", 1);
         curPlayer.invBlock.useTimer = 30;
     }
@@ -141,8 +289,9 @@ class SimpleItem{
         this.rarity = (itemDic[this.itemName] && itemDic[this.itemName].rarity) ? itemDic[this.itemName].rarity : ItemRarity.BASIC;
         this.rarityRGB = (itemDic[this.itemName] && itemDic[this.itemName].rarityRGB) ? itemDic[this.itemName].rarityRGB : getItemRarityRGB(this.rarity);
 
-        this.offset = createVector(0,0);
-        this.offVel = createVector(0,0); //offset velocity
+        // Use plain objects instead of p5.Vector to avoid circular reference issues during serialization
+        this.offset = { x: 0, y: 0 };
+        this.offVel = { x: 0, y: 0 }; //offset velocity
         this.shake = {intensity: 0, length: 0};
 
         this.amount = 1;
@@ -173,23 +322,50 @@ class SimpleItem{
         image(itemImgs[this.imgNum][0], x+this.offset.x,y+this.offset.y, 60, 60);
         
         if(this.shake.length > 0){
-            if(this.offVel.mag() < 1){
+            // Calculate magnitude (plain object version)
+            const getMag = (v) => Math.sqrt(v.x * v.x + v.y * v.y);
+            const setMag = (v, m) => {
+                const mag = getMag(v);
+                if (mag > 0) {
+                    v.x = (v.x / mag) * m;
+                    v.y = (v.y / mag) * m;
+                }
+            };
+            const rotate = (v, angle) => {
+                const rad = angle * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                const newX = v.x * cos - v.y * sin;
+                const newY = v.x * sin + v.y * cos;
+                v.x = newX;
+                v.y = newY;
+            };
+            
+            if(getMag(this.offVel) < 1){
                 this.offVel.x = this.shake.intensity;
             }
-            this.offVel.setMag(this.offVel.mag()+this.shake.intensity);
-            if(this.offVel.mag() > this.shake.intensity*5){
-                this.offVel.setMag(this.shake.intensity*5);
+            setMag(this.offVel, getMag(this.offVel) + this.shake.intensity);
+            if(getMag(this.offVel) > this.shake.intensity*5){
+                setMag(this.offVel, this.shake.intensity*5);
             }
-            this.offVel.rotate(random(45, 180));
+            rotate(this.offVel, random(45, 180));
             this.shake.length -= 1;
         }
         else{
             this.shake.intensity = 0;
             this.offVel.x = -1*this.offset.x;
             this.offVel.y = -1*this.offset.y;
-            this.offVel.setMag(this.offVel.mag()/10);
+            // Calculate magnitude and set velocity (plain object version)
+            const mag = Math.sqrt(this.offVel.x * this.offVel.x + this.offVel.y * this.offVel.y);
+            if (mag > 0) {
+                const targetMag = mag / 10;
+                this.offVel.x = (this.offVel.x / mag) * targetMag;
+                this.offVel.y = (this.offVel.y / mag) * targetMag;
+            }
         }
-        this.offset.add(this.offVel);
+        // Add velocity to offset (plain object version)
+        this.offset.x += this.offVel.x;
+        this.offset.y += this.offVel.y;
     }
 
     getStats(){
@@ -523,9 +699,11 @@ class Seed extends SimpleItem{
         //doesnt wait for useTimer, because it needs space to be placed
         if(ghostBuild && ghostBuild.openBool && renderGhost){
             let chunkPos = testMap.globalToChunk(x,y);
+            const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+            const chunk = testMap.chunks[chunkKey];
             let temp = createObject(this.plantName, ghostBuild.pos.x, ghostBuild.pos.y, ghostBuild.rot, curPlayer.color, curPlayer.id, curPlayer.name);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(temp);
-            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a,b) => a.z - b.z);
+            chunk.objects.push(temp);
+            chunk.objects.sort((a,b) => a.z - b.z);
             socket.emit("new_object", {
                 cx: chunkPos.x, 
                 cy: chunkPos.y, 

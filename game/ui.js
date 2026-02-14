@@ -11,301 +11,14 @@ if (typeof socket !== 'undefined') {
             console.log('[CLIENT] No moves set received, using defaults.');
         }
     });
+
 }
 // Main menu globals moved to mainMenu.js
 // This file focuses on in-game UI only
 
 // Lightweight perf toggle; enable with `window.__perfLog = true`
 
-    // Top-right ability row (dash + spells) with enlarged icons and key labels
-    if (curPlayer && curPlayer.spells) {
-        const iconSize = 26 * 4; // 4x bigger than generated base for visibility
-        const gap = 12;
-        const centerY = 18 + iconSize / 2;
-        const startX = width - 12;
 
-        // Cache icons (generated once)
-        const dashIcon = getSpellIcon('dash', (g) => {
-            g.clear();
-            g.push();
-            g.translate(g.width / 2, g.height / 2);
-            g.noStroke();
-            g.fill(120, 200, 255);
-            g.rectMode(CENTER);
-            g.rect(0, 0, 18, 12, 4);
-            g.fill(255);
-            g.triangle(-4, -4, -4, 4, 6, 0);
-            g.pop();
-        });
-        const combustionIcon = getSpellIcon('combustion', (g) => {
-            g.clear();
-            g.noStroke();
-            g.fill(255, 140, 60);
-            g.circle(13, 13, 18);
-            g.fill(255, 220, 120, 180);
-            g.circle(13, 13, 10);
-        });
-        const forceFieldIcon = getSpellIcon('forceField', (g) => {
-            g.clear();
-            g.noFill();
-            g.stroke(120, 220, 255);
-            g.strokeWeight(3);
-            g.circle(13, 13, 18);
-            g.stroke(120, 200, 240, 160);
-            g.strokeWeight(2);
-            g.circle(13, 13, 12);
-        });
-        const meditateIcon = getSpellIcon('meditate', (g) => {
-            g.clear();
-            g.noStroke();
-            g.fill(190, 150, 255);
-            g.rect(5, 8, 18, 10, 4);
-            g.fill(120, 90, 200, 180);
-            g.rect(8, 6, 12, 6, 3);
-        });
-
-        const entries = [
-            {
-                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey('2') : '2',
-                name: 'Force Field',
-                icon: forceFieldIcon,
-                active: curPlayer.spells.forceField.active,
-                onCd: curPlayer.spells.forceField.cooldown > 0,
-                cooldownPct: curPlayer.spells.forceField.cooldownMax ? curPlayer.spells.forceField.cooldown / curPlayer.spells.forceField.cooldownMax : 0,
-                locked: curPlayer.statBlock.level < (curPlayer.spells.forceField.level || 0),
-                unlockLevel: curPlayer.spells.forceField.level || 0,
-                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.forceField.manaCost,
-                readyColor: { r: 120, g: 200, b: 255 }
-            },
-            {
-                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey('1') : '1',
-                name: 'Combustion',
-                icon: combustionIcon,
-                active: false,
-                onCd: curPlayer.spells.combustion.cooldown > 0,
-                cooldownPct: curPlayer.spells.combustion.cooldownMax ? curPlayer.spells.combustion.cooldown / curPlayer.spells.combustion.cooldownMax : 0,
-                locked: curPlayer.statBlock.level < (curPlayer.spells.combustion.level || 0),
-                unlockLevel: curPlayer.spells.combustion.level || 0,
-                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.combustion.manaCost,
-                readyColor: { r: 255, g: 150, b: 100 }
-            },
-            {
-                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey('3') : '3',
-                name: 'Meditate',
-                icon: meditateIcon,
-                active: curPlayer.spells.meditate.active,
-                onCd: curPlayer.spells.meditate.cooldown > 0,
-                cooldownPct: curPlayer.spells.meditate.cooldownMax ? curPlayer.spells.meditate.cooldown / curPlayer.spells.meditate.cooldownMax : 0,
-                locked: curPlayer.statBlock.level < (curPlayer.spells.meditate.level || 0),
-                unlockLevel: curPlayer.spells.meditate.level || 0,
-                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.spells.meditate.manaCost,
-                readyColor: { r: 200, g: 150, b: 255 }
-            },
-            {
-                key: (typeof keyToVisualKey === 'function') ? keyToVisualKey(Controls_Dash_key || 'Shift') : (Controls_Dash_key || 'Shift'),
-                name: 'Dash',
-                icon: dashIcon,
-                active: curPlayer.isDashing,
-                onCd: curPlayer.dashCooldown > 0,
-                cooldownPct: curPlayer.dashCooldownMax ? curPlayer.dashCooldown / curPlayer.dashCooldownMax : 0,
-                locked: false,
-                unlockLevel: 1,
-                canAfford: curPlayer.statBlock.stats.mp >= curPlayer.dashManaCost,
-                readyColor: { r: 120, g: 200, b: 255 }
-            }
-        ];
-
-        textFont(gameUIFont);
-        rectMode(CENTER);
-        imageMode(CORNER);
-
-        entries.forEach((entry, idx) => {
-            const x = startX - idx * (iconSize + gap) - iconSize / 2;
-
-            // background state
-            if (entry.locked) {
-                fill(50, 50, 50, 220);
-                stroke(80, 60, 30);
-            } else if (entry.onCd) {
-                fill(80, 80, 80, 220);
-                stroke(60, 60, 60);
-            } else if (entry.active) {
-                fill(entry.readyColor.r, entry.readyColor.g, entry.readyColor.b, 220);
-                stroke(230);
-            } else if (!entry.canAfford) {
-                fill(90, 40, 40, 220);
-                stroke(150, 60, 60);
-            } else {
-                fill(140, 240, 140, 220);
-                stroke(90, 190, 90);
-            }
-            strokeWeight(4);
-            rect(x, centerY, iconSize, iconSize, 10);
-
-            // icon graphic scaled up
-            image(entry.icon, x - iconSize / 2, centerY - iconSize / 2, iconSize, iconSize);
-
-            // cooldown overlay
-            if (entry.onCd && !entry.locked) {
-                noStroke();
-                fill(255, 120, 120, 160);
-                rect(x, centerY - (iconSize / 2) + (iconSize * entry.cooldownPct) / 2, iconSize, iconSize * entry.cooldownPct, 8);
-            }
-
-            // key label on top with badge
-            noStroke();
-            textSize(18);
-            textAlign(CENTER, CENTER);
-            const keyText = entry.locked ? `L${entry.unlockLevel}` : entry.key;
-            const keyW = Math.max(32, textWidth(keyText) + 12);
-            const keyH = 20;
-            const keyY = centerY - iconSize / 2 - keyH / 2 - 6;
-            fill(0, 180);
-            rect(x, keyY, keyW, keyH, 6);
-            fill(entry.locked ? color(255, 220, 160) : color(255));
-            text(keyText, x, keyY);
-
-            // name or unlock hint
-            textSize(14);
-            fill(entry.locked ? color(230, 190, 120) : color(230));
-            text(entry.locked ? `Unlock Lv ${entry.unlockLevel}` : entry.name, x, centerY + iconSize / 2 + 14);
-        });
-    }
-window.__perfLog = window.__perfLog ?? false;
-
-function perfTimed(label, fn) {
-    if (!window.__perfLog) return fn();
-    const t0 = performance.now();
-    const res = fn();
-    const t1 = performance.now();
-    console.log(`[perf] ${label}: ${(t1 - t0).toFixed(2)}ms`);
-    return res;
-}
-
-// Cached generated icons for abilities/spells
-let spellIconCache = {};
-function getSpellIcon(key, drawCb) {
-    if (spellIconCache[key]) return spellIconCache[key];
-    const g = createGraphics(26, 26);
-    g.pixelDensity(1);
-    drawCb(g);
-    spellIconCache[key] = g;
-    return g;
-}
-
-// Global move catalog (extendable)
-const ALL_MOVES = [
-    { 
-        id: 'dash', 
-        name: 'Dash', 
-        requiredLevel: 1,
-        manaCost: 30,
-        cooldown: 0.5,
-        description: 'Quickly dash in the direction you are moving. Essential for evasion.',
-        color: { r: 120, g: 200, b: 255 }
-    },
-    { 
-        id: 'forceField', 
-        name: 'Force Field', 
-        requiredLevel: 3,
-        manaCost: 40,
-        cooldown: 8,
-        description: 'Create a protective barrier that blocks damage and projectiles.',
-        color: { r: 120, g: 220, b: 255 }
-    },
-    { 
-        id: 'combustion', 
-        name: 'Combustion', 
-        requiredLevel: 8,
-        manaCost: 30,
-        cooldown: 6,
-        description: 'Ignite enemies around you with a burst of fire damage.',
-        color: { r: 255, g: 150, b: 100 }
-    },
-    { 
-        id: 'meditate', 
-        name: 'Meditate', 
-        requiredLevel: 14,
-        manaCost: 5,
-        cooldown: 3,
-        description: 'Channel magic to restore mana over time. Toggle active.',
-        color: { r: 200, g: 150, b: 255 }
-    }
-];
-
-function updateResponsiveDesign() {
-    // Update positions for in-game UI elements
-    if (typeof dirtBagUI !== 'undefined') {
-        dirtBagUI.pos = createVector(width - 180 - 10, height - 186 - 10);
-    }
-
-    if (typeof timerDiv !== 'undefined') {
-        timerDiv.position(width / 2 - 50, 10);
-    }
-}
-// Function to render buttons instead of links
-// Main menu link functions moved to mainMenu.js
-
-// Server browser UI functions moved to mainMenu.js
-
-// Show the selection UI elements
-function drawSelection() {
-    raceContainer.style("display", "flex");
-    // ---------------------------------------------------
-    //  Create Title (centered, larger & responsive)
-    // ---------------------------------------------------
-    raceTitle.id("raceTitle");
-    raceTitle.elt.innerHTML = "Select Your Race"
-    raceTitle.style("position", "absolute");
-    raceTitle.style("top", "min(25%, 30dvh)");
-
-    raceTitle.style("left", "50%");
-    raceTitle.style("transform", "translateX(-50%)");
-    raceTitle.style("max-width", "90vw");
-    raceTitle.style("white-space", "normal");
-
-    // Responsive font size (combining viewport and fixed pixels)
-    raceTitle.style("font-size", "calc(1.5vw + 12px)");
-    if (window.innerWidth < 480) {
-        raceTitle.style("font-size", "calc(1vw + 10px)");
-    }
-
-    raceTitle.style("font-weight", "bold");
-    raceTitle.style("color", "#fff");
-    raceTitle.style("text-shadow", "1px 1px 2px #000");
-    raceTitle.style("padding", "10px 20px");
-    raceTitle.style("background-color", "rgba(0, 0, 0, 0.3)");
-    raceTitle.style("border-radius", "10px");
-    raceTitle.style("text-align", "center");
-
-    nameInput.show();
-    goButton.show();
-
-
-    //back to server selection button
-    race_back_button.innerHTML = " <- Back"
-
-    race_back_button.style("font-size", "20px");
-    race_back_button.style("color", "#fff");
-    race_back_button.style("border", "none");
-    race_back_button.style("border-radius", "8px");
-    race_back_button.style("position", "absolute");
-    race_back_button.style("top", "50dvh");
-
-    race_back_button.mousePressed(() => {
-        //console.log("pressed")
-        hideRaceSelect()
-        gameState = "initial"
-    })
-
-    race_back_button.show();
-    race_back_button.parent(raceContainer);
-    raceButtons.forEach((card) => {
-        card.show();
-    });
-    // Enable the "Go" button only when a race is selected and a name is entered
-
-}
 
 let timerDiv;
 
@@ -331,11 +44,13 @@ function setupUI() {
 
     // Create player name button once
     nameBtn = createButton("");
+    nameBtn.id('playerNameBtn');
     nameBtn.style('background', 'none');
     nameBtn.style('border', 'none');
     nameBtn.style('padding', '0');
     nameBtn.style('font-size', '20px');
     nameBtn.style('cursor', 'pointer');
+    nameBtn.style('transform', 'translateX(-50%)');
     nameBtn.mousePressed(() => {
         gameState = "team_select";
         teamPickDiv.show();
@@ -354,357 +69,200 @@ function setupUI() {
 
     // Setup race selection UI from mainMenu
     setupRaceSelectionUI();
+    deathDiv.hide();
 }
 
+window.setupUI = setupUI;
 
-// Global variables for chat UI elements and player count display
-let chatContainer, chatMessagesBox, chatInput, chatSendButton;
-let chatRendered = false;
-let toggleChatButton; // Button to collapse/expand chat
-let inputContainer;   // Reference to hide/show input container
-let isChatOpen = true; // Track whether the chat is currently open or collapsed
-let unreadChatCount = 0; // Track number of unread messages
-let chatNotificationBadge; // Badge element for unread count
-let lastReadTimestamp = Date.now(); // Track when user last viewed chat
-
-function renderChatUI() {
-    if (chatRendered) return;
-    chatRendered = true;
-
-    // Create chat container positioned at bottom-left
-    chatContainer = createDiv();
-    chatContainer.class("container");
-    chatContainer.style("position", "fixed");
-    chatContainer.style("bottom", "0dvh");
-    chatContainer.style("left", "0dvw");
-    chatContainer.style("z-index", "10");
-    chatContainer.style("min-width", "10dvw");
-
-    chatContainer.style("max-width", "30dvw");
-    chatContainer.style("background", "rgba(34, 34, 34, 0.8)"); // Semi-transparent dark background
-    chatContainer.style("padding", "10px");
-    chatContainer.style("border-radius", "8px");
-    chatContainer.style("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.4)"); // Soft shadow
-    chatContainer.style("backdrop-filter", "blur(5px)"); // Blurred background (if supported)
-    chatContainer.style("pointer-events", "auto"); // Ensure clicks go through
-
-    // ─────────────────────────────────────────────────────────
-    // Toggle Button (Collapses/Expands the chat area)
-    // ─────────────────────────────────────────────────────────
-
-    toggleChatButton = createButton("");
-    toggleChatButton.id("chatToggle")
-    toggleChatButton.parent(chatContainer);
-    toggleChatButton.style("width", "100%");
-    toggleChatButton.style("background", "#555");
-    toggleChatButton.style("color", "#fff");
-    toggleChatButton.style("border", "none");
-    toggleChatButton.style("border-radius", "5px");
-    toggleChatButton.style("cursor", "pointer");
-    toggleChatButton.style("margin-bottom", "5px");
-    toggleChatButton.style("padding", "6px");
-    toggleChatButton.style("position", "relative");
-    toggleChatButton.mousePressed(toggleChatDropdown);
-
-    // Create notification badge for unread messages
-    chatNotificationBadge = createDiv("0");
-    chatNotificationBadge.parent(toggleChatButton);
-    chatNotificationBadge.style("position", "absolute");
-    chatNotificationBadge.style("top", "-8px");
-    chatNotificationBadge.style("right", "-8px");
-    chatNotificationBadge.style("background", "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)");
-    chatNotificationBadge.style("color", "#fff");
-    chatNotificationBadge.style("border-radius", "50%");
-    chatNotificationBadge.style("min-width", "22px");
-    chatNotificationBadge.style("height", "22px");
-    chatNotificationBadge.style("display", "none");
-    chatNotificationBadge.style("align-items", "center");
-    chatNotificationBadge.style("justify-content", "center");
-    chatNotificationBadge.style("font-size", "11px");
-    chatNotificationBadge.style("font-weight", "bold");
-    chatNotificationBadge.style("box-shadow", "0 2px 8px rgba(255, 68, 68, 0.6)");
-    chatNotificationBadge.style("border", "2px solid #fff");
-    chatNotificationBadge.style("pointer-events", "none");
-    chatNotificationBadge.style("animation", "badgePulse 2s ease-in-out infinite");
-
-    // Update the button text immediately on creation
-    updateToggleChatButtonText();
-
-    // ─────────────────────────────────────────────────────────
-    // Container for messages
-    // ─────────────────────────────────────────────────────────
-
-    chatMessagesBox = createDiv();
-    chatMessagesBox.style("height", "15dvh");
-    chatMessagesBox.style("overflow-y", "auto");
-    chatMessagesBox.style("background-color", "#333");
-    chatMessagesBox.style("color", "#fff");
-    chatMessagesBox.style("padding", "8px");
-    chatMessagesBox.style("border-radius", "5px");
-    chatMessagesBox.style("margin-bottom", "10px");
-    chatMessagesBox.style("justify-content", "left");
-
-    // ─────────────────────────────────────────────────────────
-    // Input Field
-    // ─────────────────────────────────────────────────────────
-
-    chatInput = createInput("");
-    chatInput.attribute("placeholder", "Type your message...");
-    chatInput.style("flex", "1");
-    chatInput.style("padding", "3px");
-    chatInput.style("border-radius", "5px");
-    chatInput.style("outline", "none");
-    chatInput.style("color", "#fff");
-    chatInput.style("background-color", "#222");
-    chatInput.style("margin-right", "5px");
-    chatInput.mousePressed(() => {
-        lastGameState = gameState + "";
-        gameState = "chating";
-    });
-    chatInput.elt.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-            sendChatMessage();
-            gameState = lastGameState;
+// Show invite player UI - displays list of players not in a team
+function showInvitePlayerUI() {
+    // Create modal overlay
+    let modalOverlay = createDiv();
+    modalOverlay.id('invite-modal-overlay');
+    modalOverlay.style('position', 'fixed');
+    modalOverlay.style('top', '0');
+    modalOverlay.style('left', '0');
+    modalOverlay.style('width', '100%');
+    modalOverlay.style('height', '100%');
+    modalOverlay.style('background', 'rgba(0, 0, 0, 0.5)');
+    modalOverlay.style('display', 'flex');
+    modalOverlay.style('justify-content', 'center');
+    modalOverlay.style('align-items', 'center');
+    modalOverlay.style('z-index', '1000');
+    
+    // Modal content
+    let modal = createDiv();
+    modal.style('background', '#333');
+    modal.style('padding', '30px');
+    modal.style('border-radius', '10px');
+    modal.style('border', '2px solid #4CAF50');
+    modal.style('max-height', '500px');
+    modal.style('overflow-y', 'auto');
+    modal.style('min-width', '400px');
+    modal.parent(modalOverlay);
+    
+    // Title
+    let title = createP('Invite Player');
+    title.style('font-size', '20px');
+    title.style('font-weight', 'bold');
+    title.style('margin-bottom', '20px');
+    title.parent(modal);
+    
+    // Get list of players not in a team
+    let availablePlayers = [];
+    for (let id in players) {
+        let player = players[id];
+        if (player && !player.teamId && player.name !== curPlayer.name) {
+            availablePlayers.push(player.name);
         }
-    });
-
-
-    chatSendButton = createButton("Send");
-    chatSendButton.style("padding", "8px 14px");
-    chatSendButton.style("border", "none");
-    chatSendButton.style("border-radius", "5px");
-    chatSendButton.style("background-color", "#4caf50");
-    chatSendButton.style("color", "#fff");
-    chatSendButton.style("cursor", "pointer");
-
-    chatSendButton.style("min-width", "5dvw");
-    chatSendButton.mousePressed(() => {
-        blurActiveElement();
-        sendChatMessage();
-        gameState = lastGameState;
-    });
-
-
-    inputContainer = createDiv();
-    inputContainer.style("display", "flex");
-    inputContainer.style("align-items", "center");
-    inputContainer.child(chatInput);
-    inputContainer.child(chatSendButton);
-
-    // Append everything to the main chat container
-    chatContainer.child(chatMessagesBox);
-    chatContainer.child(inputContainer);
-
-    // Finally, append chat container to the document body
-    chatContainer.parent(document.body);
-}
-
-// ─────────────────────────────────────────────────────────
-// Toggle Function: Collapses/Expands the Chat
-// ─────────────────────────────────────────────────────────
-
-function toggleChatDropdown() {
-    if (isChatOpen) {
-        // Hide the messages box and input
-        chatMessagesBox.hide();
-        inputContainer.hide();
-    } else {
-        // Show the messages box and input
-        chatMessagesBox.show();
-        inputContainer.show();
-        // Mark all messages as read when opening chat
-        markChatAsRead();
     }
-    isChatOpen = !isChatOpen;
-    // Update the button text after toggling
-    updateToggleChatButtonText();
-}
-
-
-// startGame function moved to mainMenu.js
-
-// ─────────────────────────────────────────────────────────
-// Update the toggle button text (includes player count)
-// ─────────────────────────────────────────────────────────
-
-function updateToggleChatButtonText() {
-    // Calculate player count
-    const playerCount = Object.keys(players).length + 1;
-    // Set arrow and text depending on state
-    const arrow = isChatOpen ? "▼" : "▲";
-    toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
     
-    // Re-append the badge after updating HTML
-    if (chatNotificationBadge) {
-        chatNotificationBadge.parent(toggleChatButton);
-    }
-    updateChatNotificationBadge();
-}
-
-// Function to update the player count display when players change
-function updatePlayerCount() {
-    const playerCount = Object.keys(players).length + 1;
-    const arrow = isChatOpen ? "▼" : "▲";
-    if (toggleChatButton != undefined) {
-        toggleChatButton.html(`Chat (Players: ${playerCount}) ${arrow}`);
-        // Re-append the badge after updating HTML
-        if (chatNotificationBadge) {
-            chatNotificationBadge.parent(toggleChatButton);
+    if (availablePlayers.length === 0) {
+        let noPlayersMsg = createP('No available players to invite');
+        noPlayersMsg.style('color', '#888');
+        noPlayersMsg.parent(modal);
+    } else {
+        // List of players with invite buttons
+        for (let playerName of availablePlayers) {
+            let playerContainer = createDiv();
+            playerContainer.style('display', 'flex');
+            playerContainer.style('justify-content', 'space-between');
+            playerContainer.style('align-items', 'center');
+            playerContainer.style('padding', '10px');
+            playerContainer.style('margin', '5px 0');
+            playerContainer.style('background', '#444');
+            playerContainer.style('border-radius', '5px');
+            playerContainer.parent(modal);
+            
+            let nameText = createSpan(playerName);
+            nameText.style('color', '#fff');
+            nameText.style('flex', '1');
+            nameText.parent(playerContainer);
+            
+            let inviteBtn = createButton('Invite');
+            inviteBtn.style('padding', '5px 15px');
+            inviteBtn.style('background', '#4CAF50');
+            inviteBtn.style('color', 'white');
+            inviteBtn.style('border', 'none');
+            inviteBtn.style('border-radius', '3px');
+            inviteBtn.style('cursor', 'pointer');
+            inviteBtn.mousePressed(() => {
+                socket.emit('invite_player', {
+                    teamId: curPlayer.teamId,
+                    invitedPlayerName: playerName
+                });
+                // Close modal
+                modalOverlay.remove();
+                alert(`Invitation sent to ${playerName}`);
+            });
+            inviteBtn.parent(playerContainer);
         }
-        updateChatNotificationBadge();
     }
-}
-
-// Function to send a chat message via socket
-function sendChatMessage() {
-    let message = chatInput.value();
-    if (message.trim() === "") return; // Avoid sending empty messages
-
-    // Retrieve player position (adjust if you store the player's position differently)
-    let x = curPlayer && curPlayer.pos ? curPlayer.pos.x : 0;
-    let y = curPlayer && curPlayer.pos ? curPlayer.pos.y : 0;
-
-    // Format data: "x,y,message"
-    let data = `${x},${y},${message}`;
-
-    // Emit the chat message to the server
-    if (socket) {
-        socket.emit("send_message", data);
-    }
-
-    // Clear the input after sending
-    chatInput.value("");
     
-    // Mark messages as read when user sends a message (they're obviously viewing chat)
-    if (!isChatOpen) {
-        // If chat was closed, just clear the counter without opening
-        unreadChatCount = 0;
-        updateChatNotificationBadge();
-    } else {
-        markChatAsRead();
-    }
-}
-
-function formatChatTimestamp(rawTime) {
-    const pad = (n) => (n < 10 ? '0' + n : '' + n);
-    let d = rawTime ? new Date(rawTime) : new Date();
-    if (isNaN(d.getTime())) d = new Date();
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-// Helper function to add a chat message to the messages box
-function addChatMessage(chatMsg) {
-    if (!chatContainer) return
-
-    //console.log(chatMsg)
-
-    if (!chatMsg.user) {
-        chatMsg.user = "SERVER"
-    }
-    const timeString = formatChatTimestamp(chatMsg.time);
-    const isNewMessage = !isChatOpen; // Message is unread if chat is collapsed
-
-    // Increment unread count if chat is closed
-    if (!isChatOpen) {
-        unreadChatCount++;
-        updateChatNotificationBadge();
-    }
-
-    // Create a container for the entire message (text + time)
-    let msgContainer = createDiv();
-    msgContainer.style("display", "flex");
-    msgContainer.style("align-items", "center");
-    msgContainer.style("margin-bottom", "6px");
-    msgContainer.class(isNewMessage ? "chat-message-unread" : "chat-message-read");
+    // Close button
+    let closeBtn = createButton('Close');
+    closeBtn.style('width', '100%');
+    closeBtn.style('padding', '10px');
+    closeBtn.style('margin-top', '15px');
+    closeBtn.style('background', '#f44336');
+    closeBtn.style('color', 'white');
+    closeBtn.style('border', 'none');
+    closeBtn.style('border-radius', '5px');
+    closeBtn.style('cursor', 'pointer');
+    closeBtn.mousePressed(() => {
+        modalOverlay.remove();
+    });
+    closeBtn.parent(modal);
     
-    // Add unread indicator
-    if (isNewMessage) {
-        let unreadIndicator = createDiv("●");
-        unreadIndicator.style("color", "#ff4444");
-        unreadIndicator.style("font-size", "12px");
-        unreadIndicator.style("margin-right", "6px");
-        unreadIndicator.style("animation", "pulse 1.5s ease-in-out infinite");
-        msgContainer.child(unreadIndicator);
-    }
-
-    // Create a text container with the user & message
-    let textContainer = createDiv(`<strong>${chatMsg.user}:</strong> ${chatMsg.message}`);
-    textContainer.style("color", "#fff");
-    textContainer.style("background-color", isNewMessage ? "rgba(255, 68, 68, 0.15)" : "#333");
-    textContainer.style("padding", "6px 8px");
-    textContainer.style("border-radius", "5px 0 0 5px"); // Rounded left corners
-    textContainer.style("flex", "1"); // Let this container expand
-    textContainer.style("font-size", "0.9em");
-    if (isNewMessage) {
-        textContainer.style("border-left", "3px solid #ff4444");
-    }
-
-    // Create a time container in a smaller box
-    let timeDiv = createDiv(timeString);
-    timeDiv.style("background-color", isNewMessage ? "rgba(255, 68, 68, 0.3)" : "#555");
-    timeDiv.style("color", "#ccc");
-    timeDiv.style("padding", "6px 8px");
-    timeDiv.style("border-radius", "0 5px 5px 0"); // Rounded right corners
-    timeDiv.style("margin-left", "4px");
-    timeDiv.style("font-size", "0.8em");
-    timeDiv.style("white-space", "nowrap"); // Ensure the time doesn't wrap to a new line
-
-    // Add both containers to the main message container
-    msgContainer.child(textContainer);
-    msgContainer.child(timeDiv);
-
-    // Add the message container to the messages box
-    chatMessagesBox.child(msgContainer);
-
-    // Scroll to the bottom of the messages box
-    chatMessagesBox.elt.scrollTop = chatMessagesBox.elt.scrollHeight;
+    // Close on overlay click
+    modalOverlay.mousePressed(() => {
+        modalOverlay.remove();
+    });
+    modal.mousePressed((e) => {
+        e.stopPropagation();
+    });
 }
 
-/**
- * Update the chat notification badge visibility and count
- */
-function updateChatNotificationBadge() {
-    if (!chatNotificationBadge) return;
+// Show invite prompt - called when player receives an invite
+function showTeamInvitePrompt(teamName, inviterName, teamId) {
+    // Create modal overlay
+    let modalOverlay = createDiv();
+    modalOverlay.id('invite-prompt-overlay');
+    modalOverlay.style('position', 'fixed');
+    modalOverlay.style('top', '0');
+    modalOverlay.style('left', '0');
+    modalOverlay.style('width', '100%');
+    modalOverlay.style('height', '100%');
+    modalOverlay.style('background', 'rgba(0, 0, 0, 0.7)');
+    modalOverlay.style('display', 'flex');
+    modalOverlay.style('justify-content', 'center');
+    modalOverlay.style('align-items', 'center');
+    modalOverlay.style('z-index', '1000');
     
-    if (unreadChatCount > 0) {
-        chatNotificationBadge.html(unreadChatCount > 99 ? "99+" : String(unreadChatCount));
-        chatNotificationBadge.style("display", "flex");
-    } else {
-        chatNotificationBadge.style("display", "none");
-    }
-}
-
-/**
- * Mark all chat messages as read and clear notification
- */
-function markChatAsRead() {
-    unreadChatCount = 0;
-    lastReadTimestamp = Date.now();
-    updateChatNotificationBadge();
+    // Modal content
+    let modal = createDiv();
+    modal.style('background', '#333');
+    modal.style('padding', '30px');
+    modal.style('border-radius', '10px');
+    modal.style('border', '2px solid #2196F3');
+    modal.style('text-align', 'center');
+    modal.style('min-width', '350px');
+    modal.parent(modalOverlay);
     
-    // Remove unread styling from all messages
-    if (chatMessagesBox && chatMessagesBox.elt) {
-        const messages = chatMessagesBox.elt.querySelectorAll('.chat-message-unread');
-        messages.forEach(msg => {
-            msg.classList.remove('chat-message-unread');
-            msg.classList.add('chat-message-read');
-            // Remove the unread indicator dot
-            const indicator = msg.querySelector('div');
-            if (indicator && indicator.innerHTML === '●') {
-                indicator.remove();
-            }
-            // Update styling
-            const textContainer = msg.querySelectorAll('div')[0];
-            if (textContainer) {
-                textContainer.style.backgroundColor = '#333';
-                textContainer.style.borderLeft = '';
-            }
-            const timeDiv = msg.querySelectorAll('div')[1];
-            if (timeDiv) {
-                timeDiv.style.backgroundColor = '#555';
-            }
+    // Title
+    let title = createP('Team Invitation');
+    title.style('font-size', '20px');
+    title.style('font-weight', 'bold');
+    title.style('color', '#2196F3');
+    title.style('margin-bottom', '15px');
+    title.parent(modal);
+    
+    // Message
+    let message = createP(`${inviterName} has invited you to join the team "${teamName}"`);
+    message.style('font-size', '16px');
+    message.style('margin-bottom', '20px');
+    message.parent(modal);
+    
+    // Button container
+    let buttonContainer = createDiv();
+    buttonContainer.style('display', 'flex');
+    buttonContainer.style('gap', '10px');
+    buttonContainer.style('justify-content', 'center');
+    buttonContainer.parent(modal);
+    
+    // Accept button
+    let acceptBtn = createButton('Accept');
+    acceptBtn.style('padding', '10px 30px');
+    acceptBtn.style('background', '#4CAF50');
+    acceptBtn.style('color', 'white');
+    acceptBtn.style('border', 'none');
+    acceptBtn.style('border-radius', '5px');
+    acceptBtn.style('cursor', 'pointer');
+    acceptBtn.style('font-size', '16px');
+    acceptBtn.mousePressed(() => {
+        socket.emit('accept_invite', {
+            teamId: teamId
         });
-    }
+        modalOverlay.remove();
+    });
+    acceptBtn.parent(buttonContainer);
+    
+    // Decline button
+    let declineBtn = createButton('Decline');
+    declineBtn.style('padding', '10px 30px');
+    declineBtn.style('background', '#f44336');
+    declineBtn.style('color', 'white');
+    declineBtn.style('border', 'none');
+    declineBtn.style('border-radius', '5px');
+    declineBtn.style('cursor', 'pointer');
+    declineBtn.style('font-size', '16px');
+    declineBtn.mousePressed(() => {
+        socket.emit('decline_invite', {
+            teamId: teamId
+        });
+        modalOverlay.remove();
+    });
+    declineBtn.parent(buttonContainer);
 }
 
 var spaceBarDiv;
@@ -756,22 +314,12 @@ function defineSpaceBarUI() {
                     }
                 }
             }
-            // PERF FIX #10: Use fast highlight instead of full DOM rebuild after transfer
+            // Force full rebuild so amounts refresh
+            swapListCache.lastLeftHash = "";
+            swapListCache.lastRightHash = "";
             fastHighlightSwapLists(curPlayer.invBlock.curItem, curPlayer.otherInv.invBlock.curItem);
-            updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
-
-            // Sync other inventory back to server when clicking the spacebar UI (mirror keyboard handler)
-            if (curPlayer.otherInv && curPlayer.otherInv.pos) {
-                const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-                socket.emit("update_inv", {
-                    cx: chunkPos.x, cy: chunkPos.y,
-                    objName: curPlayer.otherInv.objName,
-                    pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                    z: curPlayer.otherInv.z,
-                    invId: curPlayer.otherInv.invBlock?.invId,
-                    items: curPlayer.otherInv.invBlock.items
-                });
-            }
+            updateSwapItemLists(curPlayer.otherInv.invBlock);
+            _syncOtherInv();
         }
     });
 
@@ -974,243 +522,6 @@ function ensureMoveSlots() {
     while (curPlayer.movesSlots.length < 10) curPlayer.movesSlots.push(null);
 }
 
-function showMovesEditor() {
-    ensureMoveSlots();
-    if (!movesEditorDiv) {
-        defineMovesEditorUI();
-    }
-    refreshMovesEditorUI();
-    invDiv.hide();
-    movesEditorDiv.show();
-}
-
-function defineMovesEditorUI() {
-
-
-    // For simplicity, reuse the inventory div as the moves editor container
-    movesEditorDiv = invDiv;
-    movesEditorDiv.id("moves-editor");
-    movesEditorDiv.html(''); // Clear existing content
-    
-    const panel = movesEditorDiv;
-    panel.style("display", "grid");
-    panel.style("grid-template-columns", "1fr 1fr");
-    panel.style("gap", "12px");
-    panel.style("width", "60vw");
-    panel.style("max-width", "85vw");
-    
-    const header = createDiv("<strong>Edit Moves (Slots 0-9)</strong>").parent(panel);
-    header.style("grid-column", "1 / span 2");
-    header.style("display", "flex");
-    header.style("justify-content", "space-between");
-    header.style("align-items", "center");
-    header.style("margin-bottom", "12px");
-    header.style("color", "yellow");
-    
-    const backBtn = createButton("Back to Inventory").parent(header);
-    backBtn.style("padding", "8px 16px");
-    backBtn.style("cursor", "pointer");
-    backBtn.mousePressed(() => {
-        // Sync movesSlots with server before leaving
-        if (curPlayer && curPlayer.movesSlots) {
-            socket.emit("update_moves", {
-                playerId: curPlayer.id,
-                movesSlots: curPlayer.movesSlots
-            });
-        }
-        // Restore inventory UI by re-initializing
-        movesEditorDiv.hide();
-        defineInvUI();
-        invDiv.show();
-        updateItemList();
-        updatecurItemDiv();
-    });
-    
-    movesSlotList = createDiv().parent(panel);
-    movesSlotList.style("border-radius", "8px");
-    movesSlotList.style("padding", "8px");
-    movesSlotList.style("overflow-y", "auto");
-    movesSlotList.style("background", "#222");
-    
-    movesAllList = createDiv().parent(panel);
-    movesAllList.style("border-radius", "8px");
-    movesAllList.style("padding", "8px");
-    movesAllList.style("overflow-y", "auto");
-    movesAllList.style("background", "#222");
-
-    
-}
-function refreshMovesEditorUI() {
-    if (!curPlayer) return;
-    ensureMoveSlots();
-
-    const slotKeys = ['1','2','3','4','5','6','7','8','9','0'];
-
-    // Left panel: Slot assignments
-    movesSlotList.html('<div style="margin-bottom:8px; font-weight:bold; font-size:14px; color:#aef;">Slots</div>');
-    for (let i = 0; i < 10; i++) {
-        const moveId = curPlayer.movesSlots[i];
-        const move = moveId ? ALL_MOVES.find(m => m.id === moveId) : null;
-        const displayName = move ? move.name : 'Empty';
-        
-        const slotBtn = createButton(`${slotKeys[i]}: ${displayName}`).parent(movesSlotList);
-        slotBtn.style("width", "100%");
-        slotBtn.style("margin-bottom", "6px");
-        slotBtn.style("padding", "8px");
-        slotBtn.style("background", i === selectedMoveSlotIdx ? "green" : "#333");
-        slotBtn.style("color", i === selectedMoveSlotIdx ? "#fff" : (moveId ? "#aef" : "#888"));
-        slotBtn.style("border", i === selectedMoveSlotIdx ? "2px solid #fff" : "1px solid #555");
-        slotBtn.style("cursor", "pointer");
-        slotBtn.style("text-align", "left");
-        slotBtn.mousePressed(() => { selectedMoveSlotIdx = i; refreshMovesEditorUI(); });
-
-        // clear button should be xlogo png
-        const clearBtn = createImg("images/ui/x.png", "Clear").parent(slotBtn);
-        clearBtn.style("width", "16px");
-        clearBtn.style("height", "16px");
-        clearBtn.style("float", "right");
-        clearBtn.style("cursor", "pointer");
-        clearBtn.style("image-rendering", "pixelated");
-        clearBtn.mousePressed((e) => {
-            e.stopPropagation(); // Prevent triggering the slot button click
-            curPlayer.movesSlots[i] = null;
-            refreshMovesEditorUI();
-        });
-
-    }
-
-    // Right panel: All available moves with details
-    movesAllList.html('<div style="margin-bottom:12px; font-weight:bold; font-size:14px; color:#aef;">Available Moves</div>');
-    
-    // Create and cache move icons
-    const dashIcon = getSpellIcon('dash', (g) => {
-        g.clear();
-        g.push();
-        g.translate(g.width / 2, g.height / 2);
-        g.noStroke();
-        g.fill(120, 200, 255);
-        g.rectMode(CENTER);
-        g.rect(0, 0, 14, 9, 3);
-        g.fill(255);
-        g.triangle(-3, -3, -3, 3, 4, 0);
-        g.pop();
-    });
-    const combustionIcon = getSpellIcon('combustion', (g) => {
-        g.clear();
-        g.noStroke();
-        g.fill(255, 140, 60);
-        g.circle(13, 13, 14);
-        g.fill(255, 220, 120, 180);
-        g.circle(13, 13, 8);
-    });
-    const forceFieldIcon = getSpellIcon('forceField', (g) => {
-        g.clear();
-        g.noFill();
-        g.stroke(120, 220, 255);
-        g.strokeWeight(2);
-        g.circle(13, 13, 14);
-        g.stroke(120, 200, 240, 160);
-        g.strokeWeight(1.5);
-        g.circle(13, 13, 9);
-    });
-    const meditateIcon = getSpellIcon('meditate', (g) => {
-        g.clear();
-        g.noStroke();
-        g.fill(190, 150, 255);
-        g.rect(4, 7, 14, 8, 3);
-        g.fill(120, 90, 200, 180);
-        g.rect(6, 5, 9, 5, 2);
-    });
-    
-    const moveIcons = {
-        'dash': dashIcon,
-        'combustion': combustionIcon,
-        'forceField': forceFieldIcon,
-        'meditate': meditateIcon
-    };
-    
-    ALL_MOVES.forEach(move => {
-        const locked = curPlayer.statBlock.level < move.requiredLevel;
-        const isSelected = curPlayer.movesSlots[selectedMoveSlotIdx] === move.id;
-        
-        // Container for move item
-        const moveItemDiv = createDiv('').parent(movesAllList);
-        moveItemDiv.style("margin-bottom", "12px");
-        moveItemDiv.style("padding", "10px");
-        moveItemDiv.style("background", locked ? "#1a1a1a" : (isSelected ? "#2e5c99" : "#222"));
-        moveItemDiv.style("border", isSelected ? "2px solid #aef" : (locked ? "1px solid #444" : "1px solid #555"));
-        moveItemDiv.style("border-radius", "6px");
-        moveItemDiv.style("cursor", locked ? "not-allowed" : "pointer");
-        moveItemDiv.style("opacity", locked ? "0.6" : "1");
-        
-        // Icon + content wrapper
-        const contentWrapper = createDiv('').parent(moveItemDiv);
-        contentWrapper.style("display", "flex");
-        contentWrapper.style("gap", "10px");
-        contentWrapper.style("margin-bottom", "8px");
-        
-        // Icon container
-        const iconContainer = createDiv('').parent(contentWrapper);
-        iconContainer.style("min-width", "50px");
-        iconContainer.style("height", "50px");
-        iconContainer.style("background", locked ? "#111" : "#333");
-        iconContainer.style("border", "1px solid #555");
-        iconContainer.style("border-radius", "4px");
-        iconContainer.style("display", "flex");
-        iconContainer.style("align-items", "center");
-        iconContainer.style("justify-content", "center");
-        const iconCanvas = moveIcons[move.id];
-        if (iconCanvas) {
-            const iconImg = createImg(iconCanvas.canvas.toDataURL());
-            iconImg.parent(iconContainer);
-            iconImg.style("width", "40px");
-            iconImg.style("height", "40px");
-            iconImg.style("image-rendering", "pixelated");
-        }
-        
-        // Text content
-        const textContent = createDiv('').parent(contentWrapper);
-        textContent.style("flex", "1");
-        
-        // Header: name + level (only if locked)
-        const headerDiv = createDiv('').parent(textContent);
-        headerDiv.style("margin-bottom", "4px");
-        headerDiv.style("font-weight", "bold");
-        headerDiv.style("color", locked ? "#999" : "#aef");
-        const levelBadge = locked ? `<span style="color:#f88; margin-left:8px; font-size:11px;">Level Required: ${move.requiredLevel}</span>` : '';
-        headerDiv.html(`${move.name}${levelBadge}`);
-        
-        // Stats row: Mana + Cooldown
-        const statsDiv = createDiv('').parent(textContent);
-        statsDiv.style("margin-bottom", "4px");
-        statsDiv.style("font-size", "11px");
-        statsDiv.style("color", locked ? "#777" : "#ccc");
-        statsDiv.html(`<span style="color:#f88;">MP: ${move.manaCost}</span> | <span style="color:#88f;">CD: ${move.cooldown}s</span>`);
-        
-        // Description
-        const descDiv = createDiv('').parent(textContent);
-        descDiv.style("font-size", "10px");
-        descDiv.style("color", locked ? "#666" : "#aaa");
-        descDiv.style("line-height", "1.3");
-        descDiv.html(move.description);
-        
-        // Assign button
-        const assignBtn = createButton(locked ? `Level Required: ${move.requiredLevel}` : "Assign to Slot").parent(moveItemDiv);
-        assignBtn.style("width", "100%");
-        assignBtn.style("padding", "6px");
-        assignBtn.style("background", locked ? "#444" : "#2d5a3d");
-        assignBtn.style("color", locked ? "#888" : "#6f8");
-        assignBtn.style("border", "1px solid" + (locked ? " #555" : " #4a8f5f"));
-        assignBtn.style("cursor", locked ? "not-allowed" : "pointer");
-        assignBtn.style("font-size", "11px");
-        if (locked) assignBtn.attribute("disabled", "true");
-        assignBtn.mousePressed(() => {
-            if (locked) return;
-            curPlayer.movesSlots[selectedMoveSlotIdx] = move.id;
-            refreshMovesEditorUI();
-        });
-    });
-}
 
 // Safe helpers for item images in inventory UI
 function _getFrameURLSafe(imgNum) {
@@ -1324,7 +635,7 @@ function updateItemList() {
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
             highlightItemList();
-            perfTimed('updatecurItemDiv', () => updatecurItemDiv());
+            updatecurItemDiv();
         });
         let itemInfoDiv = createDiv().parent(itemDiv);
         itemInfoDiv.style("width", "80%");
@@ -1429,124 +740,54 @@ function updatecurItemDiv() {
     itemNameDiv.style("border-radius", "10px");
     itemNameDiv.parent(itemNameDescDiv);
 
-    let itemNameP = createP(curPlayer.invBlock.curItem);
-    itemNameP.style("font-size", "20px");
-    itemNameP.style("color", rarityColorCSS(curPlayer.invBlock.curItem));
-    itemNameP.style("margin", "5px");
-    itemNameP.style("padding", "0");
-    itemNameP.style("word-wrap", "break-word");
-    itemNameP.style("overflow-wrap", "break-word");
-    itemNameP.style("white-space", "normal");
-    itemNameP.parent(itemNameDiv);
+    // fastHighlightSwapLists lives in ui/inventoryUI.js; remove duplicate definitions here to avoid overrides.
+}
 
-    //create a div for the description
-    let itemDescDiv = createDiv();
-    itemDescDiv.style("width", "100%");
-    itemDescDiv.style("height", "calc(80% - 5px)");
-    itemDescDiv.style("border", "2px solid black");
-    itemDescDiv.style("border-radius", "10px");
-    itemDescDiv.parent(itemNameDescDiv);
+// Render build UI container
+var buildDiv;
 
-    let itemDescP = createP(curPlayer.invBlock.items[curPlayer.invBlock.curItem].desc);
-    itemDescP.style("font-size", "20px");
-    itemDescP.style("color", "white");
-    itemDescP.style("margin", "5px");
-    itemDescP.parent(itemDescDiv);
 
-    let itemStatsDiv = createDiv();
-    itemStatsDiv.style("width", "100%");
-    itemStatsDiv.style("height", "calc(70% - 10px)");
-    itemStatsDiv.parent(curItemDiv);
+//   var buildOptions = [
+//     { type: "Wall", key: 49, params: { color: curPlayer.color } },
+//     { type: "Floor", key: 50, params: { color: curPlayer.color } },
+//     { type: "Door", key: 51, params: { color: curPlayer.color } },
+//     { type: "Rug", key: 52, params: { color: curPlayer.color } },
+//     { type: "Mug", key: 53, params: { color: curPlayer.color } },
+//     { type: "BearTrap", key: 54, params: { color: curPlayer.color } },
+//     { type: "Turret", key: 55, params: { obj: curPlayer.obj } },
+//     { type: "PlacedBomb", key: 56, params: { obj: curPlayer.obj } },
+//   ];
 
-    if (curPlayer.invBlock.items[curPlayer.invBlock.curItem].type != "Simple") {
-        let durabilityDiv = createDiv();
-        durabilityDiv.style("width", "calc(100% - 14px)");
-        durabilityDiv.style("height", "10%");
-        durabilityDiv.style("padding", "5px");
-        durabilityDiv.style("border", "2px solid black");
-        durabilityDiv.style("border-radius", "10px");
-        durabilityDiv.style("display", "flex");
-        durabilityDiv.style("align-items", "center");
-        durabilityDiv.style("justify-content", "center");
-        durabilityDiv.style("margin-bottom", "5px");
-        durabilityDiv.parent(itemStatsDiv);
-
-        let durabilityText = createP("Durability:");
-        durabilityText.style("font-size", "20px");
-        durabilityText.style("color", "white");
-        durabilityText.parent(durabilityDiv);
-
-        let durabilityBar = createDiv();
-        durabilityBar.style("width", "80%");
-        durabilityBar.style("height", "20px");
-        durabilityBar.style("background-color", "red");
-        durabilityBar.style("border", "2px solid black");
-        durabilityBar.style("border-radius", "10px");
-        durabilityBar.parent(durabilityDiv);
-
-        let durabilityFill = createDiv();
-        durabilityFill.style("width", ((curPlayer.invBlock.items[curPlayer.invBlock.curItem].durability / curPlayer.invBlock.items[curPlayer.invBlock.curItem].maxDurability) * 100) + "%");
-        durabilityFill.style("height", "100%");
-        durabilityFill.style("background-color", "green");
-        durabilityFill.style("border-radius", "10px");
-        durabilityFill.parent(durabilityBar);
-    }
-
-    let statsText = createDiv("Stats");
-    statsText.style("font-size", "20px");
-    statsText.style("color", "white");
-    statsText.style("text-align", "center");
-    statsText.style("border", "2px solid black");
-    statsText.style("border-radius", "10px");
-    statsText.style("padding", "10px");
-    statsText.style("margin-bottom", "5px");
-    statsText.parent(itemStatsDiv);
-
-    let statsList = createDiv();
-    statsList.style("width", "100%");
-    statsList.style("height", "calc(90% - 10px)");
-    statsList.style("overflow-y", "auto");
-    statsList.parent(itemStatsDiv);
-
-    let stats = curPlayer.invBlock.items[curPlayer.invBlock.curItem].getStats();
-    stats.forEach(stat => {
-        if (stat[0] == "Durability") { }
-        else {
-            let statDiv = createDiv();
-            statDiv.style("width", "100%");
-            statDiv.style("height", "20px");
-            statDiv.style("display", "flex");
-            statDiv.style("margin-bottom", "12px");
-            statDiv.parent(statsList);
-
-            let statNameDiv = createDiv(stat[0] + ":");
-            statNameDiv.style("width", "50%");
-            statNameDiv.style("height", "100%");
-            statNameDiv.style("color", "white");
-            statNameDiv.style("text-align", "center");
-            statNameDiv.style("font-size", "20px");
-            statNameDiv.style("border", "2px solid black");
-            statNameDiv.style("border-radius", "10px");
-            statNameDiv.style("padding", "5px");
-            statNameDiv.parent(statDiv);
-
-            let statNumDiv = createDiv(stat[1]);
-            statNumDiv.style("width", "50%");
-            statNumDiv.style("height", "100%");
-            statNumDiv.style("color", "white");
-            statNumDiv.style("text-align", "center");
-            statNumDiv.style("font-size", "20px");
-            statNumDiv.style("border", "2px solid black");
-            statNumDiv.style("border-radius", "10px");
-            statNumDiv.style("padding", "5px");
-            statNumDiv.parent(statDiv);
-        }
-    });
-
-    updateSpaceBarDiv();
+// 1) Set up the container DIV
+function defineBuildUI() {
+    buildDiv = createDiv();
+    buildDiv.id('buildOptionsDiv');
+    buildDiv.class("build-ui-container");
+    buildDiv.style("position", "absolute");
+    buildDiv.style("bottom", "28%");
+    buildDiv.style("left", "90%");
+    buildDiv.style("transform", "translate(-50%, -50%)");
+    buildDiv.style("display", "none");
+    buildDiv.style("min-width", "200px");
+    buildDiv.style("max-width", "280px");
+    buildDiv.style("background", "linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(34, 34, 34, 0.98) 100%)");
+    buildDiv.style("border", "2px solid #5a3a1a");
+    buildDiv.style("border-radius", "12px");
+    buildDiv.style("padding", "16px");
+    buildDiv.style("box-shadow", "0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset");
+    buildDiv.style("font-family", "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif");
+    buildDiv.style("backdrop-filter", "blur(8px)");
+    buildDiv.style("overflow-y", "auto");
+    buildDiv.style("max-height", "60vh");
 }
 
 function renderDirtBagUI() {
+    // Dynamic UI scale based on screen size
+    const uiScale = typeof isMobileDevice !== 'undefined' && isMobileDevice ? Math.min(width, height) / 1080 : 1;
+    const bagW = 180 * uiScale;
+    const bagH = 186 * uiScale;
+    const bagMargin = 10 * uiScale;
+
     // Dirt Inventory
     push();
 
@@ -1567,8 +808,8 @@ function renderDirtBagUI() {
         //stop dirt bag shake sound
         dirtBagShakeSound.stop();
         dirtBagUI.shake.intensity = 0;
-        dirtBagUI.vel.x = ((width - 180 - 10) - dirtBagUI.pos.x);
-        dirtBagUI.vel.y = ((height - 186 - 10) - dirtBagUI.pos.y);
+        dirtBagUI.vel.x = ((width - bagW - bagMargin) - dirtBagUI.pos.x);
+        dirtBagUI.vel.y = ((height - bagH - bagMargin) - dirtBagUI.pos.y);
         dirtBagUI.vel.setMag(dirtBagUI.vel.mag() / 10);
     }
     dirtBagUI.pos.add(dirtBagUI.vel);
@@ -1582,84 +823,36 @@ function renderDirtBagUI() {
             dirtBagOpen = false;
         }
     }
-    else if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Shovel") {
-        if (dirtInv >= maxDirtInv - curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].digSpeed) {
+    else {
+        // Check if item exists before accessing its properties
+        const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+        const heldItem = curPlayer.invBlock.items[heldItemName];
+        
+        if (heldItem && heldItem.type == "Shovel") {
+            if (dirtInv >= maxDirtInv - heldItem.digSpeed) {
+                dirtBagOpen = false;
+            }
+        }
+        else if (dirtInv >= maxDirtInv - DIGSPEED) {
             dirtBagOpen = false;
         }
     }
-    else if (dirtInv >= maxDirtInv - DIGSPEED) {
-        dirtBagOpen = false;
-    }
 
-    // Dirt bag dimensions (original size)
-    const DIRT_BAG_W = 180;
-    const DIRT_BAG_H = 186;
-    
-    if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, DIRT_BAG_W, DIRT_BAG_H);
-    else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, DIRT_BAG_W, DIRT_BAG_H);
+    if (dirtBagOpen) image(dirtBagOpenImg, dirtBagUI.pos.x, dirtBagUI.pos.y, bagW, bagH);
+    else image(dirtBagImg, dirtBagUI.pos.x, dirtBagUI.pos.y, bagW, bagH);
 
-    // Dirt fill original proportions
     fill("#70443C");
-    const dirtFillWidth = 120;
-    const dirtFillHeight = 120;
-    const dirtOffsetX = 30;
-    const dirtOffsetY = 35;
-    rect(dirtBagUI.pos.x + dirtOffsetX, dirtBagUI.pos.y + dirtOffsetY + (dirtFillHeight * (1 - (dirtInv / maxDirtInv))), dirtFillWidth, dirtFillHeight * (dirtInv / maxDirtInv));
+    rect(dirtBagUI.pos.x + 30 * uiScale, dirtBagUI.pos.y + 35 * uiScale + (120 * uiScale * (1 - (dirtInv / maxDirtInv))), 120 * uiScale, 120 * uiScale * (dirtInv / maxDirtInv));
 
     if (!dirtBagOpen) {
         fill(255);
         stroke(0);
         strokeWeight(5);
         textAlign(CENTER, CENTER);
-        textSize(50);
-        text("Full", dirtBagUI.pos.x + DIRT_BAG_W / 2, dirtBagUI.pos.y + DIRT_BAG_H / 2);
+        textSize(50 * uiScale);
+        text("Full", dirtBagUI.pos.x + 90 * uiScale, dirtBagUI.pos.y + 100 * uiScale);
     }
     pop();
-
-    // (Spells indicators rendered in renderPlayerCardUI where dash icon is drawn)
-}
-
-
-
-
-
-
-
-// Render build UI container
-var buildDiv;
-
-
-//   var buildOptions = [
-//     { type: "Wall", key: 49, params: { color: curPlayer.color } },
-//     { type: "Floor", key: 50, params: { color: curPlayer.color } },
-//     { type: "Door", key: 51, params: { color: curPlayer.color } },
-//     { type: "Rug", key: 52, params: { color: curPlayer.color } },
-//     { type: "Mug", key: 53, params: { color: curPlayer.color } },
-//     { type: "BearTrap", key: 54, params: { color: curPlayer.color } },
-//     { type: "Turret", key: 55, params: { obj: curPlayer.obj } },
-//     { type: "PlacedBomb", key: 56, params: { obj: curPlayer.obj } },
-//   ];
-
-// 1) Set up the container DIV
-function defineBuildUI() {
-    buildDiv = createDiv();
-    buildDiv.class("build-ui-container");
-    buildDiv.style("position", "absolute");
-    buildDiv.style("bottom", "28%");
-    buildDiv.style("left", "90%");
-    buildDiv.style("transform", "translate(-50%, -50%)");
-    buildDiv.style("display", "none");
-    buildDiv.style("min-width", "200px");
-    buildDiv.style("max-width", "280px");
-    buildDiv.style("background", "linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(34, 34, 34, 0.98) 100%)");
-    buildDiv.style("border", "2px solid #5a3a1a");
-    buildDiv.style("border-radius", "12px");
-    buildDiv.style("padding", "16px");
-    buildDiv.style("box-shadow", "0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset");
-    buildDiv.style("font-family", "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif");
-    buildDiv.style("backdrop-filter", "blur(8px)");
-    buildDiv.style("overflow-y", "auto");
-    buildDiv.style("max-height", "60vh");
 }
 
 function renderBuildOptions() {
@@ -1791,6 +984,7 @@ function keyCodeToHuman(keyCode) {
 function defineRacePortrait() {
     racePortraitDiv = createDiv();
     racePortraitDiv.style("position", "fixed");
+    racePortraitDiv.id("racePortraitDiv");
     racePortraitDiv.style("top", "7px");
     racePortraitDiv.style("right", "30px");
     racePortraitDiv.style("width", "98px");
@@ -1863,6 +1057,7 @@ function updateRacePortrait() {
 // Create the stats panel
 function defineStatsPanel() {
     statsPanel = createDiv();
+    statsPanel.id("stats-panel");
     statsPanel.style("position", "fixed");
     statsPanel.style("top", "110px");
     statsPanel.style("right", "30px");
@@ -1877,6 +1072,121 @@ function defineStatsPanel() {
     statsPanel.style("color", "#fff");
     statsPanel.style("font-family", "Arial, sans-serif");
     statsPanel.style("display", "none");
+
+    /* ── Mobile HUD strip (always created — CSS hides on desktop) ── */
+    _createMobileHUD();
+}
+
+/* ─── Mobile HUD ─── */
+var _mobileHUD = null;
+
+function _createMobileHUD() {
+    if (_mobileHUD) return;
+
+    const hud = document.createElement('div');
+    hud.id = 'mobile-hud';
+    hud.innerHTML = `
+        <div id="mhud-portrait"></div>
+        <div id="mhud-bars">
+            <div id="mhud-name-row">
+                <span id="mhud-name"></span>
+                <span id="mhud-level">Lv 1</span>
+            </div>
+            <div class="mhud-bar-track">
+                <div id="mhud-hp-fill" class="mhud-bar-fill mhud-hp"></div>
+                <span id="mhud-hp-text" class="mhud-bar-label">HP</span>
+            </div>
+            <div class="mhud-bar-track">
+                <div id="mhud-mp-fill" class="mhud-bar-fill mhud-mp"></div>
+                <span id="mhud-mp-text" class="mhud-bar-label">MP</span>
+            </div>
+            <div id="mhud-xp-row">
+                <div id="mhud-xp-fill"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(hud);
+
+    // Tap the HUD strip → toggle stats panel
+    hud.addEventListener('pointerdown', function(e) {
+        e.stopPropagation();
+        if (statsPanel && statsPanel.style("display") === "none") {
+            updateStatsPanel();
+            statsPanel.show();
+        } else if (statsPanel) {
+            statsPanel.hide();
+        }
+    });
+
+    _mobileHUD = hud;
+}
+
+function updateMobileHUD() {
+    if (!_mobileHUD || !curPlayer || !curPlayer.statBlock) {
+        if (_mobileHUD) _mobileHUD.style.display = 'none';
+        return;
+    }
+    _mobileHUD.style.display = 'flex';
+    const s = curPlayer.statBlock.stats;
+    const sb = curPlayer.statBlock;
+
+    // Name + level
+    const nameEl = document.getElementById('mhud-name');
+    const lvlEl = document.getElementById('mhud-level');
+    if (nameEl) nameEl.textContent = curPlayer.name || '';
+    if (lvlEl) lvlEl.textContent = 'Lv ' + (sb.level || 1);
+
+    // HP bar
+    const maxHp = Math.max(1, s.mhp || 1);
+    const hpPct = Math.min(1, Math.max(0, s.hp / maxHp)) * 100;
+    const hpFill = document.getElementById('mhud-hp-fill');
+    const hpText = document.getElementById('mhud-hp-text');
+    if (hpFill) hpFill.style.width = hpPct + '%';
+    if (hpText) hpText.textContent = Math.floor(s.hp) + ' / ' + Math.floor(maxHp);
+
+    // HP color shift: green → yellow → red
+    if (hpFill) {
+        if (hpPct > 50) hpFill.style.background = 'linear-gradient(90deg, #27f50e, #1a9e0a)';
+        else if (hpPct > 25) hpFill.style.background = 'linear-gradient(90deg, #f5e60e, #c9a800)';
+        else hpFill.style.background = 'linear-gradient(90deg, #f54e0e, #c91800)';
+    }
+
+    // MP bar
+    const maxMp = Math.max(1, s.mmp || 1);
+    const mpPct = Math.min(1, Math.max(0, s.mp / maxMp)) * 100;
+    const mpFill = document.getElementById('mhud-mp-fill');
+    const mpText = document.getElementById('mhud-mp-text');
+    if (mpFill) mpFill.style.width = mpPct + '%';
+    if (mpText) mpText.textContent = Math.floor(s.mp) + ' / ' + Math.floor(maxMp);
+
+    // XP bar (thin bar under the others)
+    const xpPct = sb.xpNeeded > 0 ? Math.min(1, sb.xp / sb.xpNeeded) * 100 : 0;
+    const xpFill = document.getElementById('mhud-xp-fill');
+    if (xpFill) xpFill.style.width = xpPct + '%';
+
+    // Portrait (update once, cache)
+    const portraitEl = document.getElementById('mhud-portrait');
+    if (portraitEl && !portraitEl.dataset.loaded) {
+        let raceName = typeof races !== 'undefined' ? races[curPlayer.race] : null;
+        if (raceName && raceImages[raceName] && raceImages[raceName].portrait) {
+            let src = raceImages[raceName].portrait.canvas.toDataURL();
+            portraitEl.style.backgroundImage = `url(${src})`;
+            portraitEl.dataset.loaded = '1';
+        }
+    }
+
+    // Team color on name
+    if (nameEl) {
+        let dc;
+        if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
+            dc = curPlayer.color;
+        } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+            dc = window.allTeams[curPlayer.teamId].color;
+        } else {
+            dc = teamColors[curPlayer.color] || teamColors[0];
+        }
+        if (dc) nameEl.style.color = `rgb(${dc.r}, ${dc.g}, ${dc.b})`;
+    }
 }
 
 // Update stats panel content with current player stats
@@ -1949,422 +1259,23 @@ function updateManaDisplay(mp, mmp) {
 }
 
 
-
-
-function ensureMoveHotbarDOM() {
-  if (window._moveHotbarDOM) return window._moveHotbarDOM;
-
-  // Styles (only once)
-  if (!document.getElementById("move-hotbar-styles")) {
-    const style = document.createElement("style");
-    style.id = "move-hotbar-styles";
-    style.textContent = `
-      #moveHotbarRoot {
-        position: fixed;
-        left: 50%;
-        bottom: 22px;
-        transform: translateX(-50%);
-        z-index: 9999;
-        pointer-events: none;
-        user-select: none;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        max-width: 50dvw;
-      }
-
-      #moveHotbarBar {
-        display: flex;
-        gap: 22px;
-        align-items: flex-end;
-        padding: 14px 18px;
-        border-radius: 14px;
-        background: rgba(0,0,0,0.45);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-        border: 1px solid rgba(255,255,255,0.10);
-      }
-
-      .moveSlot {
-        position: relative;
-        width: 112px;
-        height: 112px;
-        border-radius: 12px;
-        border: 4px solid rgba(140,240,140,0.9);
-        background: rgba(30,30,30,0.75);
-        overflow: hidden;
-      }
-
-      .moveSlot.isLocked {
-        border-color: rgba(120,90,40,0.9);
-        background: rgba(25,25,25,0.85);
-        filter: saturate(0.7);
-      }
-
-      .moveSlot.isOnCd {
-        border-color: rgba(110,110,110,0.9);
-        background: rgba(30,30,30,0.85);
-      }
-
-      .moveSlot.isActive {
-        box-shadow: 0 0 0 2px rgba(255,255,255,0.35) inset;
-      }
-
-      .moveSlot.cantAfford {
-        border-color: rgba(170,70,70,0.95);
-        background: rgba(60,20,20,0.75);
-      }
-
-      .moveIcon {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        image-rendering: pixelated;
-        object-fit: cover;
-      }
-
-      /* Cooldown overlay: grows downward (like your rect overlay) */
-      .cdOverlay {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 0%;
-        background: rgba(255,100,100,0.55);
-        border-radius: 10px;
-        pointer-events: none;
-      }
-
-      .keyLabel {
-        position: absolute;
-        left: 50%;
-        top: -34px;
-        transform: translateX(-50%);
-        height: 26px;
-        min-width: 48px;
-        padding: 0 10px;
-        border-radius: 8px;
-        background: rgba(0,0,0,0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 18px;
-        letter-spacing: 0.5px;
-        color: #fff;
-        border: 1px solid rgba(255,255,255,0.12);
-      }
-
-      .keyLabel.lockedKey {
-        color: rgb(255,220,160);
-      }
-
-      .nameLabel {
-        position: absolute;
-        left: 50%;
-        bottom: -30px;
-        transform: translateX(-50%);
-        width: 160px;
-        text-align: center;
-        font-size: 14px;
-        color: rgba(230,230,230,0.95);
-        text-shadow: 0 1px 2px rgba(0,0,0,0.65);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .nameLabel.lockedName {
-        color: rgb(230,190,120);
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // Root
-  const root = document.createElement("div");
-  root.id = "moveHotbarRoot";
-
-  const bar = document.createElement("div");
-  bar.id = "moveHotbarBar";
-  root.appendChild(bar);
-
-    // 10 slots for moves (0-9)
-    const slots = [];
-    for (let i = 0; i < 10; i++) {
-        const slot = document.createElement("div");
-        slot.className = "moveSlot";
-        slot.style.transform = "scale(0.7)";
-
-        const icon = document.createElement("img");
-        icon.className = "moveIcon";
-        icon.alt = "";
-
-        const cd = document.createElement("div");
-        cd.className = "cdOverlay";
-
-        const key = document.createElement("div");
-        key.className = "keyLabel";
-        key.textContent = (i === 9 ? "0" : String(i + 1));
-
-        const name = document.createElement("div");
-        name.className = "nameLabel";
-        name.textContent = "";
-
-        slot.appendChild(icon);
-        slot.appendChild(cd);
-        slot.appendChild(key);
-        slot.appendChild(name);
-
-        bar.appendChild(slot);
-
-        slots.push({ slot, icon, cd, key, name });
-    }
-
-  document.body.appendChild(root);
-
-  window._moveHotbarDOM = { root, bar, slots };
-  return window._moveHotbarDOM;
-}
-
-// Build icons once and keep dataURLs around for <img>
-function ensureMoveHotbarIcons() {
-  if (window._moveHotbarIcons) return window._moveHotbarIcons;
-
-  // If you already have getSpellIcon(id, drawFn) from your code, reuse it.
-  // We convert p5.Graphics -> dataURL for DOM <img>.
-  const toDataUrl = (g) => {
-    // p5.Graphics has .canvas
-    try { return g?.canvas?.toDataURL?.("image/png"); } catch (e) {}
-    return "";
-  };
-
-  // Fallback: tiny blank (if getSpellIcon isn't ready yet)
-  const blank = "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
-
-  // If getSpellIcon exists, generate the same icons you had
-  const hasGetSpellIcon = typeof window.getSpellIcon === "function";
-
-  let dashG, combustionG, forceFieldG, meditateG, emptyG;
-
-  if (hasGetSpellIcon) {
-    dashG = getSpellIcon("dash_hud_lg", (g) => {
-      g.clear();
-      g.push();
-      g.translate(g.width / 2, g.height / 2);
-      g.noStroke();
-      g.fill(120, 200, 255);
-      g.rectMode(g.CENTER);
-      g.rect(0, 0, 18, 12, 4);
-      g.fill(255);
-      g.triangle(-4, -4, -4, 4, 6, 0);
-      g.pop();
-    });
-
-    combustionG = getSpellIcon("combustion_hud_lg", (g) => {
-      g.clear();
-      g.noStroke();
-      g.fill(255, 140, 60);
-      g.circle(13, 13, 18);
-      g.fill(255, 220, 120, 180);
-      g.circle(13, 13, 10);
-    });
-
-    forceFieldG = getSpellIcon("forceField_hud_lg", (g) => {
-      g.clear();
-      g.noFill();
-      g.stroke(120, 220, 255);
-      g.strokeWeight(3);
-      g.circle(13, 13, 18);
-      g.stroke(120, 200, 240, 160);
-      g.strokeWeight(2);
-      g.circle(13, 13, 12);
-    });
-
-    meditateG = getSpellIcon("meditate_hud_lg", (g) => {
-      g.clear();
-      g.noStroke();
-      g.fill(190, 150, 255);
-      g.rect(5, 8, 18, 10, 4);
-      g.fill(120, 90, 200, 180);
-      g.rect(8, 6, 12, 6, 3);
-    });
-
-    emptyG = getSpellIcon("emptyMove_hud_lg", (g) => {
-      g.clear();
-      g.noStroke();
-      g.fill(70);
-      g.rect(4, 4, 18, 18, 4);
-      g.stroke(110);
-      g.noFill();
-    });
-  }
-
-  window._moveHotbarIcons = {
-    dash: hasGetSpellIcon ? toDataUrl(dashG) : blank,
-    combustion: hasGetSpellIcon ? toDataUrl(combustionG) : blank,
-    forceField: hasGetSpellIcon ? toDataUrl(forceFieldG) : blank,
-    meditate: hasGetSpellIcon ? toDataUrl(meditateG) : blank,
-    empty: hasGetSpellIcon ? toDataUrl(emptyG) : blank
-  };
-
-  return window._moveHotbarIcons;
-}
-
-function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
-  const icons = ensureMoveHotbarIcons();
-
-  const spells = curPlayer?.spells || {};
-  const stats = curPlayer?.statBlock?.stats || {};
-  const level = curPlayer?.statBlock?.level || 0;
-  const mp = stats.mp ?? 0;
-
-  const mk = (o) => ({
-    label: slotLabel,
-    nameLabel: o.nameLabel || "Empty",
-    locked: !!o.locked,
-    unlockLevel: o.unlockLevel ?? "",
-    onCd: !!o.onCd,
-    cooldownPct: Math.max(0, Math.min(1, o.cooldownPct || 0)),
-    canAfford: o.canAfford !== false,
-    active: !!o.active,
-    iconUrl: o.iconUrl || icons.empty
-  });
-
-  switch (moveId) {
-    case "forceField": {
-      const s = spells.forceField || {};
-      const req = s.level || 0;
-      const locked = level < req;
-      return mk({
-        nameLabel: "Force Field",
-        locked,
-        unlockLevel: req,
-        onCd: (s.cooldown || 0) > 0,
-        cooldownPct: s.cooldownMax ? (s.cooldown / s.cooldownMax) : 0,
-        canAfford: mp >= (s.manaCost || 0),
-        active: !!s.active,
-        iconUrl: icons.forceField
-      });
-    }
-    case "combustion": {
-      const s = spells.combustion || {};
-      const req = s.level || 0;
-      const locked = level < req;
-      return mk({
-        nameLabel: "Combustion",
-        locked,
-        unlockLevel: req,
-        onCd: (s.cooldown || 0) > 0,
-        cooldownPct: s.cooldownMax ? (s.cooldown / s.cooldownMax) : 0,
-        canAfford: mp >= (s.manaCost || 0),
-        active: false,
-        iconUrl: icons.combustion
-      });
-    }
-    case "meditate": {
-      const s = spells.meditate || {};
-      const req = s.level || 0;
-      const locked = level < req;
-      return mk({
-        nameLabel: "Meditate",
-        locked,
-        unlockLevel: req,
-        onCd: (s.cooldown || 0) > 0,
-        cooldownPct: s.cooldownMax ? (s.cooldown / s.cooldownMax) : 0,
-        canAfford: mp >= (s.manaCost || 0),
-        active: !!s.active,
-        iconUrl: icons.meditate
-      });
-    }
-    case "dash": {
-      const onCd = (curPlayer.dashCooldown || 0) > 0;
-      const pct = curPlayer.dashCooldownMax ? (curPlayer.dashCooldown / curPlayer.dashCooldownMax) : 0;
-      return mk({
-        nameLabel: "Dash",
-        locked: false,
-        unlockLevel: 1,
-        onCd,
-        cooldownPct: pct,
-        canAfford: mp >= (curPlayer.dashManaCost || 0),
-        active: !!curPlayer.isDashing,
-        iconUrl: icons.dash
-      });
-    }
-    default:
-      // Empty slot: show "locked" feel like before
-      return mk({
-        nameLabel: "Empty",
-        locked: true,
-        unlockLevel: "",
-        onCd: false,
-        cooldownPct: 0,
-        canAfford: true,
-        active: false,
-        iconUrl: icons.empty
-      });
-  }
-}
-
-function updateMoveHotbarDOM(curPlayer) {
-  const dom = ensureMoveHotbarDOM();
-
-  // Only show if we have a player + spells
-  if (!curPlayer || !curPlayer.spells) {
-    dom.root.style.display = "none";
-    return;
-  }
-  dom.root.style.display = "block";
-
-    const slotLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
-    const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
-    const movesForHud = moves.slice(0, 10);
-    while (movesForHud.length < 10) movesForHud.push(null);
-
-    for (let i = 0; i < 10; i++) {
-        const moveId = movesForHud[i];
-        const entry = getMoveEntryForDOM(curPlayer, moveId, slotLabels[i]);
-
-        const s = dom.slots[i];
-
-        // Hide slot if not filled
-        if (!moveId) {
-            s.slot.style.display = "none";
-            continue;
-        } else {
-            s.slot.style.display = "";
-        }
-
-        // Classes
-        s.slot.classList.toggle("isLocked", entry.locked);
-        s.slot.classList.toggle("isOnCd", entry.onCd && !entry.locked);
-        s.slot.classList.toggle("isActive", entry.active && !entry.locked);
-        s.slot.classList.toggle("cantAfford", !entry.canAfford && !entry.locked);
-
-        // Icon
-        if (s.icon.src !== entry.iconUrl) s.icon.src = entry.iconUrl;
-
-        // Cooldown overlay height: p is ratio remaining -> overlay height = p*100%
-        if (entry.onCd && !entry.locked) {
-            s.cd.style.height = `${(entry.cooldownPct * 100).toFixed(2)}%`;
-            s.cd.style.display = "block";
-        } else {
-            s.cd.style.height = "0%";
-            s.cd.style.display = "none";
-        }
-
-        // Key label
-        const keyText = entry.locked ? `L${entry.unlockLevel}` : entry.label;
-        s.key.textContent = keyText;
-        s.key.classList.toggle("lockedKey", entry.locked);
-
-        // Name label
-        s.name.textContent = entry.locked ? `Unlocks Lv ${entry.unlockLevel}` : entry.nameLabel;
-        s.name.classList.toggle("lockedName", entry.locked);
-    }
-}
-
-
 function renderPlayerCardUI() {
+    // ── Mobile: skip the complex canvas card, use DOM HUD instead ──
+    const _isMobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ||
+                      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    if (_isMobile) {
+        updateMobileHUD();
+        updateMoveHotbarDOM(curPlayer);
+        if (nameBtn) nameBtn.hide();
+        return;
+    }
+
+    const uiScale = 1;
+    const cardW = 510 * uiScale;
+    const cardH = 125 * uiScale;
+    const cardX = width - cardW - 20 * uiScale;
     push();
+
     fill(0);
     noStroke();
     rect(width - 530, 0, 510, 125);
@@ -2404,15 +1315,18 @@ function renderPlayerCardUI() {
     rect(width - 530 + 304, 83, 34, 19);
     rect(width - 530 + 340, 83, 36, 19);
 
+    const maxHp = Math.max(1, curPlayer.statBlock.stats.mhp || 1);
+    const hpRatio = Math.min(1, Math.max(0, curPlayer.statBlock.stats.hp / maxHp));
+    const hpWidth = 281 * hpRatio;
     image(
         hpBarImg,
         width - 530 + 93,
         52,
-        281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp),
+        hpWidth,
         14,
         0,
         0,
-        281 * (curPlayer.statBlock.stats.hp / curPlayer.statBlock.stats.mhp),
+        hpWidth,
         14
     );
 
@@ -2421,7 +1335,7 @@ function renderPlayerCardUI() {
             curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]
         ];
 
-    if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "") {
+    if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "" || !heldItem) {
         let manaRatio = Math.min(
             curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
             1
@@ -2492,9 +1406,16 @@ function renderPlayerCardUI() {
     updateMoveHotbarDOM(curPlayer);
 
     // Team color name
-    let displayColor = teamColors[curPlayer.color];
-    if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+    let displayColor;
+    if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
+        // Team color (RGB object)
+        displayColor = curPlayer.color;
+    } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+        // Fall back to team data
         displayColor = window.allTeams[curPlayer.teamId].color;
+    } else {
+        // Use index-based color
+        displayColor = teamColors[curPlayer.color] || teamColors[0];
     }
 
     fill(displayColor.r, displayColor.g, displayColor.b);
@@ -2506,11 +1427,14 @@ function renderPlayerCardUI() {
         `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`
     );
 
-    let nx = width - 530 + 6 + 45 + 350 / 2;
-    let ny = 19;
+    let nx, ny;
+    nx = width - 530 + 6 + 45 + 350 / 2;
+    ny = 19;
+    nameBtn.style('font-size', '20px');
     nameBtn.position(nx, ny);
     nameBtn.show();
 
+    // Draw underline on canvas
     let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
     line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
 
@@ -2587,7 +1511,7 @@ function updateTeamManagementUI() {
     // Show pending requests if creator
     if (curPlayer && curPlayer.teamId && window.allTeams && window.allTeams[curPlayer.teamId]) {
         const team = window.allTeams[curPlayer.teamId];
-        if (team.creator === curPlayer.id && pendingRequests.length > 0) {
+        if (team.creator === curPlayer.name && team.requests && team.requests.length > 0) {
             showPendingRequests();
         }
     }
@@ -2626,17 +1550,83 @@ function showCurrentTeam() {
     membersTitle.style("margin", "15px 0 5px 0");
     membersTitle.parent(teamContainer);
 
-    team.members.forEach(memberId => {
-        if (players[memberId]) {
-            let memberP = createP(`• ${players[memberId].name}${team.creator === memberId ? ' (Leader)' : ''}`);
-            memberP.style("color", "white");
-            memberP.style("margin", "3px 0");
-            memberP.parent(teamContainer);
+    team.members.forEach(memberName => {
+        // Find the player by name
+        const memberPlayer = Object.values(players).find(p => p.name === memberName);
+        if (memberPlayer) {
+            // Check if this member is a leader
+            const isLeader = (team.leaders && team.leaders.includes(memberName)) || team.creator === memberName;
+            const currentPlayerIsLeader = (team.leaders && team.leaders.includes(curPlayer.name)) || team.creator === curPlayer.name;
+            
+            // Create member row container
+            let memberRowDiv = createDiv();
+            memberRowDiv.style("display", "flex");
+            memberRowDiv.style("align-items", "center");
+            memberRowDiv.style("justify-content", "space-between");
+            memberRowDiv.style("margin", "8px 0");
+            memberRowDiv.style("padding", "8px");
+            memberRowDiv.style("background", "rgba(255,255,255,0.05)");
+            memberRowDiv.style("border-radius", "5px");
+            memberRowDiv.parent(teamContainer);
+
+            // Member name with crown emoji
+            let memberInfoDiv = createDiv();
+            memberInfoDiv.style("display", "flex");
+            memberInfoDiv.style("align-items", "center");
+            memberInfoDiv.style("gap", "8px");
+            memberInfoDiv.parent(memberRowDiv);
+
+            let memberNameP = createP(`${isLeader ? '👑 ' : '• '}${memberName}`);
+            memberNameP.style("color", "white");
+            memberNameP.style("margin", "0");
+            memberNameP.parent(memberInfoDiv);
+
+            // Action buttons (only visible if current player is a leader)
+            if (currentPlayerIsLeader && memberName !== curPlayer.name) {
+                let actionsDiv = createDiv();
+                actionsDiv.style("display", "flex");
+                actionsDiv.style("gap", "5px");
+                actionsDiv.parent(memberRowDiv);
+
+                // Promote button
+                if (!isLeader) {
+                    let promoteBtn = createButton("Promote");
+                    promoteBtn.style("padding", "4px 10px");
+                    promoteBtn.style("background", "#FFD700");
+                    promoteBtn.style("color", "#000");
+                    promoteBtn.style("border", "none");
+                    promoteBtn.style("border-radius", "3px");
+                    promoteBtn.style("cursor", "pointer");
+                    promoteBtn.style("font-size", "12px");
+                    promoteBtn.mousePressed(() => {
+                        socket.emit('promote_member', { teamId: curPlayer.teamId, memberName: memberName });
+                    });
+                    promoteBtn.parent(actionsDiv);
+                }
+
+                // Remove button (only for non-leaders)
+                if (!isLeader) {
+                    let removeBtn = createButton("Remove");
+                    removeBtn.style("padding", "4px 10px");
+                    removeBtn.style("background", "#f44336");
+                    removeBtn.style("color", "white");
+                    removeBtn.style("border", "none");
+                    removeBtn.style("border-radius", "3px");
+                    removeBtn.style("cursor", "pointer");
+                    removeBtn.style("font-size", "12px");
+                    removeBtn.mousePressed(() => {
+                        if (confirm(`Remove ${memberName} from team?`)) {
+                            socket.emit('remove_member', { teamId: curPlayer.teamId, memberName: memberName });
+                        }
+                    });
+                    removeBtn.parent(actionsDiv);
+                }
+            }
         }
     });
 
     // Team creator controls
-    if (team.creator === curPlayer.id) {
+    if (team.creator === curPlayer.name) {
         let creatorSection = createDiv();
         creatorSection.style("margin-top", "20px");
         creatorSection.style("padding", "15px");
@@ -2732,8 +1722,24 @@ function showCurrentTeam() {
         colorBtn.parent(creatorSection);
     }
 
+    // Invite button (for leaders)
+    if ((team.leaders && team.leaders.includes(curPlayer.name)) || team.creator === curPlayer.name) {
+        let inviteBtn = createButton("Invite Player");
+        inviteBtn.style("padding", "10px 20px");
+        inviteBtn.style("background", "#4CAF50");
+        inviteBtn.style("color", "white");
+        inviteBtn.style("border", "none");
+        inviteBtn.style("border-radius", "5px");
+        inviteBtn.style("cursor", "pointer");
+        inviteBtn.style("margin-top", "10px");
+        inviteBtn.mousePressed(() => {
+            showInvitePlayerUI();
+        });
+        inviteBtn.parent(teamContainer);
+    }
+
     // Leave team button
-    let leaveBtn = createButton(team.creator === curPlayer.id ? "Disband Team" : "Leave Team");
+    let leaveBtn = createButton(team.creator === curPlayer.name ? "Disband Team" : "Leave Team");
     leaveBtn.style("padding", "10px 20px");
     leaveBtn.style("background", "#f44336");
     leaveBtn.style("color", "white");
@@ -2742,7 +1748,7 @@ function showCurrentTeam() {
     leaveBtn.style("cursor", "pointer");
     leaveBtn.style("margin-top", "20px");
     leaveBtn.mousePressed(() => {
-        if (confirm(team.creator === curPlayer.id ? "Disband team?" : "Leave team?")) {
+        if (confirm(team.creator === curPlayer.name ? "Disband team?" : "Leave team?")) {
             socket.emit('leave_team');
         }
     });
@@ -2787,6 +1793,16 @@ function showTeamCreationAndList() {
     colorInput.style("cursor", "pointer");
     colorInput.parent(createSection);
 
+    // Create color preview box
+    let colorPreview = createDiv();
+    colorPreview.style("width", "100px");
+    colorPreview.style("height", "40px");
+    colorPreview.style("background", "#ff0000");
+    colorPreview.style("margin", "5px auto");
+    colorPreview.style("border", "2px solid white");
+    colorPreview.style("border-radius", "5px");
+    colorPreview.style("display", "inline-block");
+    colorPreview.parent(createSection);
 
     // Update preview on color change
     colorInput.input(() => {
@@ -2876,6 +1892,9 @@ function showTeamCreationAndList() {
 }
 
 function showPendingRequests() {
+    const team = window.allTeams[curPlayer.teamId];
+    if (!team || !team.requests || team.requests.length === 0) return;
+
     let requestsSection = createDiv();
     requestsSection.style("background", "rgba(255,215,0,0.1)");
     requestsSection.style("padding", "15px");
@@ -2889,7 +1908,9 @@ function showPendingRequests() {
     requestsTitle.style("margin", "0 0 10px 0");
     requestsTitle.parent(requestsSection);
 
-    pendingRequests.forEach((request, idx) => {
+    team.requests.forEach((playerName) => {
+        // playerName is now directly the username (not socket ID)
+
         let reqDiv = createDiv();
         reqDiv.style("background", "rgba(255,255,255,0.1)");
         reqDiv.style("padding", "10px");
@@ -2900,7 +1921,7 @@ function showPendingRequests() {
         reqDiv.style("align-items", "center");
         reqDiv.parent(requestsSection);
 
-        let nameP = createP(request.playerName);
+        let nameP = createP(playerName);
         nameP.style("color", "white");
         nameP.style("margin", "0");
         nameP.parent(reqDiv);
@@ -2918,8 +1939,7 @@ function showPendingRequests() {
         acceptBtn.style("border-radius", "5px");
         acceptBtn.style("cursor", "pointer");
         acceptBtn.mousePressed(() => {
-            socket.emit('accept_team_request', { teamId: curPlayer.teamId, playerId: request.playerId });
-            pendingRequests.splice(idx, 1);
+            socket.emit('accept_team_request', { teamId: curPlayer.teamId, playerName: playerName });
             updateTeamManagementUI();
         });
         acceptBtn.parent(btnContainer);
@@ -2932,155 +1952,84 @@ function showPendingRequests() {
         denyBtn.style("border-radius", "5px");
         denyBtn.style("cursor", "pointer");
         denyBtn.mousePressed(() => {
-            socket.emit('deny_team_request', { teamId: curPlayer.teamId, playerId: request.playerId });
-            pendingRequests.splice(idx, 1);
+            socket.emit('deny_team_request', { teamId: curPlayer.teamId, playerName: playerName });
             updateTeamManagementUI();
         });
         denyBtn.parent(btnContainer);
     });
 }
 
-var swapInvDiv;
-var itemListDivLeft;
-var itemListDivRight;
-var curSwapItemDiv;
+// Timer UI code - see below at line 2621
 
-function defineSwapInvUI() {
-    swapInvDiv = createDiv();
-    swapInvDiv.id("inventory");
-    swapInvDiv.class("container");
-    swapInvDiv.style("position", "absolute");
-    swapInvDiv.style("position", "absolute");
-    swapInvDiv.style("top", "50%");
-    swapInvDiv.style("left", "50%");
-    swapInvDiv.style("transform", "translate(-50%, -50%)");
-
-    swapInvDiv.style("z-index", "50");
-    let swapInvTitleBar = createDiv();
-    swapInvTitleBar.parent(swapInvDiv);
-    applyStyle(swapInvTitleBar, {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingBottom: "15px",
-        borderBottom: "2px solid black"
-    });
-
-    let swapInvYourInvTittle = createP("Your Inventory");
-    swapInvYourInvTittle.parent(swapInvTitleBar);
-    swapInvYourInvTittle.class("inventory-title");
-    swapInvYourInvTittle.style("margin-left", "25px");
-
-    let swapInvCurItemTittle = createP("Selected Item");
-    swapInvCurItemTittle.parent(swapInvTitleBar);
-    swapInvCurItemTittle.class("inventory-title");
-
-    let swapInvOtherInvTittle = createP("Other Inventory");
-    swapInvOtherInvTittle.parent(swapInvTitleBar);
-    swapInvOtherInvTittle.class("inventory-title");
-    swapInvOtherInvTittle.style("margin-right", "25px");
-
-    let swapInvDivInnerds = createDiv();
-    swapInvDivInnerds.parent(swapInvDiv);
-    swapInvDivInnerds.style("display", "flex");
-    swapInvDivInnerds.style("flex-direction", "row");
-    swapInvDivInnerds.style("justify-content", "space-evenly");
-    swapInvDivInnerds.style("align-items", "start");
-
-
-    //Left Item list
-    itemListDivLeft = createDiv().parent(swapInvDivInnerds);
-    itemListDivLeft.class("item-list");
-
-    // Current item details
-    curSwapItemDiv = createDiv().parent(swapInvDivInnerds);
-    curSwapItemDiv.class("item-details");
-
-    let curSwapItemNone = createP("No Selected Item");
-    curSwapItemNone.parent(curSwapItemDiv);
-    curSwapItemNone.class("inventory-title");
-    applyStyle(curSwapItemNone, {
-        paddingTop: "7%",
-        textDecoration: "none"
-    });
-
-    //Right Item list
-    itemListDivRight = createDiv().parent(swapInvDivInnerds);
-    itemListDivRight.class("item-list");
-    itemListDivRight.style("border-left", "2px solid black");
-
-    // Close Button (image X)
-    let closeButton = createImg("images/ui/x.png", "").parent(swapInvTitleBar);
-    closeButton.class("close-button");
-    closeButton.addClass("icon-btn");
-    applyStyle(closeButton, {
-        marginLeft: "auto",
-        position: "absolute",
-        right: "0",
-        width: "22px",
-        height: "22px",
-        cursor: "pointer",
-        imageRendering: "pixelated",
-        border: "none",
-    });
-
-    closeButton.mousePressed(() => {
-        // Push any pending chest/bag changes before closing
-        if (curPlayer.otherInv && curPlayer.otherInv.pos) {
-            const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-            socket.emit("update_inv", {
-                cx: chunkPos.x, cy: chunkPos.y,
-                objName: curPlayer.otherInv.objName,
-                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                z: curPlayer.otherInv.z,
-                invId: curPlayer.otherInv.invBlock?.invId,
-                items: curPlayer.otherInv.invBlock.items
-            });
-        }
-        gameState = "playing"
-        curPlayer.invBlock.useTimer = 10;
-        swapInvDiv.hide(); // Hides the inventory when clicked
-        spaceBarDiv.hide();
-    });
-
-    swapInvDiv.hide();
+function setTimeUI(data) {
+    if (data && data.disabled) {
+        timerEnabled = false;
+        if (timerDiv) timerDiv.hide();
+        return;
+    }
+    timerEnabled = true;
+    if (data && typeof data.endsAt === "number") {
+        timerEndsAt = data.endsAt;
+        timerRemaining = Math.max(0, Math.round((timerEndsAt - Date.now()) / 1000));
+    } else {
+        timerRemaining = data.totalSeconds ?? (data.minutes * 60 + data.seconds);
+    }
+    updateTimerDisplay();
 }
+
+
+function updateTimerDisplay() {
+    const years = Math.floor(timerRemaining / (365 * 24 * 3600));
+    const days = Math.floor((timerRemaining % (365 * 24 * 3600)) / (24 * 3600));
+    const hours = Math.floor((timerRemaining % (24 * 3600)) / 3600);
+    const minutes = Math.floor((timerRemaining % 3600) / 60);
+    const seconds = timerRemaining % 60;
+
+    // Optional: pad values
+    const pad = (v) => v.toString().padStart(2, '0');
+
+    let parts = [];
+    if (years > 0) parts.push(`${years}y`);
+    if (days > 0 || years > 0) parts.push(`${days}d`);
+    if (hours > 0 || days > 0 || years > 0) parts.push(`${pad(hours)}h`);
+    parts.push(`${pad(minutes)}m`, `${pad(seconds)}s`);
+
+    timerDisplay = parts.join(' ');
+    //console.log("Timer:", timerDisplay);
+
+    // PERF FIX #7: Only adjust font when thresholds change
+    adjustFontSize(timerRemaining);
+}
+
+function adjustFontSize(timerRemaining) {
+    if (!timerEnabled || !timerDiv) return;
+
+    let size;
+    if (timerRemaining >= 365 * 24 * 3600) {
+        size = "1.2rem"; // Years
+    } else if (timerRemaining >= 24 * 3600) {
+        size = "1.5rem"; // Days
+    } else if (timerRemaining >= 3600) {
+        size = "2rem"; // Hours
+    } else {
+        size = "2.5rem"; // MM:SS
+    }
+
+    if (size !== lastTimerFontSize) {
+        timerDiv.style("font-size", size);
+        lastTimerFontSize = size;
+    }
+}
+
+
+// fastHighlightSwapLists is defined in ui/inventoryUI.js; remove legacy copy here to prevent overrides and DOM churn.
 
 /**
  * @typedef {{ amount: number, imgNum?: number }} ItemEntry
  * @typedef {{ items: Record<string, ItemEntry>, curItem?: string }} Inventory
  */
 
-/**
- * PERF FIX #9: Quickly update swap list highlighting without full DOM rebuild.
- * Only updates background colors and font styles for selected rows.
- */
-function fastHighlightSwapLists(leftSelected, rightSelected) {
-    if (!itemListDivLeft || !itemListDivRight) return;
-    
-    const leftChildren = itemListDivLeft.elt?.children;
-    const rightChildren = itemListDivRight.elt?.children;
-    
-    if (leftChildren) {
-        for (let i = 0; i < leftChildren.length; i++) {
-            const row = leftChildren[i];
-            const name = row.getAttribute('data-item');
-            const isSel = name === leftSelected;
-            row.style.backgroundColor = isSel ? 'rgb(120, 120, 120)' : '';
-            row.style.fontStyle = isSel ? 'italic' : 'normal';
-        }
-    }
-    
-    if (rightChildren) {
-        for (let i = 0; i < rightChildren.length; i++) {
-            const row = rightChildren[i];
-            const name = row.getAttribute('data-item');
-            const isSel = name === rightSelected;
-            row.style.backgroundColor = isSel ? 'rgb(120, 120, 120)' : '';
-            row.style.fontStyle = isSel ? 'italic' : 'normal';
-        }
-    }
-}
+// fastHighlightSwapLists is defined in ui/inventoryUI.js; keep this file free of duplicates so events use that implementation.
 
 /**
  * Safely resolves a data URL for the first frame of an item's image.
@@ -3119,190 +2068,6 @@ function hydrateBagItemImages(inv) {
 }
 
 /**
- * Rebuilds the two inventory columns for swapping between the current player and another inventory.
- * Never throws if an image/frame is missing; falls back to a text placeholder.
- *
- * @param {Inventory} otherInv
- */
-/**
- * DEPRECATED: Old updateSwapItemLists - kept for reference only
- * This function caused major performance issues:
- * - 17+ .style() calls per item causing reflows
- * - Full DOM rebuild with .html("")
- * - Heavy nested DOM structure per item
- * 
- * USE: updateSwapItemLists() from swapInventory.js module instead
- * The new version uses CSS classes and smart partial updates
- * 
- * THIS FUNCTION IS DISABLED - DO NOT USE
- */
-function updateSwapItemLists_DEPRECATED_FROZEN(otherInv) {
-    return;  // Disabled - use swapInventory.js version instead
-
-    // LEFT SIDE (current player)
-    // DISABLED - this entire block caused severe freezing
-    // The original code did 17+ .style() calls per item and full DOM rebuilds
-    // See swapInventory.js for the optimized version
-    /*
-    itemListDivLeft.html("");
-
-    /** @type {Record<string, ItemEntry>} */
-    const myItems = curPlayer.invBlock.items || {};
-    let arr = Object.keys(myItems);
-
-    for (let i = 0; i < arr.length; i++) {
-        const itemName = arr[i];
-        const entry = myItems[itemName] || { amount: 0 };
-
-        const itemDiv = createDiv();
-        itemDiv.attribute('data-item', itemName);
-        itemDiv.style("width", "100%");
-        itemDiv.style("height", "50px");
-        itemDiv.style("display", "flex");
-        itemDiv.style("align-items", "center");
-        itemDiv.style("justify-content", "center");
-        itemDiv.style("border-bottom", "2px solid black");
-        if (curPlayer.invBlock.curItem === itemName) {
-            itemDiv.style("background-color", "rgb(120, 120, 120)");
-            itemDiv.style("font-style", "italic");
-        }
-        itemDiv.style("cursor", "pointer");
-        itemDiv.parent(itemListDivLeft);
-        itemDiv.mousePressed(() => {
-            curPlayer.invBlock.curItem = itemName;
-            if (otherInv) otherInv.curItem = "";
-            // PERF FIX #9: Update only highlights, skip full rebuild
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, safeOther.curItem);
-            updatecurSwapItemDiv(otherInv);
-        });
-
-        const itemInfoDiv = createDiv();
-        itemInfoDiv.style("width", "80%");
-        itemInfoDiv.style("height", "50px");
-        itemInfoDiv.style("display", "flex");
-        itemInfoDiv.style("align-items", "center");
-        itemInfoDiv.style("justify-content", "space-between");
-        itemInfoDiv.parent(itemDiv);
-
-        const imgDiv = createDiv();
-        imgDiv.style("width", "32px");
-        imgDiv.style("height", "32px");
-        imgDiv.style("margin-right", "8px");
-        imgDiv.style("display", "flex");
-        imgDiv.style("align-items", "center");
-        imgDiv.parent(itemInfoDiv);
-
-        const urlLeft = resolveItemImgURL(itemName, entry);
-        let imgEl;
-        if (urlLeft) {
-            imgEl = createImg(urlLeft, "");
-            imgEl.style("width", "32px");
-            imgEl.style("height", "32px");
-            imgEl.style("image-rendering", "pixelated");
-            imgEl.parent(imgDiv);
-        } else {
-            // Simple fallback when there is no image
-            const placeholder = createDiv("•");
-            placeholder.style("width", "32px");
-            placeholder.style("height", "32px");
-            placeholder.style("display", "flex");
-            placeholder.style("align-items", "center");
-            placeholder.style("justify-content", "center");
-            placeholder.parent(imgDiv);
-        }
-
-        const itemNameP = createP((itemName === curPlayer.invBlock.curItem ? "* " : "") + itemName);
-        itemNameP.style("font-size", "20px");
-        itemNameP.style("color", rarityColorCSS(itemName));
-        itemNameP.parent(itemInfoDiv);
-
-        const itemAmount = createP(String(entry.amount ?? 0));
-        itemAmount.style("font-size", "20px");
-        itemAmount.style("color", "white");
-        itemAmount.parent(itemInfoDiv);
-    }
-
-    // RIGHT SIDE (other inventory)
-    itemListDivRight.html("");
-    /** @type {Inventory} */
-    const safeOther = normalizedOtherInv || /** @type {Inventory} */({ items: {}, curItem: "" });
-    const otherItems = safeOther.items || {};
-    arr = Object.keys(otherItems);
-
-    for (let i = 0; i < arr.length; i++) {
-        const itemName = arr[i];
-        const entry = otherItems[itemName] || { amount: 0 };
-
-        const itemDiv = createDiv();
-        itemDiv.attribute('data-item', itemName);
-        itemDiv.style("width", "100%");
-        itemDiv.style("height", "50px");
-        itemDiv.style("display", "flex");
-        itemDiv.style("align-items", "center");
-        itemDiv.style("justify-content", "center");
-        itemDiv.style("border-bottom", "2px solid black");
-        if (safeOther.curItem === itemName) {
-            itemDiv.style("background-color", "rgb(120, 120, 120)");
-            itemDiv.style("font-style", "italic");
-        }
-        itemDiv.style("cursor", "pointer");
-        itemDiv.parent(itemListDivRight);
-
-        itemDiv.mousePressed(() => {
-            curPlayer.invBlock.curItem = "";
-            safeOther.curItem = itemName;
-            // PERF FIX #9: Update only highlights, skip full rebuild
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, safeOther.curItem);
-            updatecurSwapItemDiv(safeOther);
-        });
-
-        const itemInfoDiv = createDiv();
-        itemInfoDiv.style("width", "80%");
-        itemInfoDiv.style("height", "50px");
-        itemInfoDiv.style("display", "flex");
-        itemInfoDiv.style("align-items", "center");
-        itemInfoDiv.style("justify-content", "space-between");
-        itemInfoDiv.parent(itemDiv);
-
-        const imgDiv = createDiv();
-        imgDiv.style("width", "32px");
-        imgDiv.style("height", "32px");
-        imgDiv.style("margin-right", "8px");
-        imgDiv.style("display", "flex");
-        imgDiv.style("align-items", "center");
-        imgDiv.parent(itemInfoDiv);
-
-        const urlRight = resolveItemImgURL(itemName, entry);
-        if (urlRight) {
-            const imgEl = createImg(urlRight, "");
-            imgEl.style("width", "32px");
-            imgEl.style("height", "32px");
-            imgEl.style("image-rendering", "pixelated");
-            imgEl.parent(imgDiv);
-        } else {
-            const placeholder = createDiv("•");
-            placeholder.style("width", "32px");
-            placeholder.style("height", "32px");
-            placeholder.style("display", "flex");
-            placeholder.style("align-items", "center");
-            placeholder.style("justify-content", "center");
-            placeholder.parent(imgDiv);
-        }
-
-        const itemNameP = createP((itemName === safeOther.curItem ? "* " : "") + itemName);
-        itemNameP.style("font-size", "20px");
-        itemNameP.style("color", rarityColorCSS(itemName));
-        itemNameP.parent(itemInfoDiv);
-
-        const itemAmount = createP(String(entry.amount ?? 0));
-        itemAmount.style("font-size", "20px");
-        itemAmount.style("color", "white");
-        itemAmount.parent(itemInfoDiv);
-    }
-    // End of commented-out old function
-}
-
-/**
  * @typedef {{ amount: number, imgNum?: number, itemName?: string, desc?: string, type?: string, durability?: number, maxDurability?: number }} ItemEntry
  * @typedef {{ items: Record<string, ItemEntry>, curItem?: string, getItemStats?: (name: string) => Array<[string, number|string]> }} Inventory
  */
@@ -3320,220 +2085,6 @@ function getItemFrameDataURL(imgNum) {
     return (canvas && typeof canvas.toDataURL === "function") ? canvas.toDataURL() : undefined;
 }
 
-/**
- * Renders the details panel for the currently selected item (from player or other inventory).
- * Robust to missing images, missing fields, and missing inventories.
- * @param {Inventory} otherInv
- */
-function updatecurSwapItemDiv(otherInv) {
-    if (!curPlayer || !curPlayer.invBlock) return;
-
-    const normalizedOther = hydrateBagItemImages(otherInv);
-
-    /** @type {Inventory} */
-    const safeOther = normalizedOther || /** @type {Inventory} */ ({ items: {}, curItem: "" });
-
-    let curSwapItem;
-    const myCur = curPlayer.invBlock.curItem || "";
-    const theirCur = safeOther.curItem || "";
-
-    if (myCur !== "") {
-        curSwapItem = (curPlayer.invBlock.items || {})[myCur];
-        if (curSwapItem && !curSwapItem.itemName) curSwapItem.itemName = myCur;
-    } else if (theirCur !== "") {
-        curSwapItem = (safeOther.items || {})[theirCur];
-        if (curSwapItem && !curSwapItem.itemName) curSwapItem.itemName = theirCur;
-    }
-
-    // Clear the div every time
-    curSwapItemDiv.html("");
-
-    if (!curSwapItem) {
-        // Show a clean "None Selected" state
-        const noneDiv = createDiv("No item selected");
-        noneDiv.style("width", "100%");
-        noneDiv.style("padding", "24px");
-        noneDiv.style("color", "#aaa");
-        noneDiv.style("text-align", "center");
-        noneDiv.style("font-size", "22px");
-        noneDiv.parent(curSwapItemDiv);
-        return;
-    }
-
-    // ---- Item card (image + name/desc) ----
-    const itemCardDiv = createDiv();
-    itemCardDiv.style("width", "100%");
-    itemCardDiv.style("height", "30%");
-    itemCardDiv.style("display", "flex");
-    itemCardDiv.style("margin-bottom", "20px");
-    itemCardDiv.parent(curSwapItemDiv);
-
-    const itemImgDiv = createDiv();
-    itemImgDiv.style("width", "50%");
-    itemImgDiv.style("border", "2px solid black");
-    itemImgDiv.style("border-radius", "10px");
-    const bgURL = resolveItemImgURL(curSwapItem.itemName, curSwapItem);
-    if (bgURL) {
-        itemImgDiv.style("background-image", "url('" + bgURL + "')");
-        itemImgDiv.style("image-rendering", "pixelated");
-    } else {
-        // subtle placeholder
-        itemImgDiv.style("display", "flex");
-        itemImgDiv.style("align-items", "center");
-        itemImgDiv.style("justify-content", "center");
-        const dot = createDiv("•");
-        dot.style("font-size", "28px");
-        dot.style("color", "#ccc");
-        dot.parent(itemImgDiv);
-    }
-    itemImgDiv.style("background-size", "contain");
-    itemImgDiv.style("background-repeat", "no-repeat");
-    itemImgDiv.style("background-position", "center");
-    itemImgDiv.parent(itemCardDiv);
-
-    const itemNameDescDiv = createDiv();
-    itemNameDescDiv.style("width", "calc(50% - 8px)");
-    itemNameDescDiv.style("height", "100%");
-    itemNameDescDiv.parent(itemCardDiv);
-
-    const itemNameDiv = createDiv();
-    itemNameDiv.style("width", "100%");
-    itemNameDiv.style("height", "20%");
-    itemNameDiv.style("border", "2px solid black");
-    itemNameDiv.style("border-radius", "10px");
-    itemNameDiv.parent(itemNameDescDiv);
-
-    const itemNameP = createP(String(curSwapItem.itemName || "Unknown Item"));
-    itemNameP.style("font-size", "20px");
-    itemNameP.style("color", rarityColorCSS(curSwapItem.itemName));
-    itemNameP.style("margin", "5px");
-    itemNameP.style("padding", "0");
-    itemNameP.style("word-wrap", "break-word");
-    itemNameP.style("overflow-wrap", "break-word");
-    itemNameP.style("white-space", "normal");
-    itemNameP.parent(itemNameDiv);
-
-    // Description
-    const itemDescDiv = createDiv();
-    itemDescDiv.style("width", "100%");
-    itemDescDiv.style("height", "calc(80% - 5px)");
-    itemDescDiv.style("border", "2px solid black");
-    itemDescDiv.style("border-radius", "10px");
-    itemDescDiv.parent(itemNameDescDiv);
-
-    const itemDescP = createP(String(curSwapItem.desc || "No description."));
-    itemDescP.style("font-size", "20px");
-    itemDescP.style("color", "white");
-    itemDescP.style("margin", "5px");
-    itemDescP.parent(itemDescDiv);
-
-    // ---- Stats area ----
-    const itemStatsDiv = createDiv();
-    itemStatsDiv.style("width", "100%");
-    itemStatsDiv.style("height", "calc(70% - 10px)");
-    itemStatsDiv.parent(curSwapItemDiv);
-
-    // Durability (only when applicable)
-    if (curSwapItem.type !== "Simple" && typeof curSwapItem.durability === "number" && typeof curSwapItem.maxDurability === "number" && curSwapItem.maxDurability > 0) {
-        const durabilityDiv = createDiv();
-        durabilityDiv.style("width", "calc(100% - 14px)");
-        durabilityDiv.style("height", "10%");
-        durabilityDiv.style("padding", "5px");
-        durabilityDiv.style("border", "2px solid black");
-        durabilityDiv.style("border-radius", "10px");
-        durabilityDiv.style("display", "flex");
-        durabilityDiv.style("align-items", "center");
-        durabilityDiv.style("justify-content", "center");
-        durabilityDiv.style("margin-bottom", "5px");
-        durabilityDiv.parent(itemStatsDiv);
-
-        const durabilityText = createP("Durability:");
-        durabilityText.style("font-size", "20px");
-        durabilityText.style("color", "white");
-        durabilityText.parent(durabilityDiv);
-
-        const durabilityBar = createDiv();
-        durabilityBar.style("width", "80%");
-        durabilityBar.style("height", "20px");
-        durabilityBar.style("background-color", "red");
-        durabilityBar.style("border", "2px solid black");
-        durabilityBar.style("border-radius", "10px");
-        durabilityBar.parent(durabilityDiv);
-
-        const pct = Math.max(0, Math.min(1, curSwapItem.durability / curSwapItem.maxDurability)) * 100;
-        const durabilityFill = createDiv();
-        durabilityFill.style("width", pct + "%");
-        durabilityFill.style("height", "100%");
-        durabilityFill.style("background-color", "green");
-        durabilityFill.style("border-radius", "10px");
-        durabilityFill.parent(durabilityBar);
-    }
-
-    const statsText = createDiv("Stats");
-    statsText.style("font-size", "20px");
-    statsText.style("color", "white");
-    statsText.style("text-align", "center");
-    statsText.style("border", "2px solid black");
-    statsText.style("border-radius", "10px");
-    statsText.style("padding", "10px");
-    statsText.style("margin-bottom", "5px");
-    statsText.parent(itemStatsDiv);
-
-    const statsList = createDiv();
-    statsList.style("width", "100%");
-    statsList.style("height", "calc(90% - 10px)");
-    statsList.style("overflow-y", "auto");
-    statsList.parent(itemStatsDiv);
-
-    // Safely fetch stats
-    /** @type {Array<[string, number|string]>|undefined} */
-    let stats;
-    if (myCur !== "" && typeof curPlayer.invBlock.getItemStats === "function") {
-        stats = curPlayer.invBlock.getItemStats(curSwapItem.itemName || myCur);
-    } else if (theirCur !== "" && typeof safeOther.getItemStats === "function") {
-        stats = safeOther.getItemStats(curSwapItem.itemName || theirCur);
-    }
-
-    if (Array.isArray(stats)) {
-        stats.forEach(stat => {
-            if (!Array.isArray(stat) || stat.length < 2) return;
-            if (stat[0] === "Durability") return;
-
-            const statDiv = createDiv();
-            statDiv.style("width", "100%");
-            statDiv.style("height", "20px");
-            statDiv.style("display", "flex");
-            statDiv.style("margin-bottom", "12px");
-            statDiv.parent(statsList);
-
-            const statNameDiv = createDiv(String(stat[0]) + ":");
-            statNameDiv.style("width", "50%");
-            statNameDiv.style("height", "100%");
-            statNameDiv.style("color", "white");
-            statNameDiv.style("text-align", "center");
-            statNameDiv.style("font-size", "20px");
-            statNameDiv.style("border", "2px solid black");
-            statNameDiv.style("border-radius", "10px");
-            statNameDiv.style("padding", "5px");
-            statNameDiv.parent(statDiv);
-
-            const statNumDiv = createDiv(String(stat[1]));
-            statNumDiv.style("width", "50%");
-            statNumDiv.style("height", "100%");
-            statNumDiv.style("color", "white");
-            statNumDiv.style("text-align", "center");
-            statNumDiv.style("font-size", "20px");
-            statNumDiv.style("border", "2px solid black");
-            statNumDiv.style("border-radius", "10px");
-            statNumDiv.style("padding", "5px");
-            statNumDiv.parent(statDiv);
-        });
-    }
-
-    if (typeof updateSpaceBarDiv === "function") {
-        updateSpaceBarDiv();
-    }
-}
 
 
 //render timer on the top of the screen 
@@ -3818,7 +2369,7 @@ function updateCraftList() {
         itemDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = itemName;
             highlightCraftList();
-            perfTimed('updatecurCraftItemDiv', () => updatecurCraftItemDiv());
+            updatecurCraftItemDiv();
         });
         let itemInfoDiv = createDiv().parent(itemDiv);
         applyStyle(itemInfoDiv, {
@@ -4127,6 +2678,8 @@ craftAllButton.mousePressed(() => {
 }
 
 var deathDiv;
+var respawnButton;
+var hardcoreNotice;
 
 function defineDeathUI() {
     deathDiv = createDiv();
@@ -4136,22 +2689,61 @@ function defineDeathUI() {
     deathDiv.style("top", "50%");
     deathDiv.style("left", "50%");
     deathDiv.style("transform", "translate(-50%, -50%)");
-    deathDiv.style("display", "none");
-    deathDiv.style("width", "25%");
-    deathDiv.style("height", "20%");
+    deathDiv.style("width", "clamp(280px, 60vw, 400px)");
+    deathDiv.style("height", "auto");
+    deathDiv.style("min-height", "20%");
     deathDiv.style("border", "2px solid black");
     deathDiv.style("border-radius", "10px");
     deathDiv.style("text-align", "center");
     deathDiv.style("padding", "20px");
+    deathDiv.style("display", "flex");
+    deathDiv.style("flex-direction", "column");
+    deathDiv.style("align-items", "center");
+    deathDiv.style("justify-content", "center");
+    deathDiv.style("background-color", "rgba(0, 0, 0, 0.8)");
 
     let title = createP("Dead").parent(deathDiv);
     title.style("font-size", "28px");
     title.style("font-weight", "bold");
     title.style("color", "white");
 
-    let respawnButton = createButton("Respawn").parent(deathDiv);
-    styleButton(respawnButton);
+    hardcoreNotice = createP("");
+    hardcoreNotice.parent(deathDiv);
+    hardcoreNotice.style("font-size", "16px");
+    hardcoreNotice.style("color", "#ff5555");
+    hardcoreNotice.style("margin-bottom", "8px");
+    hardcoreNotice.hide();
+
+    respawnButton = createButton("Respawn").parent(deathDiv);
+    respawnButton.class("system-button");
+    respawnButton.style("width", "80%");
+    respawnButton.style("padding", "12px");
+    respawnButton.style("margin", "10px auto");
+    respawnButton.style("min-height", "48px");
+    respawnButton.style("font-size", "clamp(14px, 3vw, 16px)");
+    respawnButton.style("border-radius", "8px");
+    respawnButton.style("cursor", "pointer");
+    respawnButton.style("color", "white");
+    respawnButton.style("background-color", "#4CAF50");
+    respawnButton.style("border", "none");
+    respawnButton.style("transition", "background-color 0.3s");
+    respawnButton.mouseOver(() => respawnButton.style("background-color", "#45a049"));
+    respawnButton.mouseOut(() => {
+        const hardcore = !!window.isHardcoreServer;
+        respawnButton.style("background-color", hardcore ? "#d32f2f" : "#4CAF50");
+    });
     respawnButton.mousePressed(() => {
+        const hardcore = !!window.isHardcoreServer;
+        
+        if (hardcore) {
+            // Hardcore: redirect to main menu
+            deathDiv.hide();
+            gameState = "initial";
+            location.reload();
+            return;
+        }
+        
+        // Normal respawn
         curPlayer.pos.x = random(-200 * TILESIZE, 200 * TILESIZE);
         curPlayer.pos.y = random(-200 * TILESIZE, 200 * TILESIZE);
 
@@ -4172,18 +2764,13 @@ function defineDeathUI() {
 
         curPlayer.statBlock.stats.hp = 100;
 
-        socket.emit("update_pos", {
-            id: curPlayer.id,
-            pos: curPlayer.pos,
-            holding: curPlayer.holding
-        });
-        socket.emit("update_player", {
-            id: curPlayer.id,
-            pos: curPlayer.pos,
-            holding: curPlayer.holding,
-            update_names: ["stats.hp"],
-            update_values: [curPlayer.statBlock.stats.hp]
-        });
+        // Sync position through the batcher + send HP update
+        if (typeof playerStateBatcher !== 'undefined') {
+            playerStateBatcher.setPosition(curPlayer.pos);
+            playerStateBatcher.setHolding(curPlayer.holding);
+            playerStateBatcher.addUpdate("stats.hp", curPlayer.statBlock.stats.hp);
+            playerStateBatcher.flushImmediate();
+        }
 
         giveDefaultItems();
         curPlayer.invBlock.useTimer = 10;
@@ -4194,37 +2781,87 @@ function defineDeathUI() {
 
     //disconnect button
     let disconnectButton = createButton("Disconnect").parent(deathDiv);
-    styleButton(disconnectButton);
+    disconnectButton.class("system-button");
+    disconnectButton.style("width", "80%");
+    disconnectButton.style("padding", "12px");
+    disconnectButton.style("margin", "10px");
+    disconnectButton.style("font-size", "16px");
+    disconnectButton.style("border-radius", "8px");
+    disconnectButton.style("cursor", "pointer");
+    disconnectButton.style("color", "white");
+    disconnectButton.style("background-color", "#333");
+    disconnectButton.style("border", "none");
+    disconnectButton.style("transition", "background-color 0.3s");
+    disconnectButton.mouseOver(() => disconnectButton.style("background-color", "#555"));
+    disconnectButton.mouseOut(() => disconnectButton.style("background-color", "#333"));
     disconnectButton.mousePressed(() => {
         // Save player data before disconnecting
-        if (curPlayer && socket && socket.connected) {
-            const playerData = {
-                invBlock: curPlayer.invBlock ? {
-                    items: curPlayer.invBlock.items || {},
-                    hotbar: curPlayer.invBlock.hotbar || ["","","","",""],
-                    selectedHotBar: curPlayer.invBlock.selectedHotBar || 0,
-                    equiped: curPlayer.invBlock.equiped || {}
-                } : null,
-                statBlock: curPlayer.statBlock || null,
-                pos: curPlayer.pos || null,
-                teamId: curPlayer.teamId || null,
-                race: curPlayer.race || null,
-                color: curPlayer.color || 0,
-                name: curPlayer.name || null,
-                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
-            };
-            console.log('[Disconnect] Saving player data:', playerData);
-            socket.emit('save_player_state', playerData);
-            
-            // Small delay to ensure data is sent before reload
-            setTimeout(() => {
-                location.reload();
-            }, 100);
-        } else {
-            location.reload();
+        try {
+            if (curPlayer && socket && socket.connected) {
+                const playerData = {
+                    invBlock: curPlayer.invBlock ? {
+                        items: curPlayer.invBlock.items || {},
+                        hotbar: curPlayer.invBlock.hotbar || ["","","","",""],
+                        selectedHotBar: curPlayer.invBlock.selectedHotBar || 0,
+                        equiped: curPlayer.invBlock.equiped || {}
+                    } : null,
+                    statBlock: curPlayer.statBlock || null,
+                    pos: curPlayer.pos ? { x: curPlayer.pos.x, y: curPlayer.pos.y } : null,
+                    teamId: curPlayer.teamId || null,
+                    race: curPlayer.race || null,
+                    color: curPlayer.color || 0,
+                    name: curPlayer.name || null,
+                    movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
+                };
+                console.log('[Disconnect] Saving player data:', playerData);
+                socket.emit('save_player_state', playerData);
+                socket.disconnect();
+            }
+        } catch (e) {
+            console.error('[Disconnect] Error during save:', e);
         }
         deathDiv.hide();
+        // Always reload — delay lets the final packets flush
+        setTimeout(() => { location.reload(); }, 150);
     });
+}
+
+// Show death UI with hardcore-aware button
+function showDeathUI() {
+    if (!deathDiv) return;
+    
+    // Don't show death UI in main menu or other non-play states
+    if (!curPlayer) return;
+    const nonPlayStates = [
+        "initial",
+        "server_select",
+        "race_select",
+        "race_selection",
+        "settings",
+        undefined,
+        null
+    ];
+    if (nonPlayStates.includes(gameState)) {
+        // turn off
+        deathDiv.hide();
+        return;
+    };
+    
+    const hardcore = !!window.isHardcoreServer;
+    
+    if (hardcore) {
+        respawnButton.html("☠ Restart");
+        respawnButton.style("background-color", "#d32f2f");
+        hardcoreNotice.html("Permadeath server - character deleted");
+        hardcoreNotice.show();
+    } else {
+        respawnButton.html("Respawn");
+        respawnButton.style("background-color", "#4CAF50");
+        hardcoreNotice.hide();
+    }
+    
+    respawnButton.show();
+    deathDiv.show();
 }
 
 var tutorialDiv;
@@ -4239,6 +2876,7 @@ var pageNumberText;
 function defineTutorialUI() {
     // MAIN CONTAINER
     tutorialDiv = createDiv();
+    tutorialDiv.id("tutorialDiv");
     applyStyle(tutorialDiv, {
         backgroundColor: "#1a1a1a",
         width: "50%",
@@ -4263,12 +2901,15 @@ function defineTutorialUI() {
         justifyContent: "flex-end",
     });
     let closeButton = createImg("images/ui/x.png", "").parent(topBar);
+    closeButton.id("tutorialCloseBtn");
     applyStyle(closeButton, {
-        width: "22px",
-        height: "22px",
+        width: "36px",
+        height: "36px",
+        padding: "6px",
         cursor: "pointer",
         imageRendering: "pixelated",
         border: "none",
+        touchAction: "manipulation",
     });
     closeButton.mousePressed(() => {
         gameState = "playing";
@@ -4482,7 +3123,6 @@ class Popup {
         // Set text color to item rarity
         if (typeof getItemRarityRGB === 'function') {
             const rgb = getItemRarityRGB(this.rarity);
-            console.log(rgb, 'rarity color for', this.rarity);
             fill(rgb[0], rgb[1], rgb[2]);
         } else {
             fill(255);

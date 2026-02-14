@@ -50,11 +50,8 @@ class Player {
         this.dashSpeedMultiplier = 2.5; // How much faster during dash
         this.dashManaCost = 20; // Mana cost per dash
 
-        this.spells = {
-            combustion: { level: 8, cooldown: 0, cooldownMax: 750, manaCost: 30, flashTimer: 0, particles: [] },
-            forceField: { level: 3, active: false, timer: 0, duration: 1200, cooldown: 0, cooldownMax: 450, manaCost: 40, bonusMR: 3, regenPerSec: 2.5, auraTimer: 0 },
-            meditate: { level: 14, active: false, timer: 0, duration: 600, cooldown: 0, cooldownMax: 1200, manaCost: 5, manaPerSec: 2.5 }
-        };
+        // All spell state is now managed in the magic system, not on the player object.
+        this.spells = {};
 
         // Move slots (0-9) for spell/ability assignment
         this.movesSlots = [
@@ -70,11 +67,12 @@ class Player {
             null
         ];
     }
-
-    newCollisionPoint(xOffset, yOffset, direction) {
+ newCollisionPoint(xOffset, yOffset, direction) {
         let chunkPos = testMap.globalToChunk(this.pos.x + (xOffset * TILESIZE), this.pos.y + (yOffset * TILESIZE));
+        const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+        const chunk = testMap.chunks[chunkKey];
 
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) { //if you dont have that chunk assume there is dirt in the way
+        if (chunk == undefined) { //if you dont have that chunk assume there is dirt in the way
             return {
                 dir: direction,
                 val: -1
@@ -120,7 +118,10 @@ class Player {
             y2 = 0;
         }
 
-        if (testMap.chunks[chunkPos2.x + "," + chunkPos2.y] == undefined) { //if you dont have that chunk assume there is dirt in the way
+        const chunkKey2 = getChunkKey(chunkPos2.x, chunkPos2.y);
+        const chunk2 = testMap.chunks[chunkKey2];
+
+        if (chunk2 == undefined) { //if you dont have that chunk assume there is dirt in the way
             return {
                 dir: direction,
                 val: -1
@@ -128,8 +129,8 @@ class Player {
         }
 
         //MATH
-        let val = testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE];
-        let val2 = testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE];
+        let val = chunk.data[x + y * CHUNKSIZE];
+        let val2 = chunk2.data[x2 + y2 * CHUNKSIZE];
 
         if (val == -1 || val2 == -1) {
             return {
@@ -189,10 +190,10 @@ class Player {
         }
 
         return {
-            val: testMap.chunks[chunkPos.x + "," + chunkPos.y].data[x + y * CHUNKSIZE],
-            val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].data[x2 + y2 * CHUNKSIZE],
-            iron_val: testMap.chunks[chunkPos.x + "," + chunkPos.y].iron_data[x + y * CHUNKSIZE],
-            iron_val2: testMap.chunks[chunkPos2.x + "," + chunkPos2.y].iron_data[x2 + y2 * CHUNKSIZE],
+            val: chunk.data[x + y * CHUNKSIZE],
+            val2: chunk2.data[x2 + y2 * CHUNKSIZE],
+            iron_val: chunk.iron_data[x + y * CHUNKSIZE],
+            iron_val2: chunk2.iron_data[x2 + y2 * CHUNKSIZE],
             x: (midpoint.x + (chunkPos2.x * CHUNKSIZE)) * TILESIZE,
             y: (midpoint.y + (chunkPos2.y * CHUNKSIZE)) * TILESIZE,
             dir: direction
@@ -200,374 +201,333 @@ class Player {
 
     }
 
-    update() {
-        //dont update players not in your chunks
-        let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) return;
+    // --- Collision tuning (feel free to tweak) ---
+getColliderRadius() {
+    // Your old object check used "+ 29" as padding.
+    // That implies ~14-15px radius-ish. Keep it consistent and stable.
+    return 14.5;
+}
 
-        let collisionChecks = [];
-
-
-        this.moving = (this.holding.w || this.holding.a || this.holding.s || this.holding.d);
-
-        // Update dash state
-        if (this.isDashing) {
-            this.dashTimer--;
-            if (this.dashTimer <= 0) {
-                this.isDashing = false;
-            }
+getNeighborChunkKeysForWorldPos(wx, wy) {
+    const c = testMap.globalToChunk(wx, wy);
+    const keys = [];
+    for (let cy = c.y - 1; cy <= c.y + 1; cy++) {
+        for (let cx = c.x - 1; cx <= c.x + 1; cx++) {
+            const k = getChunkKey(cx, cy);
+            if (testMap.chunks[k]) keys.push(k);
         }
-        if (this.dashCooldown > 0) {
-            this.dashCooldown--;
+    }
+    return keys;
+}
+
+isSolidTileAtWorld(wx, wy) {
+    const chunkPos = testMap.globalToChunk(wx, wy);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+
+    // Missing chunk = solid (your existing behavior)
+    const chunk = testMap.chunks[chunkKey];
+    if (!chunk) return true;
+
+    // Local tile coords in chunk
+    let tx = floor(wx / TILESIZE) - (chunkPos.x * CHUNKSIZE);
+    let ty = floor(wy / TILESIZE) - (chunkPos.y * CHUNKSIZE);
+
+    // Clamp safety
+    if (tx < 0 || ty < 0 || tx >= CHUNKSIZE || ty >= CHUNKSIZE) return true;
+
+    const idx = tx + ty * CHUNKSIZE;
+
+    const dirt = chunk.data[idx];
+    const iron = chunk.iron_data ? chunk.iron_data[idx] : 0;
+
+    // Your code treated "-1" as blocked, and (val2>0 || iron_val2>0) as blocked.
+    // So: -1 OR >0 => solid.
+    if (dirt === -1) return true;
+    if (dirt > 0) return true;
+    if (iron > 0) return true;
+
+    return false;
+}
+
+collidesWithTilesAt(pos) {
+    const r = this.getColliderRadius();
+
+    // Sample a few points around the circle collider.
+    // This is fast + stable for tile grids.
+    // (You can add more samples if your player is bigger.)
+    const samples = [
+        { x: pos.x + r, y: pos.y },
+        { x: pos.x - r, y: pos.y },
+        { x: pos.x, y: pos.y + r },
+        { x: pos.x, y: pos.y - r },
+        { x: pos.x + r, y: pos.y + r },
+        { x: pos.x - r, y: pos.y + r },
+        { x: pos.x + r, y: pos.y - r },
+        { x: pos.x - r, y: pos.y - r },
+    ];
+
+    for (const p of samples) {
+        if (this.isSolidTileAtWorld(p.x, p.y)) return true;
+    }
+    return false;
+}
+
+collidesWithObjectsAt(pos) {
+    // Check objects in nearby chunks (handles border cases)
+    const keys = this.getNeighborChunkKeysForWorldPos(pos.x, pos.y);
+    const r = this.getColliderRadius();
+
+    for (const key of keys) {
+        const chunk = testMap.chunks[key];
+        if (!chunk) continue;
+
+        for (let j = 0; j < chunk.objects.length; j++) {
+            const obj = chunk.objects[j];
+            if (obj.z !== 2) continue;
+
+            // Door exception
+            if (obj.objName === "Door" && obj.alpha !== 255) continue;
+
+            // Your existing collision was distance-based with a weird combined size.
+            // We'll keep a similar effective radius but make it consistent.
+            const objRadius = ((obj.size.w + obj.size.h) * 0.25) + r; // approx
+            const d = obj.pos.dist(pos);
+
+            if (d < objRadius) return true;
         }
+    }
 
-        if (this.spells.combustion.cooldown > 0) this.spells.combustion.cooldown--;
-        if (this.spells.combustion.flashTimer > 0) this.spells.combustion.flashTimer--;
-        if (this.spells.forceField.cooldown > 0) this.spells.forceField.cooldown--;
-        if (this.spells.forceField.auraTimer > 0) this.spells.forceField.auraTimer--;
-        if (this.spells.meditate.cooldown > 0) this.spells.meditate.cooldown--;
+    return false;
+}
 
-        // Update combustion particles
-        if (this.spells.combustion.particles) {
-            for (let i = this.spells.combustion.particles.length - 1; i >= 0; i--) {
-                this.spells.combustion.particles[i].life--;
-                if (this.spells.combustion.particles[i].life <= 0) {
-                    this.spells.combustion.particles.splice(i, 1);
-                }
-            }
-        }
+collidesAt(pos) {
+    // Missing chunk treated as solid tile by isSolidTileAtWorld checks
+    if (this.collidesWithTilesAt(pos)) return true;
+    if (this.collidesWithObjectsAt(pos)) return true;
+    return false;
+}
+update() {
+    const isLocal = (this === curPlayer);
 
-        // Calculate speed multiplier based on dash state
-        let speedMultiplier = this.isDashing ? this.dashSpeedMultiplier : 1;
+    /* =========================
+       INPUT / STATE
+       ========================= */
+    this.moving =
+        this.holding.w ||
+        this.holding.a ||
+        this.holding.s ||
+        this.holding.d;
 
-        if (this.holding.w) {
-            this.vel.y += -BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'up';
-        }
-        if (this.holding.a) {
-            this.vel.x += -BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'left';
-        }
-        if (this.holding.s) {
-            this.vel.y += BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'down';
-        }
-        if (this.holding.d) {
-            this.vel.x += BASE_SPEED * this.statBlock.stats.runningSpeed * speedMultiplier * (deltaTime/30);
-            this.direction = 'right';
-        }
-
-        //console.log(this.vel.heading());
-        if(this.vel.heading() >= -80 && this.vel.heading() < 80){ //right
-            collisionChecks.push(this.newCollisionPoint(1, 1, "right"));
-            if (this.holding.w) {
-                collisionChecks.push(this.newCollisionPoint(1, 2, "right"));
-            }
-            else {
-                collisionChecks.push(this.newCollisionPoint(1, 0, "right"));
-            }
-        }
-        if(this.vel.heading() >= 10 && this.vel.heading() < 170){ //down
-            collisionChecks.push(this.newCollisionPoint(0, 1, "down"));
-            collisionChecks.push(this.newCollisionPoint(1, 1, "down"));
-        }
-        if((this.vel.heading() >= 100 && this.vel.heading() <= 180) || (this.vel.heading() >= -180 && this.vel.heading() <= -100)){ //left
-            collisionChecks.push(this.newCollisionPoint(0, 1, "left"));
-            if (this.holding.w) {
-                collisionChecks.push(this.newCollisionPoint(0, 2, "left"));
-            }
-            else {
-                collisionChecks.push(this.newCollisionPoint(0, 0, "left"));
-            }
-        }
-        if(this.vel.heading() >= -170 && this.vel.heading() < -10){ //up
-            collisionChecks.push(this.newCollisionPoint(0, 1, "up"));
-            collisionChecks.push(this.newCollisionPoint(1, 1, "up"));
-        }
-
-
-
-        let oldPos = this.pos.copy();
-
-        // Apply movement with continuous collision detection
-        // Break large movements into smaller steps to prevent tunneling
-        let movement = this.vel.copy().mult(deltaTime/33);
-        const maxStepSize = TILESIZE * 0.25; // Maximum step size per iteration (smaller for dash/high stats)
-        const movementMag = movement.mag();
-        
-        if (movementMag > maxStepSize) {
-            // Break into smaller steps for fast movement
-            const steps = Math.ceil(movementMag / maxStepSize);
-            const stepVec = movement.copy().div(steps);
-            
-            for (let step = 0; step < steps; step++) {
-                let testPos = this.pos.copy().add(stepVec);
-                let collision = false;
-                
-                // Check collisions at test position
-                let testChunkPos = testMap.globalToChunk(testPos.x, testPos.y);
-                let testChunk = testMap.chunks[testChunkPos.x + "," + testChunkPos.y];
-                
-                if (testChunk) {
-                    // Check object collisions
-                    for (let j = 0; j < testChunk.objects.length; j++) {
-                        if (testChunk.objects[j].z == 2) {
-                            let d = testChunk.objects[j].pos.dist(testPos);
-                            if (d * 2 < (testChunk.objects[j].size.w + testChunk.objects[j].size.h) / 2 + 29) {
-                                if (testChunk.objects[j].objName == "Door") {
-                                    if (testChunk.objects[j].alpha == 255) {
-                                        collision = true;
-                                        break;
-                                    }
-                                } else {
-                                    collision = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Check wall collisions at test position
-                    if (!collision) {
-                        for (let i = 0; i < collisionChecks.length; i++) {
-                            let check = collisionChecks[i];
-                            if (check.val == -1) {
-                                collision = true;
-                                break;
-                            }
-                            if (check.val2 > 0 || check.iron_val2 > 0) {
-                                if (check.dir == "up" || check.dir == "down") {
-                                    if (createVector(check.x, testPos.y).dist(createVector(check.x, check.y)) < TILESIZE) {
-                                        collision = true;
-                                        break;
-                                    }
-                                }
-                                if (check.dir == "left" || check.dir == "right") {
-                                    if (createVector(testPos.x, check.y).dist(createVector(check.x, check.y)) < TILESIZE) {
-                                        collision = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Only apply movement if no collision
-                if (!collision) {
-                    this.pos = testPos;
-                } else {
-                    // Stop movement on collision
-                    break;
-                }
-            }
-        } else {
-            // Small movement - use original single-step logic
-            this.pos.add(movement);
-            
-            // Handle collisions
-            let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
-            for (let j = 0; j < chunk.objects.length; j++) {
-                if (chunk.objects[j].z == 2) {
-                    let d = chunk.objects[j].pos.dist(this.pos);
-                    if (d * 2 < (chunk.objects[j].size.w + chunk.objects[j].size.h) / 2 + 29) {
-                        if (chunk.objects[j].objName == "Door") {
-                            if (chunk.objects[j].alpha == 255) {
-                                this.pos = oldPos;
-                            }
-                        } else {
-                            this.pos = oldPos;
-                        }
-                    }
-                }
-            }
-
-            for (let i = 0; i < collisionChecks.length; i++) {
-                let check = collisionChecks[i];
-                if (check.val == -1) this.pos = oldPos;
-                if (check.val2 > 0 || check.iron_val2 > 0) {
-                    if (check.dir == "up" || check.dir == "down") {
-                        if (createVector(check.x, this.pos.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.y = oldPos.y;
-                    }
-                    if (check.dir == "left" || check.dir == "right") {
-                        if (createVector(this.pos.x, check.y).dist(createVector(check.x, check.y)) < TILESIZE) this.pos.x = oldPos.x;
-                    }
-                }
-            }
-        }
-
-        // Update the current frame for animation
-        if (this.moving) {
-            this.animationFrame += (1 / 7);
-            this.currentFrame = 1 + (this.animationFrame) % 4;
-            if (this.currentFrame >= 4) this.currentFrame = 2;
-        } else if (this.animationType != "") {
-            switch (this.animationType) {
-                case "put": { this.currentFrame = 4; } break;
-            }
-
-            this.animationFrame -= 1;
-            if (this.animationFrame <= 0) {
-                this.animationFrame = 0;
-                this.animationType = "";
-            }
-        } else {
-            this.animationFrame = 0;
-            this.currentFrame = 0; // Reset to standing frame when not moving
-        }
-
-        this.vel = createVector(0, 0);
-
-        if (this.spells.forceField.active) {
-            this.spells.forceField.timer--;
-
-            if(this.spells.forceField.timer % 10 ==0){
-          
-                let amt = ((this.statBlock.stats.magic * (deltaTime/30)) / 5) +1;
-                this.statBlock.regenHealth(amt);
-            }
-
-            if (this.spells.forceField.timer <= 0) {
-                this.endForceField();
-            }
-        }
-
-        if (this.spells.meditate.active) {
-            // cancel meditation immediately if moving
-            if (this.moving) {
-                this.endMeditate();
-            } else {
-                this.spells.meditate.timer--;
-                let m = this.spells.meditate.manaPerSec * (deltaTime/30);
-                this.statBlock.regenMana(m);
-                if (this.spells.meditate.timer <= 0) {
-                    this.endMeditate();
-                }
+    // Update magic cooldowns
+    if (window.magicAbilities && this.magicCooldowns) {
+        for (const ability of window.magicAbilities) {
+            const key = ability.name;
+            if (this.magicCooldowns[key] > 0) {
+                this.magicCooldowns[key]--;
             }
         }
     }
 
+    // Update active abilities
+    const abilities = Array.isArray(this.magicAbilities)
+        ? this.magicAbilities
+        : (window.magicAbilities || []);
+
+    for (const ability of abilities) {
+        if (typeof ability.update === "function") {
+            ability.update(this);
+        }
+    }
+
+    // ─── Remote players: skip physics/chunk check, only interpolate + animate ───
+    if (!isLocal) {
+        this.updateRemote();
+        return;
+    }
+
+    // Do not update local player if in unloaded space
+    const chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    if (!testMap.chunks[chunkKey]) return;
+
+    /* =========================
+       VELOCITY BUILDUP  (local player only)
+       ========================= */
+    let speedMultiplier = this.isDashing ? this.dashSpeedMultiplier : 1;
+    let accel =
+        BASE_SPEED *
+        this.statBlock.stats.runningSpeed *
+        speedMultiplier *
+        (deltaTime / 30);
+
+    if (this.holding.w) { this.vel.y -= accel; this.direction = "up"; }
+    if (this.holding.s) { this.vel.y += accel; this.direction = "down"; }
+    if (this.holding.a) { this.vel.x -= accel; this.direction = "left"; }
+    if (this.holding.d) { this.vel.x += accel; this.direction = "right"; }
+
+    /* =========================
+       STABLE COLLISION MOVEMENT  (local player only)
+       (axis separated)
+       ========================= */
+    let movement = this.vel.copy().mult(deltaTime / 33);
+    const maxStep = TILESIZE * 0.25;
+
+    const moveAxis = (axis, amount) => {
+        let remaining = amount;
+
+        while (Math.abs(remaining) > 0.001) {
+            let step = constrain(remaining, -maxStep, maxStep);
+
+            let testPos = this.pos.copy();
+            testPos[axis] += step;
+
+            if (!this.collidesAt(testPos)) {
+                this.pos = testPos;
+                remaining -= step;
+            } else {
+                // Stop movement cleanly on collision
+                break;
+            }
+        }
+    };
+
+    // X then Y prevents corner-locking
+    moveAxis("x", movement.x);
+    moveAxis("y", movement.y);
+
+    /* =========================
+       ANIMATION
+       ========================= */
+    if (this.moving) {
+        this.animationFrame += 1 / 7;
+        this.currentFrame = 1 + (this.animationFrame % 4);
+        if (this.currentFrame >= 4) this.currentFrame = 2;
+    } else if (this.animationType !== "") {
+        if (this.animationType === "put") {
+            this.currentFrame = 4;
+        }
+        this.animationFrame -= 1;
+        if (this.animationFrame <= 0) {
+            this.animationFrame = 0;
+            this.animationType = "";
+        }
+    } else {
+        this.animationFrame = 0;
+        this.currentFrame = 0;
+    }
+
+    // Clear velocity each frame (intentional, input-driven movement)
+    this.vel.set(0, 0);
+    
+    // Sync position to server only when actually moving or holding keys changed
+    if (typeof playerStateBatcher !== 'undefined' && this.moving) {
+        playerStateBatcher.setPosition(this.pos);
+        playerStateBatcher.setHolding(this.holding);
+    }
+}
+
+// Separate lightweight update for remote players — called from the main update()
+// before the early-return so remote players still get interpolation + animation.
+updateRemote() {
+    // Infer facing direction from holding state (matches local player logic)
+    if (this.holding.d) this.direction = 'right';
+    if (this.holding.a) this.direction = 'left';
+    if (this.holding.s) this.direction = 'down';
+    if (this.holding.w) this.direction = 'up';
+
+    // Smoothly interpolate towards target position from network updates
+    if (this.targetPos) {
+        const lerpSpeed = 0.4;
+        this.pos.x = lerp(this.pos.x, this.targetPos.x, lerpSpeed);
+        this.pos.y = lerp(this.pos.y, this.targetPos.y, lerpSpeed);
+        
+        const distToTarget = dist(this.pos.x, this.pos.y, this.targetPos.x, this.targetPos.y);
+        this.moving = distToTarget > 1;
+
+        // Fallback: infer direction from interpolation movement if no holding keys
+        if (this.moving && !this.holding.w && !this.holding.a && !this.holding.s && !this.holding.d) {
+            const dx = this.targetPos.x - this.pos.x;
+            const dy = this.targetPos.y - this.pos.y;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                this.direction = dx > 0 ? 'right' : 'left';
+            } else {
+                this.direction = dy > 0 ? 'down' : 'up';
+            }
+        }
+    }
+
+    // Animation for remote players
+    if (this.moving) {
+        this.animationFrame += 1 / 7;
+        this.currentFrame = 1 + (this.animationFrame % 4);
+        if (this.currentFrame >= 4) this.currentFrame = 2;
+    } else if (this.animationType !== "") {
+        if (this.animationType === "put") {
+            this.currentFrame = 4;
+        }
+        this.animationFrame -= 1;
+        if (this.animationFrame <= 0) {
+            this.animationFrame = 0;
+            this.animationType = "";
+        }
+    } else {
+        this.animationFrame = 0;
+        this.currentFrame = 0;
+    }
+}
+
     render() {
-        //dont render players not in your chunks
-        let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-        if (testMap.chunks[chunkPos.x + "," + chunkPos.y] == undefined) return;
+        // Only require chunk to be loaded for local player rendering;
+        // remote players render based on RENDER_DISTANCE check in sketch.js
+        if (this === curPlayer) {
+            let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+            const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+            if (testMap.chunks[chunkKey] == undefined) return;
+        }
         push();
         // Move relative to the camera
         translate(-camera.pos.x + width / 2, -camera.pos.y + height / 2);
 
-        // Draw dash effect if dashing
-        if (this.isDashing) {
-            push();
-            // Pulsing glow effect
-            let glowSize = 80 + Math.sin(frameCount * 0.5) * 10;
-            fill(100, 200, 255, 50);
-            noStroke();
-            ellipse(this.pos.x, this.pos.y, glowSize, glowSize);
-            
-            // Speed lines in direction of movement
-            stroke(100, 200, 255, 150);
-            strokeWeight(2);
-            let lineLength = 30;
-            if (this.direction === 'right') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x - lineLength - i*10, this.pos.y + (i-1)*8, 
-                         this.pos.x - 10 - i*10, this.pos.y + (i-1)*8);
-                }
-            } else if (this.direction === 'left') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x + 10 + i*10, this.pos.y + (i-1)*8, 
-                         this.pos.x + lineLength + i*10, this.pos.y + (i-1)*8);
-                }
-            } else if (this.direction === 'up') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x + (i-1)*8, this.pos.y + lineLength + i*10, 
-                         this.pos.x + (i-1)*8, this.pos.y + 10 + i*10);
-                }
-            } else if (this.direction === 'down') {
-                for (let i = 0; i < 3; i++) {
-                    line(this.pos.x + (i-1)*8, this.pos.y - 10 - i*10, 
-                         this.pos.x + (i-1)*8, this.pos.y - lineLength - i*10);
-                }
-            }
-            pop();
-        }
-
-        // Auras render only when a spell is active
-
-        if (this.spells.forceField.active && this.spells.forceField.auraTimer > 0) {
-            push();
-            noFill();
-            stroke(100, 255, 100, 150);
-            strokeWeight(4);
-            ellipse(this.pos.x, this.pos.y, 120, 120);
-            pop();
-        }
-
-        if (this.spells.meditate.active) {
-            push();
-            noFill();
-            stroke(180, 100, 255, 140);
-            strokeWeight(2);
-            let s = 90 + Math.sin(frameCount * 0.2) * 8;
-            ellipse(this.pos.x, this.pos.y, s, s);
-            pop();
-        }
-
-        if (this.spells.combustion.flashTimer > 0) {
-            push();
-            noFill();
-            stroke(255, 120, 60, map(this.spells.combustion.flashTimer, 0, 30, 0, 180));
-            strokeWeight(6);
-            let s = map(this.spells.combustion.flashTimer, 0, 30, 180, 60);
-            ellipse(this.pos.x, this.pos.y, s, s);
-            pop();
-        }
-
-        // Combustion particles
-        if (this.spells.combustion.particles && this.spells.combustion.particles.length > 0) {
-            for (let p of this.spells.combustion.particles) {
-                push();
-                translate(p.x - camera.pos.x + (width / 2), p.y - camera.pos.y + (height / 2));
-                let alpha = map(p.life, 0, 25, 0, 200);
-                fill(100, 255, 100, alpha);
-                noStroke();
-                square(0, 0, p.size);
-                pop();
+        // Render all magic abilities (auras, particles, etc)
+        const abilities = Array.isArray(this.magicAbilities) ? this.magicAbilities : (window.magicAbilities || []);
+        for (const ability of abilities) {
+            if (typeof ability.render === 'function') {
+                // Skip local-only effects for other players
+                if (ability.renderLocalOnly && this !== curPlayer) continue;
+                ability.render(this);
             }
         }
 
-        // Decide how far above the character we want the label
-        // For a "larger z" effect, increase this from 40 to e.g. 60 or 80
+        // ...existing code for name, health bar, and sprite...
         const yOffset = 60;
-
-        // Prepare text
         textSize(16);
         textAlign(CENTER, CENTER);
         let nameText = this.name + " lvl_" + this.statBlock.level;
-
-        // Measure text width to draw a background rectangle around it
-        let textW = textWidth(nameText) + 10;  // some padding
-        let textH = 20;                        // approximate line height
-
-        // Draw background box behind the text
+        let textW = textWidth(nameText) + 10;
+        let textH = 20;
         rectMode(CENTER);
-        fill(0, 150);   // semi-transparent black
+        fill(0, 150);
         noStroke();
-        rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4); // last param 4 = corner radius
-
+        rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4);
         
-        // Use custom team color if player is in a team
-        let displayColor = teamColors[this.color];
-        if (this.teamId && window.allTeams && window.allTeams[this.teamId]) {
+        // Determine display color: use team color if available, otherwise use index-based color
+        let displayColor;
+        if (typeof this.color === 'object' && this.color !== null && this.color.r !== undefined) {
+            // Team color (RGB object)
+            displayColor = this.color;
+        } else if (this.teamId && window.allTeams && window.allTeams[this.teamId]) {
+            // Fall back to team data if color is an index
             displayColor = window.allTeams[this.teamId].color;
+        } else {
+            // Use index-based color
+            displayColor = teamColors[this.color] || teamColors[0];
         }
+        
         fill(displayColor.r, displayColor.g, displayColor.b);
-        //bold text
         textStyle(BOLD);
         text(nameText, this.pos.x, this.pos.y - yOffset);
         textStyle(NORMAL);
         let raceName = races[this.race]
-        // Select the correct image based on the direction and frame
         let imageToRender;
         if (this.direction === 'up') {
             imageToRender = raceImages[raceName].back[floor(this.currentFrame)]
@@ -578,11 +538,8 @@ class Player {
         } else if (this.direction === 'right') {
             imageToRender = raceImages[raceName].right[floor(this.currentFrame)]
         }
-
-        // Draw the character's image
-        image(imageToRender, this.pos.x - 33.2, this.pos.y - 44.2, 66.2, 88.3, 0, 0, 29, 29); // Adjust size as needed
-
-        this.renderHealthBar(); // Render health bar
+        image(imageToRender, this.pos.x - 33.2, this.pos.y - 44.2, 66.2, 88.3, 0, 0, 29, 29);
+        this.renderHealthBar();
         pop();
     }
 
@@ -633,149 +590,4 @@ class Player {
         this.animationType = anim;
     }
 
-    // Activate dash ability`
-    // Dash mechanic: Hold Shift while moving to dash
-    // - Costs: 20 mana
-    // - Speed: 2.5x normal movement speed
-    // - Duration: 0.5 seconds (15 frames)
-    // - Cooldown: 2 seconds (60 frames)`
-    // - Requirements: Must be moving and have enough mana
-    activateDash() {
-        // Check if can dash (not on cooldown, has mana, is moving)
-        if (this.dashCooldown <= 0 && 
-            !this.isDashing && 
-            this.statBlock.stats.mp >= this.dashManaCost &&
-            this.moving) {
-            
-            // Consume mana
-            this.statBlock.useMana(this.dashManaCost);
-            
-            // Activate dash
-            this.isDashing = true;
-            this.dashTimer = this.dashDuration;
-            this.dashCooldown = this.dashCooldownMax;
-            
-            // Emit to server
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp"],
-                update_values: [this.statBlock.stats.mp]
-            });
-            
-            //console.log('[Dash] Activated! MP:', this.statBlock.stats.mp);
-            return true;
-        }
-        return false;
-    }
-
-    activateCombustion() {
-        if (this.statBlock.level < this.spells.combustion.level) {
-            return false; // Spell locked by level
-        }
-        if (this.spells.combustion.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.combustion.manaCost) {
-            this.statBlock.useMana(this.spells.combustion.manaCost);
-
-            // Create explosion object with damage and damage to nearby objects
-            let origin = {
-                pos: this.pos.copy(),
-                size: { w: 100, h: 100 }
-            };
-            createExplosion(origin);
-
-            // Create animated explosion visual effect
-            spawnExplosion(this.pos.x, this.pos.y, 200, 200);
-
-            const explosionRadius = 180;
-            for (let i = 0; i < 60; i++) {
-                let angle = random(0, TWO_PI);
-                let distance = random(0, explosionRadius);
-                let x = this.pos.x + cos(angle) * distance;
-                let y = this.pos.y + sin(angle) * distance;
-                let size = random(15, 40);
-                this.spells.combustion.particles.push({
-                    x: x,
-                    y: y,
-                    size: size,
-                    life: 25
-                });
-            }
-
-            this.spells.combustion.cooldown = this.spells.combustion.cooldownMax;
-            this.spells.combustion.flashTimer = 30;
-
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp"],
-                update_values: [this.statBlock.stats.mp]
-            });
-            return true;
-        }
-        return false;
-    }
-
-    activateForceField() {
-        if (this.statBlock.level < this.spells.forceField.level) {
-            return false; // Spell locked by level
-        }
-        if (!this.spells.forceField.active && this.spells.forceField.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.forceField.manaCost) {
-            this.statBlock.useMana(this.spells.forceField.manaCost);
-            this.spells.forceField.active = true;
-            this.spells.forceField.timer = this.spells.forceField.duration;
-            this.spells.forceField.cooldown = this.spells.forceField.cooldownMax;
-            this.spells.forceField.auraTimer =this.spells.forceField.duration; 
-            this.statBlock.stats.magicResistance += this.spells.forceField.bonusMR;
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp", "stats.magicResistance"],
-                update_values: [this.statBlock.stats.mp, this.statBlock.stats.magicResistance]
-            });
-            return true;
-        }
-        return false;
-    }
-
-    endForceField() {
-        if (this.spells.forceField.active) {
-            this.spells.forceField.active = false;
-            this.statBlock.stats.magicResistance -= this.spells.forceField.bonusMR;
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.magicResistance"],
-                update_values: [this.statBlock.stats.magicResistance]
-            });
-        }
-    }
-
-    activateMeditate() {
-        if (this.statBlock.level < this.spells.meditate.level) {
-            return false; // Spell locked by level
-        }
-        if (!this.spells.meditate.active && this.spells.meditate.cooldown <= 0 && this.statBlock.stats.mp >= this.spells.meditate.manaCost) {
-            this.statBlock.useMana(this.spells.meditate.manaCost);
-            this.spells.meditate.active = true;
-            this.spells.meditate.timer = this.spells.meditate.duration;
-            this.spells.meditate.cooldown = this.spells.meditate.cooldownMax;
-            socket.emit("update_player", {
-                id: this.id,
-                pos: this.pos,
-                holding: this.holding,
-                update_names: ["stats.mp"],
-                update_values: [this.statBlock.stats.mp]
-            });
-            return true;
-        }
-        return false;
-    }
-
-    endMeditate() {
-        this.spells.meditate.active = false;
-    }
 }

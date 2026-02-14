@@ -1,5 +1,59 @@
 var digSoundTimer = 0;
 
+// ── Terrain update batching ──
+// Accumulates dig/mine node updates and flushes at most every 50ms
+// to prevent flooding the server with 180+ events/sec while digging
+var _pendingNodeUpdates = {};  // key -> {chunkPos, index, amt}
+var _pendingIronUpdates = {}; // key -> {chunkPos, index, amt}
+var _nodeFlushTimer = null;
+var _NODE_FLUSH_INTERVAL = 16; // ms – keep low for instant feel (was 50)
+
+// ── Optimistic prediction tracking ──
+// Tracks tiles we've already updated client-side so the server echo
+// doesn't double-apply the same change.  Entries auto-expire.
+var _predictedNodes = {};      // key -> { value: <current predicted value>, expiry: <timestamp> }
+var _predictedIronNodes = {};  // key -> { value: <current predicted value>, expiry: <timestamp> }
+var _PREDICTION_TTL = 2000;    // ms before a prediction expires (generous for bad latency)
+
+function _flushNodeUpdates() {
+    _nodeFlushTimer = null;
+    for (const key in _pendingNodeUpdates) {
+        const u = _pendingNodeUpdates[key];
+        socket.emit('update_node', { chunkPos: u.chunkPos, index: u.index, amt: u.amt });
+    }
+    _pendingNodeUpdates = {};
+    for (const key in _pendingIronUpdates) {
+        const u = _pendingIronUpdates[key];
+        socket.emit('update_iron_node', { chunkPos: u.chunkPos, index: u.index, amt: u.amt });
+    }
+    _pendingIronUpdates = {};
+}
+
+function _scheduleNodeFlush() {
+    if (_nodeFlushTimer) return;
+    _nodeFlushTimer = setTimeout(_flushNodeUpdates, _NODE_FLUSH_INTERVAL);
+}
+
+function _batchNodeUpdate(chunkKey, index, amt) {
+    const key = chunkKey + ':' + index;
+    if (_pendingNodeUpdates[key]) {
+        _pendingNodeUpdates[key].amt += amt;
+    } else {
+        _pendingNodeUpdates[key] = { chunkPos: chunkKey, index: index, amt: amt };
+    }
+    _scheduleNodeFlush();
+}
+
+function _batchIronUpdate(chunkKey, index, amt) {
+    const key = chunkKey + ':' + index;
+    if (_pendingIronUpdates[key]) {
+        _pendingIronUpdates[key].amt += amt;
+    } else {
+        _pendingIronUpdates[key] = { chunkPos: chunkKey, index: index, amt: amt };
+    }
+    _scheduleNodeFlush();
+}
+
 function getEquippedShovelImage() {
     if (!curPlayer || !curPlayer.invBlock) return null;
     const slotName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
@@ -73,12 +127,16 @@ function playerDig(x,y, amount){
         if(digSoundTimer <= 0){
             if(amount > 0){
                 let temp = new SoundObj("digging.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "digging.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             else{
                 let temp = new SoundObj("placing_dirt.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "placing_dirt.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             digSoundTimer = 1.3;
@@ -109,7 +167,10 @@ function dig(x, y, amt, playerDiging, rayStart) {
     y = floor(y / TILESIZE);
     
     let chunkPos = testMap.globalToChunk(x*TILESIZE,y*TILESIZE);
-    
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    chunkPos.key = chunkKey;
+    const chunk = testMap.chunks[chunkKey];
+
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
     let index = x + y * CHUNKSIZE;
@@ -223,26 +284,40 @@ function dig(x, y, amt, playerDiging, rayStart) {
     }
 
     if(playerDiging){
-        if(testMap.chunks[chunkPos.x+","+chunkPos.y] != undefined){
+        if(chunk != undefined){
             if(amt > 0){
                 dirtInv += amt;
             }
             else{
                 dirtInv += amt;
-                if (testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] > 1.3){
-                    dirtInv -= testMap.chunks[chunkPos.x+","+chunkPos.y].data[index]-1.3;
+                if (chunk.data[index] > 1.3){
+                    dirtInv -= chunk.data[index]-1.3;
                 }
             }
+
+            // ── Optimistic terrain update — instant visual feedback ──
+            if(amt > 0){
+                if (chunk.data[index] > 0) chunk.data[index] -= amt;
+                if (chunk.data[index] < 0.3 && chunk.data[index] !== -1) chunk.data[index] = 0;
+            } else {
+                if (chunk.data[index] < 1.3 && chunk.data[index] !== -1) chunk.data[index] -= amt;
+                if (chunk.data[index] > 1.3) chunk.data[index] = 1.3;
+            }
+            // Track prediction so server echo is debounced
+            var predKey = chunkKey + ':' + index;
+            _predictedNodes[predKey] = { value: chunk.data[index], expiry: Date.now() + _PREDICTION_TTL };
         }
     }
 
-    socket.emit("update_node", {chunkPos: (chunkPos.x+","+chunkPos.y), index: index, amt: amt });
+    _batchNodeUpdate(chunkKey, index, amt);
 }
 
 
 function cast(x,y, angle, placeBool){
     let chunkPos = testMap.globalToChunk(x,y);
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y] == undefined) return;
+    chunkPos.key = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    let chunk = testMap.chunks[chunkPos.key];
+    if(chunk == undefined) return;
     
     x = floor(x / TILESIZE);
     y = floor(y / TILESIZE);
@@ -252,12 +327,12 @@ function cast(x,y, angle, placeBool){
     y = y-(chunkPos.y*CHUNKSIZE);
     let index = x + y * CHUNKSIZE;
 
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
+    if(chunk.data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
 
     let playerToMouse = (round(curPlayer.pos.dist(createVector((mouseX + camera.pos.x - (width / 2)), (mouseY + camera.pos.y - (height / 2))))/TILESIZE)+1)*TILESIZE;
     let playerToTile = curPlayer.pos.dist(createVector(((chunkPos.x*CHUNKSIZE+x)*TILESIZE), ((chunkPos.y*CHUNKSIZE+y)*TILESIZE)));
 
-    while(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] == 0){
+        while(chunk.data[index] == 0){
       x += cos(angle);
       y += sin(angle);
       
@@ -278,11 +353,14 @@ function cast(x,y, angle, placeBool){
             y = y + CHUNKSIZE;
             chunkPos.y -= 1;
           }
+        chunkPos.key = getChunkKey(chunkPos.x, chunkPos.y);
+        chunk = testMap.chunks[chunkPos.key];
+        if(!chunk) return;
           
         index = floor(x) + floor(y) * CHUNKSIZE;
         
         if(placeBool){
-            if(testMap.chunks[chunkPos.x+","+chunkPos.y].data[index] >= 1.3){
+            if(chunk.data[index] >= 1.3){
                 x -= 1*cos(angle);
                 y -= 1*sin(angle);
                 return {cx: chunkPos.x, cy: chunkPos.y, x: floor(x), y: floor(y)};
@@ -351,12 +429,16 @@ function playerMine(x,y, amount){
         if(digSoundTimer <= 0){
             if(amount > 0){
                 let temp = new SoundObj("digging.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "digging.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             else{
                 let temp = new SoundObj("placing_dirt.wav", ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE));
-                testMap.chunks[digSpot.cx+","+digSpot.cy].soundObjs.push(temp);
+                const digChunkKey = getChunkKey(digSpot.cx, digSpot.cy);
+                const digChunk = testMap.chunks[digChunkKey];
+                if (digChunk) digChunk.soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "placing_dirt.wav", cPos: {x: digSpot.cx, y: digSpot.cy}, pos:{x: ((digSpot.cx*CHUNKSIZE+digSpot.x)*TILESIZE), y: ((digSpot.cy*CHUNKSIZE+digSpot.y)*TILESIZE)}, id: temp.id});
             }
             digSoundTimer = 1.3;
@@ -372,6 +454,9 @@ function mine(x, y, amt, playerDiging, rayStart) {
     y = floor(y / TILESIZE);
     
     let chunkPos = testMap.globalToChunk(x*TILESIZE,y*TILESIZE);
+    const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    chunkPos.key = chunkKey;
+    const chunk = testMap.chunks[chunkKey];
     
     x = x-(chunkPos.x*CHUNKSIZE);
     y = y-(chunkPos.y*CHUNKSIZE);
@@ -450,21 +535,35 @@ function mine(x, y, amt, playerDiging, rayStart) {
     }
 
     if(playerDiging){
-        if(testMap.chunks[chunkPos.x+","+chunkPos.y] != undefined){
+        if(chunk != undefined){
             if(amt > 0){
                 if(random() < 0.01){
                     curPlayer.invBlock.addItem("Raw Metal", 1, true);
                 }
             }
+
+            // ── Optimistic iron terrain update — instant visual feedback ──
+            if(amt > 0){
+                if (chunk.iron_data[index] > 0) chunk.iron_data[index] -= amt;
+                if (chunk.iron_data[index] < 0.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] = 0;
+            } else {
+                if (chunk.iron_data[index] < 1.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] -= amt;
+                if (chunk.iron_data[index] > 1.3) chunk.iron_data[index] = 1.3;
+            }
+            // Track prediction so server echo is debounced
+            var predKey = chunkKey + ':' + index;
+            _predictedIronNodes[predKey] = { value: chunk.iron_data[index], expiry: Date.now() + _PREDICTION_TTL };
         }
     }
 
-    socket.emit("update_iron_node", {chunkPos: (chunkPos.x+","+chunkPos.y), index: index, amt: amt });
+    _batchIronUpdate(chunkKey, index, amt);
 }
 
 function ironCast(x,y, angle, placeBool){
     let chunkPos = testMap.globalToChunk(x,y);
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y] == undefined) return;
+    chunkPos.key = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+    let chunk = testMap.chunks[chunkPos.key];
+    if(chunk == undefined) return;
     
     x = floor(x / TILESIZE);
     y = floor(y / TILESIZE);
@@ -474,12 +573,12 @@ function ironCast(x,y, angle, placeBool){
     y = y-(chunkPos.y*CHUNKSIZE);
     let index = x + y * CHUNKSIZE;
 
-    if(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
+    if(chunk.iron_data[index] > 0) return {cx: chunkPos.x, cy: chunkPos.y, x: x, y: y};
 
     let playerToMouse = (round(curPlayer.pos.dist(createVector((mouseX + camera.pos.x - (width / 2)), (mouseY + camera.pos.y - (height / 2))))/TILESIZE)+1)*TILESIZE;
     let playerToTile = curPlayer.pos.dist(createVector(((chunkPos.x*CHUNKSIZE+x)*TILESIZE), ((chunkPos.y*CHUNKSIZE+y)*TILESIZE)));
 
-    while(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] == 0){
+        while(chunk.iron_data[index] == 0){
       x += cos(angle);
       y += sin(angle);
       
@@ -500,11 +599,14 @@ function ironCast(x,y, angle, placeBool){
             y = y + CHUNKSIZE;
             chunkPos.y -= 1;
           }
+        chunkPos.key = getChunkKey(chunkPos.x, chunkPos.y);
+        chunk = testMap.chunks[chunkPos.key];
+        if(!chunk) return;
           
         index = floor(x) + floor(y) * CHUNKSIZE;
         
         if(placeBool){
-            if(testMap.chunks[chunkPos.x+","+chunkPos.y].iron_data[index] >= 1.3){
+            if(chunk.iron_data[index] >= 1.3){
                 x -= 1*cos(angle);
                 y -= 1*sin(angle);
                 return {cx: chunkPos.x, cy: chunkPos.y, x: floor(x), y: floor(y)};

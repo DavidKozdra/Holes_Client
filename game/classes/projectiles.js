@@ -20,13 +20,21 @@ defineObjProjectile("Bomb", "PlacedBomb", 40, 5, 2);
 defineObjProjectile("Dirt Bomb", "dirt", 40, 5, 2);
 
 class SimpleProjectile{
-    constructor(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic){
+    constructor(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity = null){
+        if (arguments.length === 0) {
+            // Empty constructor for pooling
+            this.type = "Simple";
+            return;
+        }
+        this.init(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity);
+    }
+
+    init(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity = null){
         this.name = name;
         this.damage = damage;
         this.knockback = knockback;
-        this.isMagic = isMagic || false; // Is this magic damage?
+        this.isMagic = isMagic || false;
         this.flightPath = flightPath;
-        //this.flightPath.l = 1;
         this.pos = this.flightPath.calc(0);
         this.speed = speed;
         this.lifespan = lifespan;
@@ -35,10 +43,13 @@ class SimpleProjectile{
         this.color = color;
         this.imgNum = imgNum;
         this.cPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-
+        this.ownerEntity = ownerEntity;
         this.type = "Simple";
         this.deleteTag = false;
         this.id = floor(random()*100000);
+        this.overlayImgIndex = undefined;
+        this.overlaySize = undefined;
+        return this;
     }
 
     update(){
@@ -59,8 +70,10 @@ class SimpleProjectile{
 
             socket.emit("new_proj", newProj);
 
-            if(testMap.chunks[newCPos.x+","+newCPos.y] != undefined){
-                testMap.chunks[newCPos.x+","+newCPos.y].projectiles.push(newProj);
+            const newChunkKey = getChunkKey(newCPos.x, newCPos.y);
+            const newChunk = testMap.chunks[newChunkKey];
+            if(newChunk != undefined){
+                newChunk.projectiles.push(newProj);
             }
             
             this.deleteTag = true;
@@ -93,7 +106,9 @@ class SimpleProjectile{
         //check collision with dirt walls
         let x = floor(this.pos.x / TILESIZE) - (this.cPos.x*CHUNKSIZE);
         let y = floor(this.pos.y / TILESIZE) - (this.cPos.y*CHUNKSIZE);
-        let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
+        let chunk = getChunkFromPos(testMap.chunks, this.cPos);
+        if(!chunk) return;
+        if(!chunk) return;
         if(chunk.data[x + y * CHUNKSIZE] > 0 || chunk.iron_data[x + y * CHUNKSIZE] > 0){
             this.deleteTag = true;
             socket.emit("delete_proj", this);
@@ -102,7 +117,17 @@ class SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2){
+                // Prevent projectiles from hitting their owner entity by reference (primary check)
+                if(this.ownerEntity && chunk.objects[j] === this.ownerEntity) continue;
                 
+                // Fallback: Prevent projectiles from hitting their owner by name/id
+                let isSelf = false;
+                if(this.ownerName && chunk.objects[j].ownerName && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
+                // Extra: prevent same-race, same-objName self-hit (for AI like Skizzard/Gnome)
+                if(this.ownerRace && chunk.objects[j].race && this.ownerRace === chunk.objects[j].race && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
+                // Fallback: prevent by objName/race if available
+                if(this.ownerObjName && chunk.objects[j].objName && this.ownerObjName === chunk.objects[j].objName && this.ownerName === chunk.objects[j].ownerName) isSelf = true;
+                if(isSelf) continue;
                 let d = chunk.objects[j].pos.dist(this.pos);
                 if(d < (chunk.objects[j].size.w+chunk.objects[j].size.h)/4){
                     if(chunk.objects[j].objName == "Door"){
@@ -113,12 +138,12 @@ class SimpleProjectile{
                             let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                             //play hit noise and tell server
                             let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                            testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                            const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                            testMap.chunks[hitChunkKey].soundObjs.push(temp);
                             socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
 
                             if(this.ownerName != chunk.objects[j].ownerName){
                                 damageObj(chunk, chunk.objects[j], this.damage);
-
                                 scareBrain(chunk.objects[j].brainID, this);
                             }
                         }
@@ -130,12 +155,12 @@ class SimpleProjectile{
                         let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                         //play hit noise and tell server
                         let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                        testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                        const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                        testMap.chunks[hitChunkKey].soundObjs.push(temp);
                         socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
 
                         if(this.ownerName != chunk.objects[j].ownerName){
                             damageObj(chunk, chunk.objects[j], this.damage);
-
                             scareBrain(chunk.objects[j].brainID, this);
                         }
                     }
@@ -143,9 +168,24 @@ class SimpleProjectile{
             }
         }
 
-        //check collision with curPlayer
-        if((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color){
+        // Prevent projectiles from hurting their owner (AI or player)
+        let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
+        if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(this.pos.dist(curPlayer.pos) < 29){
+                // Check if on same team - prevent friendly fire
+                let ownerPlayer = null;
+                for (let id in players) {
+                    if (players[id] && players[id].name === this.ownerName) {
+                        ownerPlayer = players[id];
+                        break;
+                    }
+                }
+                
+                // Prevent damage if both players are on same team
+                if (ownerPlayer && ownerPlayer.teamId && curPlayer.teamId && ownerPlayer.teamId === curPlayer.teamId) {
+                    return; // Don't hit teammates
+                }
+                
                 this.deleteTag = true;
                 //if player collishion tell server to set delete tag to true
                 socket.emit("delete_proj", this);
@@ -153,7 +193,8 @@ class SimpleProjectile{
                 let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
                 //play hit noise and tell server
                 let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                const playerChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                testMap.chunks[playerChunkKey].soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
                 let tempV = createVector(this.knockback,0);
                 tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
@@ -180,9 +221,9 @@ class SimpleProjectile{
 }
 
 class MeleeProjectile extends SimpleProjectile{
-    constructor(name, damage, knockback, x,y,a, lifespan, range, safeRange, angleWidth, ownerName, color, imgNum, isMagic){
-        super(name, damage, knockback, createFlightPath("Stay", x,y,a), 0, lifespan, ownerName, color, imgNum, isMagic);
-        
+    constructor(name, damage, knockback, x, y, a, lifespan, range, safeRange, angleWidth, ownerName, color, imgNum, isMagic, ownerEntity = null){
+        super(name, damage, knockback, createFlightPath("Stay", x, y, a), 0, lifespan, ownerName, color, imgNum, isMagic);
+
         this.range = range;
         this.safeRange = safeRange;
         this.angleWidth = angleWidth;
@@ -198,6 +239,7 @@ class MeleeProjectile extends SimpleProjectile{
 
         this.hitTargets = new Set(); // Track entities already hit
         this.type = "Melee";
+        this.ownerEntity = ownerEntity; // Reference to the entity that created this swing
     }
 
     render(){
@@ -334,7 +376,8 @@ class MeleeProjectile extends SimpleProjectile{
     }
 
     checkCollision(){
-        let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
+        const chunkKey = getChunkKey(this.cPos.x, this.cPos.y);
+        let chunk = testMap.chunks[chunkKey];
         
         // Safety check: if chunk doesn't exist, bail out
         if(!chunk || !chunk.objects) return;
@@ -342,8 +385,12 @@ class MeleeProjectile extends SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2 || chunk.objects[j].z == 0){
+                // Prevent melee swings from hitting the owner (self) by reference
+                if(this.ownerEntity && chunk.objects[j] === this.ownerEntity) continue;
+                // Fallback: Prevent by ownerName if available (legacy)
+                if(chunk.objects[j].ownerName && this.ownerName && chunk.objects[j].ownerName === this.ownerName) continue;
                 // Create unique identifier for this object
-                let objId = this.cPos.x + "," + this.cPos.y + "," + j;
+                let objId = chunkKey + "," + j;
                 if(this.hitTargets.has(objId)) continue; // Already hit this target
                 
                 // Use proper collision box detection
@@ -352,7 +399,7 @@ class MeleeProjectile extends SimpleProjectile{
                     this.hitTargets.add(objId); // Mark as hit
                     //play hit noise and tell server
                     let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                    testMap.chunks[this.cPos.x+","+this.cPos.y].soundObjs.push(temp);
+                    chunk.soundObjs.push(temp);
                     socket.emit("new_sound", {sound: "hit.ogg", cPos: {x: this.cPos.x, y: this.cPos.y}, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
                     damageObj(chunk, chunk.objects[j], this.damage);
                     
@@ -361,9 +408,24 @@ class MeleeProjectile extends SimpleProjectile{
             }
         }
 
-        //check collision with curPlayer
-        if((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color){
+        // Prevent projectiles from hurting their owner (AI or player)
+        let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
+        if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(!this.hitTargets.has("player")){ // Check if player already hit
+                // Check if on same team - prevent friendly fire
+                let ownerPlayer = null;
+                for (let id in players) {
+                    if (players[id] && players[id].name === this.ownerName) {
+                        ownerPlayer = players[id];
+                        break;
+                    }
+                }
+                
+                // Prevent damage if both players are on same team
+                if (ownerPlayer && ownerPlayer.teamId && curPlayer.teamId && ownerPlayer.teamId === curPlayer.teamId) {
+                    return; // Don't hit teammates
+                }
+                
                 // Use proper collision box detection with player hitbox radius
                 let playerRadius = 30; // Standard player hitbox size
                 if(this.isPointInSwingArc(curPlayer.pos, playerRadius)){
@@ -371,7 +433,8 @@ class MeleeProjectile extends SimpleProjectile{
                     let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
                     //play hit noise and tell server
                     let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                    testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                    const playerChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                    testMap.chunks[playerChunkKey].soundObjs.push(temp);
                     socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
                     let tempV = createVector(this.knockback,0);
                     tempV.setHeading(curPlayer.pos.copy().sub(this.pos).heading());
@@ -453,8 +516,10 @@ class ObjProj extends SimpleProjectile{
 
             socket.emit("new_proj", newProj);
 
-            if(testMap.chunks[newCPos.x+","+newCPos.y] != undefined){
-                testMap.chunks[newCPos.x+","+newCPos.y].projectiles.push(newProj);
+            const newChunkKey = getChunkKey(newCPos.x, newCPos.y);
+            const newChunk = testMap.chunks[newChunkKey];
+            if(newChunk != undefined){
+                newChunk.projectiles.push(newProj);
             }
             
             this.deleteTag = true;
@@ -475,7 +540,7 @@ class ObjProj extends SimpleProjectile{
         //check collision with dirt walls
         let x = floor(this.pos.x / TILESIZE) - (this.cPos.x*CHUNKSIZE);
         let y = floor(this.pos.y / TILESIZE) - (this.cPos.y*CHUNKSIZE);
-        let chunk = testMap.chunks[this.cPos.x+","+this.cPos.y];
+        let chunk = getChunkFromPos(testMap.chunks, this.cPos);
         if(x > 0 && x < CHUNKSIZE && y > 0 && y < CHUNKSIZE){
             if(chunk.data[x + y * CHUNKSIZE] > 0 || chunk.iron_data[x + y * CHUNKSIZE] > 0){
                 this.spawnObj();
@@ -487,7 +552,8 @@ class ObjProj extends SimpleProjectile{
         //check collision with objects
         for(let j = 0; j < chunk.objects.length; j++){
             if(chunk.objects[j].z == 2){
-                
+                // Prevent projectiles from hitting their owner (AI or player)
+                if(this.ownerName && chunk.objects[j].ownerName && this.ownerName === chunk.objects[j].ownerName) continue;
                 let d = chunk.objects[j].pos.dist(this.pos);
                 if(d < (chunk.objects[j].size.w+chunk.objects[j].size.h)/4){
                     if(chunk.objects[j].objName == "Door"){
@@ -499,7 +565,8 @@ class ObjProj extends SimpleProjectile{
                             let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                             //play hit noise and tell server
                             let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                            testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                            const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                            testMap.chunks[hitChunkKey].soundObjs.push(temp);
                             socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
                         }
                     }
@@ -511,16 +578,32 @@ class ObjProj extends SimpleProjectile{
                         let chunkPos = testMap.globalToChunk(chunk.objects[j].pos.x, chunk.objects[j].pos.y);
                         //play hit noise and tell server
                         let temp = new SoundObj("hit.ogg", chunk.objects[j].pos.x, chunk.objects[j].pos.y);
-                        testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                        const hitChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                        testMap.chunks[hitChunkKey].soundObjs.push(temp);
                         socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: chunk.objects[j].pos.x, y: chunk.objects[j].pos.y}, id: temp.id});
                     }
                 }
             }
         }
 
-        //check collision with curPlayer
-        if((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color){
+        // Prevent projectiles from hurting their owner (AI or player)
+        let isPlayerOwner = (this.ownerName === curPlayer.name || this.ownerName === curPlayer.id);
+        if(!isPlayerOwner && ((this.color == 0 && this.ownerName != curPlayer.name) || this.color != curPlayer.color)){
             if(this.pos.dist(curPlayer.pos) < 29){
+                // Check if on same team - prevent friendly fire
+                let ownerPlayer = null;
+                for (let id in players) {
+                    if (players[id] && players[id].name === this.ownerName) {
+                        ownerPlayer = players[id];
+                        break;
+                    }
+                }
+                
+                // Prevent hitting teammates
+                if (ownerPlayer && ownerPlayer.teamId && curPlayer.teamId && ownerPlayer.teamId === curPlayer.teamId) {
+                    return; // Don't hit teammates
+                }
+                
                 this.spawnObj();
                 this.deleteTag = true;
                 //if player collishion tell server to set delete tag to true
@@ -529,25 +612,53 @@ class ObjProj extends SimpleProjectile{
                 let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
                 //play hit noise and tell server
                 let temp = new SoundObj("hit.ogg", curPlayer.pos.x, curPlayer.pos.y);
-                testMap.chunks[chunkPos.x+","+chunkPos.y].soundObjs.push(temp);
+                const playerChunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                testMap.chunks[playerChunkKey].soundObjs.push(temp);
                 socket.emit("new_sound", {sound: "hit.ogg", cPos: chunkPos, pos:{x: curPlayer.pos.x, y: curPlayer.pos.y}, id: temp.id});
             }
         }
     }
 }
 
-function createProjectile(name,owner,color, x,y,a){
-    if(projDic[name] == undefined){
+// Projectile Pooling System
+class ProjectilePool {
+    constructor(size = 500) {
+        this.pool = [];
+        for (let i = 0; i < size; i++) {
+            this.pool.push(new SimpleProjectile());
+        }
+    }
+    
+    get(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity) {
+        const proj = this.pool.length > 0 ? this.pool.pop() : new SimpleProjectile();
+        return proj.init(name, damage, knockback, flightPath, speed, lifespan, ownerName, color, imgNum, isMagic, ownerEntity);
+    }
+    
+    release(proj) {
+        if (proj.type === "Simple" && this.pool.length < 1000) {
+            proj.deleteTag = false;
+            proj.ownerEntity = null;
+            proj.overlayImgIndex = undefined;
+            proj.overlaySize = undefined;
+            this.pool.push(proj);
+        }
+    }
+}
+
+const projectilePool = new ProjectilePool(500);
+
+function createProjectile(name, owner, color, x, y, a, ownerEntity = null) {
+    if (projDic[name] == undefined) {
         throw new Error(`Projectile with name: ${name}, does not exist`);
     }
-    if(projDic[name].type == "SimpleProj"){
-        return new SimpleProjectile(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x,y,a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic);
+    if (projDic[name].type == "SimpleProj") {
+        return projectilePool.get(name, projDic[name].damage, projDic[name].knockback, createFlightPath(projDic[name].fpn, x, y, a), projDic[name].speed, projDic[name].lifespan, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
     }
-    if(projDic[name].type == "MeleeProj"){
-        return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x,y,a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum, projDic[name].isMagic);
+    if (projDic[name].type == "MeleeProj") {
+        return new MeleeProjectile(name, projDic[name].damage, projDic[name].knockback, x, y, a, projDic[name].lifespan, projDic[name].r, projDic[name].sr, projDic[name].aw, owner, color, projDic[name].imgNum, projDic[name].isMagic, ownerEntity);
     }
-    if(projDic[name].type == "ObjProj"){
-        return new ObjProj(name, x,y,a, projDic[name].speed, projDic[name].lifespan, projDic[name].objName, projDic[name].r, owner, color);
+    if (projDic[name].type == "ObjProj") {
+        return new ObjProj(name, x, y, a, projDic[name].speed, projDic[name].lifespan, projDic[name].objName, projDic[name].r, owner, color);
     }
 }
 
@@ -603,7 +714,7 @@ function defineObjProjectile(name,objName,radius,speed,lifespan){
 function damageObj(chunk, obj, damage){
     //damage the obj
     obj.hp -= damage;
-    socket.emit("upadate_obj", {
+    socket.emit("update_obj", {
         cx: chunk.cx, cy: chunk.cy,
         objName: obj.objName, 
         pos: {x: obj.pos.x, y: obj.pos.y}, 
@@ -614,7 +725,7 @@ function damageObj(chunk, obj, damage){
 
     //shake the obj
     obj.shake = {intensity: damage/2, length: 2};
-    socket.emit("upadate_obj", {
+    socket.emit("update_obj", {
         cx: chunk.cx, cy: chunk.cy,
         objName: obj.objName, 
         pos: {x: obj.pos.x, y: obj.pos.y}, 
@@ -762,14 +873,14 @@ class Explosion {
 
 function spawnFloatingText(value, x, y, kind, isCrit){
     const cpos = testMap.globalToChunk(x, y);
-    const chunk = testMap.chunks[cpos.x+","+cpos.y];
+    const chunk = getChunkFromPos(testMap.chunks, cpos);
     if(!chunk) return;
     chunk.floatingTexts.push(new FloatingText(value, x, y, kind, isCrit));
 }
 
 function spawnExplosion(x, y, sizeW, sizeH) {
     const cpos = testMap.globalToChunk(x, y);
-    const chunk = testMap.chunks[cpos.x+","+cpos.y];
+    const chunk = getChunkFromPos(testMap.chunks, cpos);
     if(!chunk) return;
     if (!chunk.explosions) chunk.explosions = [];
     chunk.explosions.push(new Explosion(x, y, sizeW, sizeH));

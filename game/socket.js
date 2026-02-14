@@ -1,9 +1,820 @@
-var socket; //Connection to the server
+// ============================================================
+// EVENT QUEUE SYSTEM — Prevents socket flooding
+// ============================================================
+// Central outbound queue that coalesces high-frequency events and
+// enforces a global events-per-second budget.  Sits between game
+// code and the actual socket/UDP send.
+//
+// Three event tiers:
+//   IMMEDIATE  – sent right away, never queued (login, heartbeat)
+//   COALESCE   – only latest value kept per key, flushed on interval
+//   NORMAL     – queued FIFO, flushed up to budget per tick
+// ============================================================
+var eventQueue = (function () {
+    'use strict';
+
+    // ── Config ──
+    var BUDGET_PER_SEC  = 240;   // Max game events/sec we'll actually send (doubled for instant digging)
+    var FLUSH_INTERVAL  = 16;    // Flush every 16 ms (~60 times/sec, was 50)
+    var BUDGET_PER_TICK = Math.ceil(BUDGET_PER_SEC / (1000 / FLUSH_INTERVAL));
+
+    // ── Tier: IMMEDIATE (bypass queue entirely) ──
+    var IMMEDIATE_EVENTS = {
+        'app_ping': true,
+        'new_player': true,
+        'player_reconnected': true,
+        'player_leave': true,
+        'player_dies': true,
+        'set_password': true,
+        'save_player_state': true,
+        'get_chunk': true,
+        'get_portals': true,
+        'request_my_items': true,
+        'get_teams': true,
+        'send_message': true,
+        'sync_player_inventory': true,
+        'create_team': true,
+        'leave_team': true,
+        'accept_team_request': true,
+        'deny_team_request': true,
+        'request_join_team': true,
+        'accept_invite': true,
+        'decline_invite': true,
+        'invite_player': true,
+        'promote_member': true,
+        'remove_member': true,
+        'update_team': true,
+        'player_saving': true,
+        'delete_obj': true,
+        'new_object': true,
+        'update_inv': true,
+    };
+
+    // ── Tier: COALESCE (latest-value-wins per composite key) ──
+    var COALESCE_EVENTS = {
+        'update_obj': function (d) {
+            return 'uo:' + (d.cx||0) + ',' + (d.cy||0) + ':' + (d.id || d.objName || '') + ':' + (d.update_name || '');
+        },
+        'update_player': function (d) {
+            return 'up:' + (d.id || '');
+        },
+        'update_node': function (d) {
+            var cp = d.chunkPos || {};
+            return 'un:' + (cp.x||0) + ',' + (cp.y||0) + ':' + (d.index||0);
+        },
+        'update_iron_node': function (d) {
+            var cp = d.chunkPos || {};
+            return 'uin:' + (cp.x||0) + ',' + (cp.y||0) + ':' + (d.index||0);
+        },
+        'update_nodes': function (d) {
+            var cp = d.cPos || {};
+            return 'uns:' + (cp.x||0) + ',' + (cp.y||0);
+        },
+        'update_iron_nodes': function (d) {
+            var cp = d.cPos || {};
+            return 'uins:' + (cp.x||0) + ',' + (cp.y||0);
+        },
+        'wander_request': function (d) {
+            return 'wr:' + (d.id || '');
+        },
+    };
+
+    // ── State ──
+    var coalesceBuf = {};       // key → { event, data, ack }
+    var normalQueue = [];       // FIFO: [{ event, data, ack }, ...]
+    var flushTimer  = null;
+    var sentThisSec = 0;
+    var secStart    = Date.now();
+
+    // ── Safe serialization — strip circular refs (p5.Vector etc.) ──
+    // Socket.IO's is-binary check recursively walks objects.  Circular
+    // references (common with p5.Vector which holds a back-ref to the
+    // p5 instance) cause an infinite loop → stack overflow.  This
+    // function clones the data with circular-reference protection so
+    // Socket.IO can safely process it.
+    function _safeClone(obj) {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj !== 'object') return obj;
+        try {
+            return JSON.parse(JSON.stringify(obj));
+        } catch (e) {
+            // JSON.stringify throws on circular refs — use a seen-set fallback
+            var seen = new Set();
+            try {
+                return JSON.parse(JSON.stringify(obj, function (_key, val) {
+                    if (val !== null && typeof val === 'object') {
+                        if (seen.has(val)) return undefined; // prune cycle
+                        seen.add(val);
+                    }
+                    return val;
+                }));
+            } catch (e2) {
+                console.warn('[EventQueue] Failed to serialize data for event:', e2);
+                return undefined;
+            }
+        }
+    }
+
+    // ── Internal send — goes through UDP when available ──
+    function _rawSend(event, data, ack) {
+        // Prefer UDP for eligible events
+        if (typeof udpTransport !== 'undefined' && udpTransport.isReady() &&
+            udpTransport.shouldSendViaUDP(event) && !ack) {
+            udpTransport.send(event, data);
+            return;
+        }
+        // Fall back to Socket.IO (use the original un-wrapped emit)
+        if (typeof socket !== 'undefined' && socket && socket.__origEmit) {
+            // Clone data to strip circular references before Socket.IO
+            // tries its is-binary walk (which would stack-overflow).
+            var safeData = (data !== undefined) ? _safeClone(data) : undefined;
+            if (typeof ack === 'function') {
+                socket.__origEmit(event, safeData, ack);
+            } else if (safeData !== undefined) {
+                socket.__origEmit(event, safeData);
+            } else {
+                socket.__origEmit(event);
+            }
+        }
+    }
+
+    // ── Enqueue ──
+    function enqueue(event, data, ack) {
+        // Immediate tier: bypass queue entirely
+        if (IMMEDIATE_EVENTS[event]) {
+            _rawSend(event, data, ack);
+            return;
+        }
+
+        // Coalesce tier: overwrite previous pending value for same key
+        var keyFn = COALESCE_EVENTS[event];
+        if (keyFn) {
+            var key = keyFn(data || {});
+            coalesceBuf[key] = { event: event, data: data, ack: ack };
+            _scheduleFlush();
+            return;
+        }
+
+        // Normal tier: FIFO queue
+        normalQueue.push({ event: event, data: data, ack: ack });
+        _scheduleFlush();
+    }
+
+    // ── Flush ──
+    function _flush() {
+        flushTimer = null;
+        var now = Date.now();
+
+        // Reset per-second budget counter
+        if (now - secStart >= 1000) {
+            sentThisSec = 0;
+            secStart = now;
+        }
+
+        var budget = BUDGET_PER_TICK;
+
+        // 1) Drain coalesced events first (they represent "latest state")
+        var keys = Object.keys(coalesceBuf);
+        for (var i = 0; i < keys.length && budget > 0; i++) {
+            var entry = coalesceBuf[keys[i]];
+            _rawSend(entry.event, entry.data, entry.ack);
+            delete coalesceBuf[keys[i]];
+            budget--;
+            sentThisSec++;
+        }
+
+        // 2) Drain normal FIFO queue
+        while (normalQueue.length > 0 && budget > 0) {
+            var item = normalQueue.shift();
+            _rawSend(item.event, item.data, item.ack);
+            budget--;
+            sentThisSec++;
+        }
+
+        // If there's still work, schedule another flush
+        if (Object.keys(coalesceBuf).length > 0 || normalQueue.length > 0) {
+            _scheduleFlush();
+        }
+    }
+
+    function _scheduleFlush() {
+        if (flushTimer) return;
+        flushTimer = setTimeout(_flush, FLUSH_INTERVAL);
+    }
+
+    // ── Force immediate drain (e.g. before disconnect) ──
+    function flushNow() {
+        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+        var keys = Object.keys(coalesceBuf);
+        for (var i = 0; i < keys.length; i++) {
+            var e = coalesceBuf[keys[i]];
+            _rawSend(e.event, e.data, e.ack);
+        }
+        coalesceBuf = {};
+        while (normalQueue.length > 0) {
+            var item = normalQueue.shift();
+            _rawSend(item.event, item.data, item.ack);
+        }
+    }
+
+    // ── Debug stats ──
+    function stats() {
+        return {
+            coalescePending: Object.keys(coalesceBuf).length,
+            normalPending:   normalQueue.length,
+            sentThisSec:     sentThisSec,
+            budgetPerTick:   BUDGET_PER_TICK,
+            budgetPerSec:    BUDGET_PER_SEC,
+        };
+    }
+
+    return {
+        enqueue:  enqueue,
+        flushNow: flushNow,
+        stats:    stats,
+    };
+})();
+
+// ============================================================
+// PLAYER STATE BATCHING SYSTEM - Reduces network overhead
+// ============================================================
+var socket; //Connection to the server - declared first
 var curID = null; //The ID of the current player
+var playerStateBatcher; // Will be initialized immediately after class definition
+var playerJoined = false; // Gate: true once server has confirmed player registration
+
+// Accumulates player updates and sends them in batches every 100ms
+class PlayerStateBatcher {
+    constructor(batchInterval = 100) {
+        this.batchInterval = batchInterval;
+        this.buffer = {
+            update_names: [],
+            update_values: [],
+            pos: null,
+            holding: null
+        };
+        this.flushTimer = null;
+        this.isDirty = false;
+        this.lastFlush = 0;
+        // Delta tracking — skip sending when nothing changed
+        this._lastSentPos = { x: null, y: null };
+        this._lastSentHolding = { w: false, a: false, s: false, d: false };
+    }
+
+    addUpdate(fieldName, fieldValue) {
+        // Check if field already exists in buffer
+        const existingIndex = this.buffer.update_names.indexOf(fieldName);
+        if (existingIndex >= 0) {
+            // Update existing value
+            this.buffer.update_values[existingIndex] = fieldValue;
+        } else {
+            // Add new field
+            this.buffer.update_names.push(fieldName);
+            this.buffer.update_values.push(fieldValue);
+        }
+        this.isDirty = true;
+        this._scheduleFlush();
+    }
+
+    setPosition(pos) {
+        // Clone position to avoid reference issues when position changes before flush
+        this.buffer.pos = { x: pos.x, y: pos.y };
+        this.isDirty = true;
+        this._scheduleFlush();
+    }
+
+    setHolding(holding) {
+        this.buffer.holding = holding;
+        this.isDirty = true;
+        this._scheduleFlush();
+    }
+
+    _scheduleFlush() {
+        if (this.flushTimer) return; // Already scheduled
+        
+        const now = Date.now();
+        const timeSinceLastFlush = now - this.lastFlush;
+        
+        if (timeSinceLastFlush >= this.batchInterval) {
+            // Enough time passed, flush immediately
+            this.flush();
+        } else {
+            // Schedule flush for remaining time
+            const delay = this.batchInterval - timeSinceLastFlush;
+            this.flushTimer = setTimeout(() => this.flush(), delay);
+        }
+    }
+
+    flush() {
+        if (!this.isDirty || !socket || !socket.connected) {
+            this.flushTimer = null;
+            return;
+        }
+
+        if (typeof curPlayer === 'undefined' || !curPlayer || !playerJoined) {
+            this.flushTimer = null;
+            return;
+        }
+
+        const updateData = {
+            id: curPlayer.id,
+            // Always use plain {x,y} objects — never raw p5.Vector — to avoid
+            // circular-reference crashes in Socket.IO's is-binary serialiser.
+            pos: this.buffer.pos || { x: curPlayer.pos.x, y: curPlayer.pos.y },
+            holding: this.buffer.holding || curPlayer.holding,
+            update_names: this.buffer.update_names.slice(),
+            update_values: this.buffer.update_values.slice()
+        };
+
+        // Delta detection: skip if only pos/holding and they haven't changed
+        const hasFieldUpdates = updateData.update_names.length > 0;
+        const curPos = updateData.pos;
+        const curHold = updateData.holding;
+        const posChanged = curPos && (
+            curPos.x !== this._lastSentPos.x ||
+            curPos.y !== this._lastSentPos.y
+        );
+        const holdChanged = curHold && (
+            curHold.w !== this._lastSentHolding.w ||
+            curHold.a !== this._lastSentHolding.a ||
+            curHold.s !== this._lastSentHolding.s ||
+            curHold.d !== this._lastSentHolding.d
+        );
+
+        if (hasFieldUpdates || posChanged || holdChanged) {
+            // Use UDP transport for update_player when available (lower latency)
+            if (typeof udpTransport !== 'undefined' && udpTransport.isReady()) {
+                udpTransport.send('update_player', updateData);
+            } else if (socket && socket.connected) {
+                socket.emit('update_player', updateData);
+            }
+            // Remember what we sent for next delta check
+            if (curPos) {
+                this._lastSentPos.x = curPos.x;
+                this._lastSentPos.y = curPos.y;
+            }
+            if (curHold) {
+                this._lastSentHolding.w = curHold.w;
+                this._lastSentHolding.a = curHold.a;
+                this._lastSentHolding.s = curHold.s;
+                this._lastSentHolding.d = curHold.d;
+            }
+        }
+
+        // Reset buffer
+        this.buffer = {
+            update_names: [],
+            update_values: [],
+            pos: null,
+            holding: null
+        };
+        this.isDirty = false;
+        this.lastFlush = Date.now();
+        this.flushTimer = null;
+    }
+
+    // Force immediate flush when needed (e.g., on critical events)
+    flushImmediate() {
+        if (this.flushTimer) {
+            clearTimeout(this.flushTimer);
+            this.flushTimer = null;
+        }
+        this.flush();
+    }
+}
+
+// Initialize batcher immediately - this must happen before any code tries to use it
+playerStateBatcher = new PlayerStateBatcher(50); // 50ms = 20 updates per second
+
+// ============================================================
+// SOCKET LISTENERS - Now defined after batcher initialization
+// ============================================================
 
 function socketSetup(){
+    // ── Connection health monitor ──
+    // Tracks connection state, shows reconnect banners, and runs
+    // an app-level heartbeat to detect silent disconnects.
+    if (typeof connectionHealth !== 'undefined') {
+        connectionHealth.attach(socket);
+    }
+
+    // ── Wrap socket.emit through the Event Queue ──
+    // All socket.emit() calls throughout the codebase are intercepted
+    // and routed through eventQueue, which coalesces, throttles, and
+    // then sends via UDP or Socket.IO as appropriate.
+    if (!socket.__origEmit) {
+        socket.__origEmit = socket.emit.bind(socket);
+        socket.emit = function (event) {
+            // Socket.IO internal events must NOT go through the queue
+            if (event === 'connect' || event === 'disconnect' || event === 'error' ||
+                event === 'connect_error' || event === 'connect_timeout' ||
+                event === 'newListener' || event === 'removeListener') {
+                return socket.__origEmit.apply(socket, arguments);
+            }
+
+            // CRITICAL: Reset Socket.IO flags (volatile, compress, timeout)
+            // immediately.  The original emit resets them at the end of each
+            // call, but since we intercept before __origEmit runs, stale
+            // flags (e.g. from socket.volatile) would leak into later sends
+            // and silently discard packets.
+            socket.flags = {};
+
+            // Preserve full argument list for exact Socket.IO compatibility
+            var args = new Array(arguments.length);
+            for (var i = 0; i < arguments.length; i++) args[i] = arguments[i];
+            var data = args.length > 1 ? args[1] : undefined;
+            var ack  = args.length > 2 && typeof args[args.length - 1] === 'function'
+                       ? args[args.length - 1] : undefined;
+            eventQueue.enqueue(event, data, ack);
+            return socket;
+        };
+    }
+
+    // ── UDP Transport Setup ──
+    // Listen for the UDP auth token from the server and initialize the DataChannel
+    socket.on('UDP_TOKEN', (data) => {
+        if (data && data.token && typeof udpTransport !== 'undefined') {
+            // Determine geckos.io connection URL and port from the Socket.IO connection
+            var sUrl = socket.io.uri || '';
+            var parsedUrl;
+            try {
+                parsedUrl = new URL(sUrl);
+            } catch (e) {
+                parsedUrl = { protocol: location.protocol, hostname: location.hostname, port: location.port };
+            }
+            var geckoUrl = parsedUrl.protocol + '//' + parsedUrl.hostname;
+            var geckoPort = parseInt(parsedUrl.port) || (parsedUrl.protocol === 'https:' ? 443 : 3000);
+            
+            console.log('[UDP] Received token, connecting DataChannel to', geckoUrl + ':' + geckoPort);
+            udpTransport.init(data.token, geckoUrl, geckoPort);
+        }
+    });
+
+    socket.on('UDP_CONNECTED', (data) => {
+        console.log('[UDP] Server confirmed DataChannel is active');
+    });
+
+    // Register UDP listeners for high-frequency server→client events.
+    // These run in parallel with Socket.IO listeners — the first message
+    // received (from either channel) updates the game state.
+    if (typeof udpTransport !== 'undefined') {
+        // Position updates
+        udpTransport.on('UPDATE_POS', (data) => {
+            if (players[data.id] && players[data.id] !== curPlayer) {
+                if (!players[data.id].targetPos) {
+                    players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+                } else {
+                    players[data.id].targetPos.x = data.pos.x;
+                    players[data.id].targetPos.y = data.pos.y;
+                }
+                players[data.id].holding = data.holding;
+            }
+        });
+
+        // Player state updates
+        udpTransport.on('UPDATE_PLAYER', (data) => {
+            if (players[data.id]) {
+                for (let i = 0; i < data.update_names.length; i++) {
+                    const name = data.update_names[i];
+                    const value = data.update_values[i];
+                    if (name.includes('stats')) {
+                        players[data.id].statBlock.stats[name.split('stats.')[1]] = value;
+                    } else if (name.includes('statBlock')) {
+                        players[data.id].statBlock[name.split('statBlock.')[1]] = value;
+                    } else if (name === 'particles' && Array.isArray(value)) {
+                        players[data.id].particles = value.map(p => Object.assign({}, p));
+                    } else {
+                        players[data.id][name] = value;
+                    }
+                }
+                if (players[data.id] !== curPlayer) {
+                    if (!players[data.id].targetPos) {
+                        players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+                    } else {
+                        players[data.id].targetPos.x = data.pos.x;
+                        players[data.id].targetPos.y = data.pos.y;
+                    }
+                    players[data.id].holding = data.holding;
+                }
+            }
+        });
+
+        // Ability visuals
+        udpTransport.on('ABILITY_VISUAL', (data) => {
+            if (players && players[data.playerId]) {
+                players[data.playerId][data.ability] = data.value;
+            }
+        });
+
+        // Explosions
+        udpTransport.on('EXPLOSION', (data) => {
+            if (typeof createExplosion !== 'undefined') createExplosion({ pos: { x: data.x, y: data.y }, size: { w: data.w, h: data.h } });
+            if (typeof spawnExplosion !== 'undefined') spawnExplosion(data.x, data.y, data.w, data.h);
+        });
+
+        // Timer sync
+        udpTransport.on('sync_time', (data) => { setTimeUI(data); });
+
+        // Terrain updates
+        udpTransport.on('UPDATE_NODE', (data) => {
+            if (testMap.chunks[data.chunkPos] != undefined) {
+                // Debounce: skip if we already predicted this tile
+                var _pKey = data.chunkPos + ':' + data.index;
+                if (typeof _predictedNodes !== 'undefined' && _predictedNodes[_pKey]) {
+                    if (Date.now() < _predictedNodes[_pKey].expiry) {
+                        // Let server value win (self-correcting) then clear prediction
+                        delete _predictedNodes[_pKey];
+                        return;
+                    }
+                    delete _predictedNodes[_pKey];
+                }
+                if (data.amt > 0) {
+                    if (testMap.chunks[data.chunkPos].data[data.index] > 0) testMap.chunks[data.chunkPos].data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].data[data.index] < 0.3 && testMap.chunks[data.chunkPos].data[data.index] !== -1) testMap.chunks[data.chunkPos].data[data.index] = 0;
+                } else {
+                    if (testMap.chunks[data.chunkPos].data[data.index] < 1.3 && testMap.chunks[data.chunkPos].data[data.index] !== -1) testMap.chunks[data.chunkPos].data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].data[data.index] > 1.3) testMap.chunks[data.chunkPos].data[data.index] = 1.3;
+                }
+            }
+        });
+
+        udpTransport.on('UPDATE_IRON_NODE', (data) => {
+            if (testMap.chunks[data.chunkPos] != undefined) {
+                // Debounce: skip if we already predicted this tile
+                var _pKey = data.chunkPos + ':' + data.index;
+                if (typeof _predictedIronNodes !== 'undefined' && _predictedIronNodes[_pKey]) {
+                    if (Date.now() < _predictedIronNodes[_pKey].expiry) {
+                        delete _predictedIronNodes[_pKey];
+                        return;
+                    }
+                    delete _predictedIronNodes[_pKey];
+                }
+                if (data.amt > 0) {
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] > 0) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] < 0.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1) testMap.chunks[data.chunkPos].iron_data[data.index] = 0;
+                } else {
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] < 1.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
+                    if (testMap.chunks[data.chunkPos].iron_data[data.index] > 1.3) testMap.chunks[data.chunkPos].iron_data[data.index] = 1.3;
+                }
+            }
+        });
+
+        // Multi-node terrain updates (e.g. explosions)
+        udpTransport.on('UPDATE_NODES', (data) => {
+            let chunk = testMap.getChunk(data.cx, data.cy);
+            if (!chunk) return;
+            let posX = Math.round(data.pos.x / TILESIZE);
+            let posY = Math.round(data.pos.y / TILESIZE);
+            posX = posX - (data.cx * CHUNKSIZE);
+            posY = posY - (data.cy * CHUNKSIZE);
+            for (let x = posX - data.radius; x <= posX + data.radius; x++) {
+                for (let y = posY - data.radius; y <= posY + data.radius; y++) {
+                    if (x >= 0 && x < CHUNKSIZE && y >= 0 && y < CHUNKSIZE) {
+                        let index = x + y * CHUNKSIZE;
+                        if (data.amt > 0) {
+                            if (chunk.data[index] > 0) chunk.data[index] -= data.amt;
+                            if (chunk.data[index] < 0.3 && chunk.data[index] !== -1) chunk.data[index] = 0;
+                        } else {
+                            if (chunk.data[index] < 1.3 && chunk.data[index] !== -1) chunk.data[index] -= data.amt;
+                            if (chunk.data[index] > 1.3) chunk.data[index] = 1.3;
+                        }
+                    } else {
+                        let tempChunk;
+                        let index;
+                        if (y < 0 && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy - 1); index = x + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (y >= CHUNKSIZE && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy + 1); index = x + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x < 0 && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy); index = (CHUNKSIZE + x) + y * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy); index = (x - CHUNKSIZE) + y * CHUNKSIZE; }
+                        else if (x < 0 && y < 0) { tempChunk = testMap.getChunk(data.cx - 1, data.cy - 1); index = (CHUNKSIZE + x) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y < 0) { tempChunk = testMap.getChunk(data.cx + 1, data.cy - 1); index = (x - CHUNKSIZE) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x < 0 && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy + 1); index = (CHUNKSIZE + x) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy + 1); index = (x - CHUNKSIZE) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        if (tempChunk != undefined && index != undefined) {
+                            if (data.amt > 0) {
+                                if (tempChunk.data[index] > 0) tempChunk.data[index] -= data.amt;
+                                if (tempChunk.data[index] < 0.3 && tempChunk.data[index] !== -1) tempChunk.data[index] = 0;
+                            } else {
+                                if (tempChunk.data[index] < 1.3 && tempChunk.data[index] !== -1) tempChunk.data[index] -= data.amt;
+                                if (tempChunk.data[index] > 1.3) tempChunk.data[index] = 1.3;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        udpTransport.on('UPDATE_IRON_NODES', (data) => {
+            let chunk = testMap.getChunk(data.cx, data.cy);
+            if (!chunk) return;
+            let posX = Math.round(data.pos.x / TILESIZE);
+            let posY = Math.round(data.pos.y / TILESIZE);
+            posX = posX - (data.cx * CHUNKSIZE);
+            posY = posY - (data.cy * CHUNKSIZE);
+            for (let x = posX - data.radius; x <= posX + data.radius; x++) {
+                for (let y = posY - data.radius; y <= posY + data.radius; y++) {
+                    if (x >= 0 && x < CHUNKSIZE && y >= 0 && y < CHUNKSIZE) {
+                        let index = x + y * CHUNKSIZE;
+                        if (data.amt > 0) {
+                            if (chunk.iron_data[index] > 0) chunk.iron_data[index] -= data.amt;
+                            if (chunk.iron_data[index] < 0.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] = 0;
+                        } else {
+                            if (chunk.iron_data[index] < 1.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] -= data.amt;
+                            if (chunk.iron_data[index] > 1.3) chunk.iron_data[index] = 1.3;
+                        }
+                    } else {
+                        let tempChunk;
+                        let index;
+                        if (y < 0 && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy - 1); index = x + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (y >= CHUNKSIZE && x >= 0 && x < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx, data.cy + 1); index = x + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x < 0 && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy); index = (CHUNKSIZE + x) + y * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= 0 && y < CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy); index = (x - CHUNKSIZE) + y * CHUNKSIZE; }
+                        else if (x < 0 && y < 0) { tempChunk = testMap.getChunk(data.cx - 1, data.cy - 1); index = (CHUNKSIZE + x) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y < 0) { tempChunk = testMap.getChunk(data.cx + 1, data.cy - 1); index = (x - CHUNKSIZE) + (CHUNKSIZE + y) * CHUNKSIZE; }
+                        else if (x < 0 && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx - 1, data.cy + 1); index = (CHUNKSIZE + x) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        else if (x >= CHUNKSIZE && y >= CHUNKSIZE) { tempChunk = testMap.getChunk(data.cx + 1, data.cy + 1); index = (x - CHUNKSIZE) + (y - CHUNKSIZE) * CHUNKSIZE; }
+                        if (tempChunk != undefined && index != undefined) {
+                            if (data.amt > 0) {
+                                if (tempChunk.iron_data[index] > 0) tempChunk.iron_data[index] -= data.amt;
+                                if (tempChunk.iron_data[index] < 0.3 && tempChunk.iron_data[index] !== -1) tempChunk.iron_data[index] = 0;
+                            } else {
+                                if (tempChunk.iron_data[index] < 1.3 && tempChunk.iron_data[index] !== -1) tempChunk.iron_data[index] -= data.amt;
+                                if (tempChunk.iron_data[index] > 1.3) tempChunk.iron_data[index] = 1.3;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Projectiles
+        udpTransport.on('NEW_PROJECTILE', (data) => {
+            let proj = createProjectile(data.name, data.ownerName, data.color, data.pos.x, data.pos.y, data.flightPath.a);
+            proj.id = data.id;
+            const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+            if (testMap.chunks[chunkKey] != undefined) testMap.chunks[chunkKey].projectiles.push(proj);
+        });
+
+        udpTransport.on('DELETE_PROJ', (data) => {
+            const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+            let chunk = testMap.chunks[chunkKey];
+            if (chunk) {
+                for (let i = chunk.projectiles.length - 1; i >= 0; i--) {
+                    if (data.id == chunk.projectiles[i].id && data.lifeSpan == chunk.projectiles[i].lifeSpan &&
+                        data.name == chunk.projectiles[i].name && data.ownerName == chunk.projectiles[i].ownerName) {
+                        chunk.projectiles[i].deleteTag = true;
+                    }
+                }
+            }
+        });
+
+        // Sounds
+        udpTransport.on('NEW_SOUND', (data) => {
+            let sound = new SoundObj(data.sound, data.pos.x, data.pos.y);
+            sound.id = data.id;
+            const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+            if (testMap.chunks[chunkKey] != undefined) testMap.chunks[chunkKey].soundObjs.push(sound);
+        });
+
+        // Wander targets
+        udpTransport.on('WANDER_TARGET', (data) => {
+            for (let i = 0; i < testMap.brains.length; i++) {
+                if (data.id == testMap.brains[i].id) testMap.brains[i].target = createVector(data.target.x, data.target.y);
+            }
+        });
+
+        // Heal plants
+        udpTransport.on('HEAL_PLANTS', (data) => {
+            let keys = Object.keys(testMap.chunks);
+            for (let i = 0; i < keys.length; i++) {
+                let chunk = testMap.chunks[keys[i]];
+                for (let j = 0; j < chunk.objects.length; j++) {
+                    if (chunk.objects[j].type == 'Plant' || chunk.objects[j].objName == 'Tree' || chunk.objects[j].objName == 'AppleTree') {
+                        if (chunk.objects[j].hp < chunk.objects[j].mhp) {
+                            chunk.objects[j].hp += 5;
+                            if (chunk.objects[j].hp > chunk.objects[j].mhp) chunk.objects[j].hp = chunk.objects[j].mhp;
+                        }
+                    }
+                }
+            }
+        });
+
+        // Entity level updates
+        udpTransport.on('ENTITY_LEVEL_UPDATE', (data) => {
+            let chunk = testMap.chunks[data.cx + ',' + data.cy];
+            if (chunk) {
+                for (let j = 0; j < chunk.objects.length; j++) {
+                    let obj = chunk.objects[j];
+                    if (obj.pos.x === data.objPos.x && obj.pos.y === data.objPos.y) {
+                        if (obj.statBlock) {
+                            obj.statBlock.level = data.level;
+                            obj.statBlock.xp = data.xp;
+                            obj.hp = data.hp;
+                            obj.mhp = data.mhp;
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Players sync
+        udpTransport.on('PLAYERS_SYNC', (data) => {
+            if (!data || !data.players) return;
+            // Same logic as the Socket.IO PLAYERS_SYNC handler
+            const serverIds = Object.keys(data.players);
+            for (let i = 0; i < serverIds.length; i++) {
+                const id = serverIds[i];
+                if (id === curID) continue;
+                const pd = data.players[id];
+                if (!pd || !pd.pos) continue;
+                if (!players[id]) {
+                    players[id] = new Player(pd.pos.x, pd.pos.y, pd.statBlock ? pd.statBlock.stats.hp : undefined, id, pd.color, pd.race, pd.name);
+                } else {
+                    if (!players[id].targetPos) players[id].targetPos = createVector(pd.pos.x, pd.pos.y);
+                    else { players[id].targetPos.x = pd.pos.x; players[id].targetPos.y = pd.pos.y; }
+                }
+                if (pd.teamId) players[id].teamId = pd.teamId;
+                if (pd.color !== undefined) players[id].color = pd.color;
+                if (pd.holding) players[id].holding = pd.holding;
+            }
+            const localIds = Object.keys(players);
+            for (let i = 0; i < localIds.length; i++) {
+                if (!serverIds.includes(localIds[i])) delete players[localIds[i]];
+            }
+            updatePlayerCount();
+        });
+
+        // Player marked dead
+        udpTransport.on('PLAYER_MARKED_DEAD', (data) => {
+            if (players[data.id]) players[data.id].isDead = true;
+        });
+
+        // Player color changed
+        udpTransport.on('PLAYER_COLOR_CHANGED', (data) => {
+            if (players[data.playerId]) players[data.playerId].color = data.color;
+        });
+    }
+
+    // Listen for explosion events and spawn visuals for all clients
+    socket.on('EXPLOSION', (data) => {
+        if (typeof createExplosion !== 'undefined') {
+            createExplosion({ pos: { x: data.x, y: data.y }, size: { w: data.w, h: data.h } });
+        }
+        if (typeof spawnExplosion !== 'undefined') {
+            spawnExplosion(data.x, data.y, data.w, data.h);
+        }
+    });
+    // Listen for explicit ability visual state events from the server
+    socket.on('ABILITY_VISUAL', (data) => {
+        // data: { playerId, ability, value }
+        if (players && players[data.playerId]) {
+            // Set the visual state field directly
+            players[data.playerId][data.ability] = data.value;
+        }
+    });
+    
     //all caps means it came from the server
     //all lower means it came from the client
+
+    // Handle page close/refresh - send player data to server
+    window.addEventListener('beforeunload', (event) => {
+        playerJoined = false; // Stop batcher from sending during unload
+        if (socket && socket.connected && curPlayer) {
+            // Prepare complete player data for persistence
+            const completeData = {
+                playerName: curPlayer.name,
+                pos: curPlayer.pos ? { x: curPlayer.pos.x, y: curPlayer.pos.y } : { x: 0, y: 0 },
+                race: curPlayer.race,
+                teamId: curPlayer.teamId || null,
+                color: curPlayer.color || 0,
+                // Stats
+                statBlock: curPlayer.statBlock ? {
+                    race: curPlayer.statBlock.race,
+                    level: curPlayer.statBlock.level,
+                    xp: curPlayer.statBlock.xp,
+                    xpNeeded: curPlayer.statBlock.xpNeeded,
+                    stats: curPlayer.statBlock.stats
+                } : null,
+                maxDirtInv: maxDirtInv,
+                // Inventory
+                invBlock: curPlayer.invBlock ? {
+                    items: curPlayer.invBlock.items || {},
+                    hotbar: Array.isArray(curPlayer.invBlock.hotbar) ? curPlayer.invBlock.hotbar : ["","","","",""],
+                    selectedHotBar: typeof curPlayer.invBlock.selectedHotBar === 'number' ? curPlayer.invBlock.selectedHotBar : 0,
+                    equiped: curPlayer.invBlock.equiped || { head: "", neck: "", chest: "", legs: "", feet: "" }
+                } : null,
+                // Move slots
+                movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
+            };
+            
+            // Send via sendBeacon (most reliable for unload events)
+            const blob = new Blob([JSON.stringify(completeData)], { type: 'application/json' });
+            navigator.sendBeacon('/api/save-player-data', blob);
+            
+            // Also emit socket event with short timeout as backup
+            socket.emit('player_saving', { playerName: curPlayer.name });
+        }
+    });
 
     // Server capacity notification
     socket.on('SERVER_FULL', (data) => {
@@ -26,16 +837,23 @@ function socketSetup(){
         } catch (e) {}
     });
 
+    // Permadeath notification from server
+    socket.on('PERMA_DEATH', () => {
+        window.isHardcoreServer = true;
+        // Death UI will handle the restart button
+    });
+
     // Socket event handlers
     socket.on('GIVE_MAP', (data) => {
         testMap.data = data;
     });
 
     socket.on('NEW_PLAYER', (data) => {
+        if (!data || !data.pos) return; // guard against malformed data
         players[data.id] = new Player(
             data.pos.x,
             data.pos.y,
-            data.hp,
+            data.statBlock ? data.statBlock.stats.hp : undefined,
             data.id,
             data.color,
             data.race,
@@ -43,7 +861,7 @@ function socketSetup(){
         );
         updatePlayerCount();
 
-        if(data.statBlock.level != 1){
+        if(data.statBlock && data.statBlock.level != 1){
             players[data.id].statBlock.level = data.statBlock.level;
             // Merge stats and preserve healthRegen from BASE_STATS since server doesn't track it
             const baseRegen = BASE_STATS[players[data.id].race].healthRegen;
@@ -51,46 +869,89 @@ function socketSetup(){
             players[data.id].statBlock.stats.healthRegen = baseRegen;
         }
 
+        // Sync team data if player is part of a team
+        if (data.teamId) {
+            players[data.id].teamId = data.teamId;
+        }
+
+        // Sync holding/movement state
+        if (data.holding) {
+            players[data.id].holding = data.holding;
+        }
 
         //console.log("New player added: " + data.id);
     });
 
     socket.on('OLD_DATA', (data) => {
+        if (!data || !data.players) return;
         let keys = Object.keys(data.players);
         for (let i = 0; i < keys.length; i++) {
             const playerData = data.players[keys[i]];
-            //console.log(playerData);
+            if (!playerData || !playerData.pos) continue; // skip malformed entries
             players[keys[i]] = new Player(
                 playerData.pos.x,
                 playerData.pos.y,
-                playerData.statBlock.stats.hp,
+                playerData.statBlock ? playerData.statBlock.stats.hp : undefined,
                 keys[i],
                 playerData.color,
                 playerData.race,
                 playerData.name
             );
 
-            if(data.players[keys[i]].statBlock.level != 1){
-                players[keys[i]].statBlock.level = data.players[keys[i]].statBlock.level;
+            if(playerData.statBlock && playerData.statBlock.level != 1){
+                players[keys[i]].statBlock.level = playerData.statBlock.level;
                 // Merge stats and preserve healthRegen from BASE_STATS since server doesn't track it
                 const baseRegen = BASE_STATS[players[keys[i]].race].healthRegen;
-                Object.assign(players[keys[i]].statBlock.stats, data.players[keys[i]].statBlock.stats);
+                Object.assign(players[keys[i]].statBlock.stats, playerData.statBlock.stats);
                 players[keys[i]].statBlock.stats.healthRegen = baseRegen;
+            }
+
+            // Sync team data for other players
+            if (playerData.teamId) {
+                players[keys[i]].teamId = playerData.teamId;
+            }
+
+            // Sync holding/movement state
+            if (playerData.holding) {
+                players[keys[i]].holding = playerData.holding;
             }
         }
     });
 
     socket.on('YOUR_ID', (data) => {
-        if(curID != null){
+        if(curID != null && curPlayer){
             //console.log("Your ID is already set to: " + curPlayer.id);
             //console.log("New ID received: " + data.id);
             //Reconnection
+            playerJoined = false; // Gate updates until reconnect completes
             curPlayer.id = data.id;
+            // Serialize player to a plain object to avoid circular references
+            // (p5.Vector has back-references to the p5 instance that crash
+            // Socket.IO's is-binary check with stack overflow).
+            var reconnectPlayer = {
+                id: curPlayer.id,
+                name: curPlayer.name,
+                pos: { x: curPlayer.pos.x, y: curPlayer.pos.y },
+                race: curPlayer.race,
+                color: curPlayer.color,
+                holding: curPlayer.holding,
+                kills: curPlayer.kills,
+                statBlock: curPlayer.statBlock ? {
+                    race: curPlayer.statBlock.race,
+                    level: curPlayer.statBlock.level,
+                    xp: curPlayer.statBlock.xp,
+                    xpNeeded: curPlayer.statBlock.xpNeeded,
+                    stats: curPlayer.statBlock.stats
+                        ? JSON.parse(JSON.stringify(curPlayer.statBlock.stats))
+                        : null,
+                } : null,
+            };
             socket.emit("player_reconnected", {
-                player: curPlayer,
+                player: reconnectPlayer,
                 oldID: curID
             });
             curID = data.id;
+            playerJoined = true; // Reconnect is synchronous on server, safe to resume
         }
         else{
             curID = data.id;
@@ -103,14 +964,14 @@ function socketSetup(){
     socket.on('receive_my_items', (data) => {
         if (!curPlayer) return;
         
-        console.log('[Items] Received response from server:', data.hasOldItems);
-        if (data.invBlock) {
-            console.log('[Items] Items to restore:', Object.keys(data.invBlock.items || {}));
-        }
-        
         if (data.hasOldItems) {
-            console.log('[Items] Restoring old inventory - you are a returning player');
             try {
+                const clampHP = (statsObj) => {
+                    if (!statsObj || typeof statsObj.hp !== 'number' || typeof statsObj.mhp !== 'number') return;
+                    if (statsObj.hp > statsObj.mhp) statsObj.hp = statsObj.mhp;
+                    if (statsObj.hp < 0) statsObj.hp = 0;
+                };
+
                 // Restore position first
                 if (data.pos && typeof data.pos.x === 'number' && typeof data.pos.y === 'number') {
                     curPlayer.pos.x = data.pos.x;
@@ -131,6 +992,7 @@ function socketSetup(){
                             const raceIndex = sb.race != null ? sb.race : curPlayer.race;
                             const baseStats = JSON.parse(JSON.stringify(BASE_STATS[raceIndex]));
                             curPlayer.statBlock.stats = Object.assign({}, baseStats, sb.stats);
+                            clampHP(curPlayer.statBlock.stats);
                         }
                     } else {
                         const health = (sb.stats && typeof sb.stats.hp === 'number') ? sb.stats.hp : undefined;
@@ -143,9 +1005,9 @@ function socketSetup(){
                         if (sb.stats && typeof sb.stats === 'object') {
                             const baseStats = JSON.parse(JSON.stringify(BASE_STATS[raceIndex]));
                             curPlayer.statBlock.stats = Object.assign({}, baseStats, sb.stats);
+                            clampHP(curPlayer.statBlock.stats);
                         }
                     }
-                    console.log('[Stats] Restored stats with healthRegen:', curPlayer.statBlock.stats.healthRegen);
                 }
                 
                 // Restore inventory - inventory is already empty from constructor
@@ -154,13 +1016,10 @@ function socketSetup(){
                     const itemsIn = inv.items || {};
                     const names = Object.keys(itemsIn);
                     
-                    console.log(`[Items] About to restore ${names.length} items:`, names);
-                    
                     for (let i = 0; i < names.length; i++) {
                         const name = names[i];
                         const rec = itemsIn[name];
                         const amt = (rec && typeof rec.amount === 'number') ? rec.amount : (typeof rec === 'number' ? rec : 1);
-                        console.log(`[Items] Adding: ${name} x${amt}`);
                         curPlayer.invBlock.addItem(name, amt, false);
                         const inst = curPlayer.invBlock.items[name];
                         if (rec && typeof rec === 'object') {
@@ -168,8 +1027,6 @@ function socketSetup(){
                             if (typeof rec.maxDurability === 'number') inst.maxDurability = rec.maxDurability;
                         }
                     }
-                    
-                    console.log(`[Items] Current inventory after restore:`, Object.keys(curPlayer.invBlock.items))
                     
                     // Restore hotbar
                     if (Array.isArray(inv.hotbar)) {
@@ -196,10 +1053,24 @@ function socketSetup(){
                     }
                 }
                 
-                // Restore team
+                // Restore team and apply team color
                 if (data.teamId) {
                     curPlayer.teamId = data.teamId;
+                    // Apply team color immediately if teams data is available
+                    if (window.allTeams && window.allTeams[data.teamId]) {
+                        const teamColor = window.allTeams[data.teamId].color;
+                        if (teamColor) curPlayer.color = teamColor;
+                    }
                 }
+
+                // Restore dirt bag capacity (default 600 if missing)
+                if (typeof data.maxDirtInv === 'number') {
+                    maxDirtInv = data.maxDirtInv;
+                } else {
+                    maxDirtInv = maxDirtInv || 600;
+                }
+                if (curPlayer) curPlayer.maxDirtInv = maxDirtInv;
+                if (typeof dirtInv === 'number' && dirtInv > maxDirtInv) dirtInv = maxDirtInv;
                 
                 // Restore move slots
                 if (Array.isArray(data.movesSlots)) {
@@ -207,10 +1078,7 @@ function socketSetup(){
                     while (curPlayer.movesSlots.length < 10) {
                         curPlayer.movesSlots.push(null);
                     }
-                    console.log('[Moves] ✓ Restored move slots:', curPlayer.movesSlots);
                 }
-                
-                console.log('[Items] ✓ Old inventory restored successfully');
             } catch (e) {
                 console.error('[Items] Failed to restore old inventory:', e);
                 // Fallback to starter kit on error
@@ -220,10 +1088,13 @@ function socketSetup(){
             }
         } else {
             // New player - give starter kit
-            console.log('[Items] You are a NEW player - giving starter kit');
             if (typeof giveDefaultItems === 'function') {
                 giveDefaultItems();
             }
+
+            // Reset dirt bag capacity for new players
+            maxDirtInv = 600;
+            if (curPlayer) curPlayer.maxDirtInv = maxDirtInv;
         }
     });
 
@@ -232,6 +1103,12 @@ function socketSetup(){
         if (!curPlayer) return;
         try {
             let hasOldKit = false;
+
+            const clampHP = (statsObj) => {
+                if (!statsObj || typeof statsObj.hp !== 'number' || typeof statsObj.mhp !== 'number') return;
+                if (statsObj.hp > statsObj.mhp) statsObj.hp = statsObj.mhp;
+                if (statsObj.hp < 0) statsObj.hp = 0;
+            };
             
             if (data.pos && typeof data.pos.x === 'number' && typeof data.pos.y === 'number') {
                 curPlayer.pos.x = data.pos.x;
@@ -245,7 +1122,10 @@ function socketSetup(){
                     if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
                     if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
                     if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
-                    if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                    if (sb.stats && typeof sb.stats === 'object') {
+                        curPlayer.statBlock.stats = sb.stats;
+                        clampHP(curPlayer.statBlock.stats);
+                    }
                 } else {
                     // If somehow missing methods, rehydrate a new instance
                     const health = (sb.stats && typeof sb.stats.hp === 'number') ? sb.stats.hp : undefined;
@@ -254,7 +1134,10 @@ function socketSetup(){
                     if (typeof sb.level === 'number') curPlayer.statBlock.level = sb.level;
                     if (typeof sb.xp === 'number') curPlayer.statBlock.xp = sb.xp;
                     if (typeof sb.xpNeeded === 'number') curPlayer.statBlock.xpNeeded = sb.xpNeeded;
-                    if (sb.stats && typeof sb.stats === 'object') curPlayer.statBlock.stats = sb.stats;
+                    if (sb.stats && typeof sb.stats === 'object') {
+                        curPlayer.statBlock.stats = sb.stats;
+                        clampHP(curPlayer.statBlock.stats);
+                    }
                 }
             }
             if (data.invBlock) {
@@ -309,6 +1192,15 @@ function socketSetup(){
             if (data.teamId) {
                 curPlayer.teamId = data.teamId;
             }
+
+            // Restore dirt bag capacity
+            if (typeof data.maxDirtInv === 'number') {
+                maxDirtInv = data.maxDirtInv;
+            } else {
+                maxDirtInv = maxDirtInv || 600;
+            }
+            curPlayer.maxDirtInv = maxDirtInv;
+            if (typeof dirtInv === 'number' && dirtInv > maxDirtInv) dirtInv = maxDirtInv;
             
             // If no old kit was restored, give default items now
             if (!hasOldKit && typeof giveDefaultItems === 'function') {
@@ -327,7 +1219,6 @@ function socketSetup(){
     });
 
     socket.on('REMOVE_PLAYER', (data) => {
-        console.log("Removing player: " + data);
         players[data] = {};
         delete players[data];
         updatePlayerCount();
@@ -338,13 +1229,80 @@ function socketSetup(){
             let keys = Object.keys(players);
             for(let i= 0; i < keys.length; i++){
                 if(!data.ids.includes(keys[i])){
-                    console.log("Removing player: " + keys[i]);
                     players[keys[i]] = {};
                     delete players[keys[i]];
                 }
             }
             updatePlayerCount();
         }
+    });
+
+    // ── Self-healing reconciliation: PLAYERS_SYNC ──
+    // Periodically received from the server with the full player list.
+    // Adds missing players, updates existing ones, and removes stale ones.
+    socket.on('PLAYERS_SYNC', (data) => {
+        if (!data || !data.players) return;
+        const serverIds = Object.keys(data.players);
+
+        // 1. Add missing players OR update existing ones
+        for (let i = 0; i < serverIds.length; i++) {
+            const id = serverIds[i];
+            // Skip our own ID (curPlayer is stored separately)
+            if (id === curID) continue;
+            const pd = data.players[id];
+            if (!pd || !pd.pos) continue;
+
+            if (!players[id]) {
+                // Create missing player
+                players[id] = new Player(
+                    pd.pos.x,
+                    pd.pos.y,
+                    pd.statBlock ? pd.statBlock.stats.hp : undefined,
+                    id,
+                    pd.color,
+                    pd.race,
+                    pd.name
+                );
+                if (pd.statBlock && pd.statBlock.level != 1) {
+                    players[id].statBlock.level = pd.statBlock.level;
+                    const baseRegen = BASE_STATS[players[id].race].healthRegen;
+                    Object.assign(players[id].statBlock.stats, pd.statBlock.stats);
+                    players[id].statBlock.stats.healthRegen = baseRegen;
+                }
+            } else {
+                // Update existing player — low-frequency position heartbeat
+                if (!players[id].targetPos) {
+                    players[id].targetPos = createVector(pd.pos.x, pd.pos.y);
+                } else {
+                    players[id].targetPos.x = pd.pos.x;
+                    players[id].targetPos.y = pd.pos.y;
+                }
+                // Sync combat stats
+                if (pd.statBlock && pd.statBlock.stats) {
+                    if (typeof pd.statBlock.stats.hp === 'number') players[id].statBlock.stats.hp = pd.statBlock.stats.hp;
+                    if (typeof pd.statBlock.stats.mhp === 'number') players[id].statBlock.stats.mhp = pd.statBlock.stats.mhp;
+                }
+                if (pd.statBlock && pd.statBlock.level) {
+                    players[id].statBlock.level = pd.statBlock.level;
+                }
+            }
+
+            // Always sync team, color, and holding
+            if (pd.teamId) players[id].teamId = pd.teamId;
+            if (pd.color !== undefined) players[id].color = pd.color;
+            if (pd.holding && players[id] !== curPlayer) players[id].holding = pd.holding;
+        }
+
+        // 2. Remove any local players that are no longer on the server
+        const localIds = Object.keys(players);
+        for (let i = 0; i < localIds.length; i++) {
+            const id = localIds[i];
+            if (!serverIds.includes(id)) {
+                delete players[id];
+            }
+        }
+
+        updatePlayerCount();
     });
 
     socket.on('UPDATE_ALL_POS', (data) => {
@@ -356,15 +1314,21 @@ function socketSetup(){
             const playerData = data[playerId];
 
             if (playerId === curPlayer.id) {
-                socket.emit('update_pos', {
-                    id: curPlayer.id,
-                    pos: curPlayer.pos,
-                    holding: curPlayer.holding
-                });
+                // Re-sync our position through the batcher instead of a separate emit
+                if (typeof playerStateBatcher !== 'undefined') {
+                    playerStateBatcher.setPosition(curPlayer.pos);
+                    playerStateBatcher.setHolding(curPlayer.holding);
+                    playerStateBatcher.flushImmediate();
+                }
             } else {
                 if (players[playerId]) {
-                    players[playerId].pos.x = playerData.pos.x;
-                    players[playerId].pos.y = playerData.pos.y;
+                    // Use interpolation target instead of teleporting
+                    if (!players[playerId].targetPos) {
+                        players[playerId].targetPos = createVector(playerData.pos.x, playerData.pos.y);
+                    } else {
+                        players[playerId].targetPos.x = playerData.pos.x;
+                        players[playerId].targetPos.y = playerData.pos.y;
+                    }
                     players[playerId].hp = playerData.hp;
                     players[playerId].holding = playerData.holding;
                     players[playerId].direction = playerData.direction;
@@ -374,9 +1338,14 @@ function socketSetup(){
     });
 
     socket.on('UPDATE_POS', (data) => {
-        if (players[data.id]) {
-            players[data.id].pos.x = data.pos.x;
-            players[data.id].pos.y = data.pos.y;
+        if (players[data.id] && players[data.id] !== curPlayer) {
+            // Use interpolation target instead of teleporting
+            if (!players[data.id].targetPos) {
+                players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+            } else {
+                players[data.id].targetPos.x = data.pos.x;
+                players[data.id].targetPos.y = data.pos.y;
+            }
             players[data.id].holding = data.holding;
         }
     });
@@ -384,24 +1353,56 @@ function socketSetup(){
     socket.on("UPDATE_PLAYER", (data) =>{
         if(players[data.id]){
             for(let i=0; i<data.update_names.length; i++){
-                if(data.update_names[i].includes("stats")){
-                    players[data.id].statBlock.stats[data.update_names[i].split("stats.")[1]] = data.update_values[i];
+                const name = data.update_names[i];
+                const value = data.update_values[i];
+                if(name.includes("stats")){
+                    players[data.id].statBlock.stats[name.split("stats.")[1]] = value;
                 }
-                else if(data.update_names[i].includes("statBlock")){
-                    players[data.id].statBlock[data.update_names[i].split("statBlock.")[1]] = data.update_values[i];
+                else if(name.includes("statBlock")){
+                    players[data.id].statBlock[name.split("statBlock.")[1]] = value;
+                }
+                // Sync all move/ability state fields (e.g., forcefieldActive, auraTimer, isDashing, flashTimer, meditateActive, meditateTimer, dashTimer, dashCooldown, particles, etc)
+                else if (name === "particles" && Array.isArray(value)) {
+                    // Deep copy to avoid reference issues
+                    players[data.id].particles = value.map(p => Object.assign({}, p));
+                }
+                else if (
+                    name.endsWith("Active") ||
+                    name.endsWith("Timer") ||
+                    name.endsWith("Cooldown") ||
+                    name.endsWith("flashTimer") ||
+                    name.endsWith("isDashing")
+                ) {
+                    players[data.id][name] = value;
                 }
                 else{
-                    players[data.id][data.update_names[i]] = data.update_values[i];
+                    players[data.id][name] = value;
                 }
             }
-            players[data.id].pos.x = data.pos.x;
-            players[data.id].pos.y = data.pos.y;
-            players[data.id].holding = data.holding;
+            // Store target position for smooth interpolation, but ONLY for other players (not local player)
+            if (players[data.id] !== curPlayer) {
+                if (!players[data.id].targetPos) {
+                    players[data.id].targetPos = createVector(data.pos.x, data.pos.y);
+                } else {
+                    players[data.id].targetPos.x = data.pos.x;
+                    players[data.id].targetPos.y = data.pos.y;
+                }
+                players[data.id].holding = data.holding;
+            }
         }
     })
 
     socket.on("UPDATE_NODE", (data) => {
         if(testMap.chunks[data.chunkPos] != undefined){
+            // Debounce: skip if we already predicted this tile
+            var _pKey = data.chunkPos + ':' + data.index;
+            if (typeof _predictedNodes !== 'undefined' && _predictedNodes[_pKey]) {
+                if (Date.now() < _predictedNodes[_pKey].expiry) {
+                    delete _predictedNodes[_pKey];
+                    return;
+                }
+                delete _predictedNodes[_pKey];
+            }
             if(data.amt > 0){
                 if (testMap.chunks[data.chunkPos].data[data.index] > 0) testMap.chunks[data.chunkPos].data[data.index] -= data.amt;
                 if (testMap.chunks[data.chunkPos].data[data.index] < 0.3 && testMap.chunks[data.chunkPos].data[data.index] !== -1){
@@ -421,6 +1422,15 @@ function socketSetup(){
 
     socket.on("UPDATE_IRON_NODE", (data) => {
         if(testMap.chunks[data.chunkPos] != undefined){
+            // Debounce: skip if we already predicted this tile
+            var _pKey = data.chunkPos + ':' + data.index;
+            if (typeof _predictedIronNodes !== 'undefined' && _predictedIronNodes[_pKey]) {
+                if (Date.now() < _predictedIronNodes[_pKey].expiry) {
+                    delete _predictedIronNodes[_pKey];
+                    return;
+                }
+                delete _predictedIronNodes[_pKey];
+            }
             if(data.amt > 0){
                 if (testMap.chunks[data.chunkPos].iron_data[data.index] > 0) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
                 if (testMap.chunks[data.chunkPos].iron_data[data.index] < 0.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1){
@@ -615,7 +1625,8 @@ function socketSetup(){
         if(data.obj.brainID !== undefined) {
             console.log('[Client] NEW_OBJECT received:', data.obj.objName, 'at chunk', data.cx + ',' + data.cy, 'race:', data.obj.race, 'brainID:', data.obj.brainID);
         }
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             let temp = createObject(data.obj.objName, data.obj.pos.x, data.obj.pos.y, data.obj.rot, data.obj.color, data.obj.id, data.obj.ownerName, data.obj.brainID);
 
@@ -632,17 +1643,15 @@ function socketSetup(){
             if(temp.objName == "Sign"){
                 temp.txt = data.obj.txt;
             }
-            if(temp.brainID !== undefined) {
-                console.log('[Client] ✅ Created ENTITY:', temp.objName, 'with race:', temp.race, 'direction:', temp.direction, 'brainID:', temp.brainID);
-            }
             chunk.objects.push(temp);
             chunk.objects.sort((a,b) => a.z - b.z);
         }
     });
 
     socket.on("DELETE_OBJ", (data) => {
-        //console.log(data);
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        if(!data) return;
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
                 if(data.objName == "ExpOrb"){
@@ -655,7 +1664,7 @@ function socketSetup(){
                         chunk.objects[i].deleteTag = true;
                     }
                 }
-                else{
+                else if(data.pos && chunk.objects[i].pos){
                     if(data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
                         chunk.objects[i].deleteTag = true;
                     }
@@ -665,24 +1674,30 @@ function socketSetup(){
     });
 
     socket.on("UPDATE_OBJ", (data) =>{
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        if(!data) return;
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
                 if(data.objName == "ExpOrb"){
                     if(data.z == chunk.objects[i].z && data.id == chunk.objects[i].id){
                         chunk.objects[i][data.update_name] = data.update_value;
-                        chunk.objects[i].pos.x = data.pos.x;
-                        chunk.objects[i].pos.y = data.pos.y;
+                        if(data.pos && chunk.objects[i].pos){
+                            chunk.objects[i].pos.x = data.pos.x;
+                            chunk.objects[i].pos.y = data.pos.y;
+                        }
                     }
                 }
                 else if(data.brainID != undefined){
                     if(data.z == chunk.objects[i].z && data.brainID == chunk.objects[i].brainID){
                         chunk.objects[i][data.update_name] = data.update_value;
-                        chunk.objects[i].pos.x = data.pos.x;
-                        chunk.objects[i].pos.y = data.pos.y;
+                        if(data.pos && chunk.objects[i].pos){
+                            chunk.objects[i].pos.x = data.pos.x;
+                            chunk.objects[i].pos.y = data.pos.y;
+                        }
                     }
                 }
-                else{
+                else if(data.pos && chunk.objects[i].pos){
                     if(data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
                         chunk.objects[i][data.update_name] = data.update_value;
                     }
@@ -692,10 +1707,11 @@ function socketSetup(){
     })
 
     socket.on("UPDATE_INV", (data) =>{
-        let chunk = testMap.chunks[data.cx+","+data.cy];
+        const chunkKey = getChunkKey(data.cx, data.cy);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
-                if(data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
+                if(data.pos && chunk.objects[i].pos && data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
                     chunk.objects[i].invBlock.items = data.items;
                     if(curPlayer != undefined){
                         if(curPlayer.otherInv != undefined){
@@ -710,13 +1726,15 @@ function socketSetup(){
     socket.on("NEW_PROJECTILE", (data) =>{
         let proj = createProjectile(data.name, data.ownerName, data.color, data.pos.x, data.pos.y, data.flightPath.a);
         proj.id = data.id;
-        if(testMap.chunks[data.cPos.x+','+data.cPos.y] != undefined){
-            testMap.chunks[data.cPos.x+','+data.cPos.y].projectiles.push(proj);
+        const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+        if(testMap.chunks[chunkKey] != undefined){
+            testMap.chunks[chunkKey].projectiles.push(proj);
         }
     });
 
     socket.on("DELETE_PROJ", (data) =>{
-        let chunk = testMap.chunks[data.cPos.x+','+data.cPos.y];
+        const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+        let chunk = testMap.chunks[chunkKey];
         if(chunk != undefined){
             for(let i=chunk.projectiles.length-1; i>=0; i--){
                 if(
@@ -734,24 +1752,22 @@ function socketSetup(){
     socket.on("NEW_SOUND", (data) =>{
         let sound = new SoundObj(data.sound, data.pos.x, data.pos.y);
         sound.id = data.id;
-        if(testMap.chunks[data.cPos.x+','+data.cPos.y] != undefined){
-            testMap.chunks[data.cPos.x+','+data.cPos.y].soundObjs.push(sound);
+        const chunkKey = getChunkKey(data.cPos.x, data.cPos.y);
+        if(testMap.chunks[chunkKey] != undefined){
+            testMap.chunks[chunkKey].soundObjs.push(sound);
         }
     });
 
     socket.on("GIVE_CHUNK", (data) => {
-        console.log('[Client] GIVE_CHUNK received for chunk', data.x + ',' + data.y, 'with', data.objects.length, 'objects');
-        testMap.chunks[data.x+","+data.y] = new Chunk(data.x, data.y);
+        const chunkKey = getChunkKey(data.x, data.y);
+        testMap.chunks[chunkKey] = new Chunk(data.x, data.y);
+        const chunk = testMap.chunks[chunkKey];
         let keys = Object.keys(data.data);
-        for(let i=0; i<keys.length; i++) testMap.chunks[data.x+","+data.y].data[keys[i]] = data.data[keys[i]];
+        for(let i=0; i<keys.length; i++) chunk.data[keys[i]] = data.data[keys[i]];
         keys = Object.keys(data.iron_data);
-        for(let i=0; i<keys.length; i++) testMap.chunks[data.x+","+data.y].iron_data[keys[i]] = data.iron_data[keys[i]];
-        testMap.chunkBools[data.x+","+data.y] = true;
+        for(let i=0; i<keys.length; i++) chunk.iron_data[keys[i]] = data.iron_data[keys[i]];
+        testMap.chunkBools[chunkKey] = true;
         for(let i=0; i<data.objects.length; i++){
-            // Only log entities with brainID
-            if(data.objects[i].brainID !== undefined) {
-                console.log('[Client] Processing ENTITY from chunk:', data.objects[i].objName, 'race:', data.objects[i].race, 'brainID:', data.objects[i].brainID, 'at', data.objects[i].pos.x, data.objects[i].pos.y);
-            }
             let temp = createObject(
                 data.objects[i].objName, 
                 data.objects[i].pos.x, 
@@ -796,20 +1812,18 @@ function socketSetup(){
             }
             temp.hp = data.objects[i].hp;
             
-            // Only log entities
-            if(temp.brainID !== undefined) {
-                console.log('[Client] ✅ Created ENTITY from server data:', temp.objName, 'race:', temp.race, 'brainID:', temp.brainID, 'at', temp.pos.x, temp.pos.y);
-            }
-
-            testMap.chunks[data.x+","+data.y].objects.push(temp);
-            testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.pos.y - b.pos.y);
-            testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.z - b.z);
+            chunk.objects.push(temp);
+            chunk.objects.sort((a,b) => a.pos.y - b.pos.y);
+            chunk.objects.sort((a,b) => a.z - b.z);
         }
         if(data.projectiles){
             for(let i=0; i<data.projectiles.length; i++){
+                // Skip projectiles with invalid position data
+                if (!data.projectiles[i].pos || !data.projectiles[i].flightPath) continue;
+                
                 let temp = createProjectile(data.projectiles[i].name, data.projectiles[i].ownerName, data.projectiles[i].color, data.projectiles[i].pos.x, data.projectiles[i].pos.y, data.projectiles[i].flightPath.a);
                 temp.id = data.projectiles[i].id;
-                testMap.chunks[data.x+","+data.y].projectiles.push(temp);
+                chunk.projectiles.push(temp);
             }
         }
         
@@ -822,9 +1836,9 @@ function socketSetup(){
                     testMap.brains[i].target.y < (data.y+1) * CHUNKSIZE * TILESIZE
                 ){
                     let temp = createObject("Ant", testMap.brains[i].target.x, testMap.brains[i].target.y, 0, 0, "", "Server", testMap.brains[i].id);
-                    testMap.chunks[data.x+","+data.y].objects.push(temp);
-                    testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.pos.y - b.pos.y);
-                    testMap.chunks[data.x+","+data.y].objects.sort((a,b) => a.z - b.z);
+                    chunk.objects.push(temp);
+                    chunk.objects.sort((a,b) => a.pos.y - b.pos.y);
+                    chunk.objects.sort((a,b) => a.z - b.z);
                 }
             }
         }
@@ -842,6 +1856,14 @@ function socketSetup(){
 
     socket.on("sync_time", (data) => {
         setTimeUI(data)
+    });
+
+    // Receive full server summary including teams on connection or update
+    socket.on('SERVER_SUMMARY', (data) => {
+        if (data && data.teams) {
+            if (typeof window.allTeams === 'undefined') window.allTeams = {};
+            window.allTeams = data.teams;
+        }
     });
 
     socket.on("HEAL_PLANTS", (data) => {
@@ -891,6 +1913,41 @@ function socketSetup(){
         }
     })
 
+    // Handle new brain entities (e.g., from Queen's Kiss ability)
+    socket.on("NEW_BRAIN", (data) => {
+        if (!data || !data.id || !data.target) {
+            console.error('[NEW_BRAIN] Invalid brain data:', data);
+            return;
+        }
+        
+        // Create a proper Brain class instance with methods
+        const brain = new Brain(200, data.personality || 'swarm');
+        brain.id = data.id;
+        brain.target = createVector(data.target.x, data.target.y);
+        brain.teamId = data.teamId || null;
+        brain.ownerName = data.ownerName || null;
+        
+        testMap.brains.push(brain);
+        console.log(`[NEW_BRAIN] Added brain ${brain.id} at (${brain.target.x}, ${brain.target.y})`);
+        
+        // Try to spawn the entity immediately if we have the chunk loaded
+        const chunkPos = testMap.globalToChunk(brain.target.x, brain.target.y);
+        const chunkKey = getChunkKey(chunkPos.x, chunkPos.y);
+        const chunk = testMap.chunks[chunkKey];
+        
+        if (chunk) {
+            const entity = createObject("Ant", brain.target.x, brain.target.y, 0, data.color || 0, "", data.ownerName || "Server", brain.id);
+            // Set team on the entity
+            if (data.teamId) {
+                entity.teamId = data.teamId;
+            }
+            chunk.objects.push(entity);
+            chunk.objects.sort((a,b) => a.pos.y - b.pos.y);
+            chunk.objects.sort((a,b) => a.z - b.z);
+            console.log(`[NEW_BRAIN] Spawned entity for brain ${brain.id}`);
+        }
+    });
+
     socket.on("server_ended", () => {
 
         testMap.chunks = {};
@@ -909,6 +1966,40 @@ function socketSetup(){
     socket.on('TEAMS_UPDATE', (data) => {
         if (typeof window.allTeams === 'undefined') window.allTeams = {};
         window.allTeams = data.teams;
+
+        if (curPlayer) {
+            // If teamId is already set, apply the latest team color
+            if (curPlayer.teamId && data.teams[curPlayer.teamId]) {
+                const teamColor = data.teams[curPlayer.teamId].color;
+                if (teamColor) curPlayer.color = teamColor;
+            } else if (!curPlayer.teamId && curPlayer.name) {
+                // Auto-discover membership: player may have logged in before
+                // receive_my_items restored the teamId
+                for (const tid of Object.keys(data.teams)) {
+                    const t = data.teams[tid];
+                    if (t && Array.isArray(t.members) && t.members.includes(curPlayer.name)) {
+                        curPlayer.teamId = tid;
+                        if (t.color) curPlayer.color = t.color;
+                        break;
+                    }
+                }
+            }
+
+            // Also sync teamId/color for other visible players
+            const pKeys = Object.keys(players);
+            for (let i = 0; i < pKeys.length; i++) {
+                const p = players[pKeys[i]];
+                if (!p || !p.name) continue;
+                for (const tid of Object.keys(data.teams)) {
+                    const t = data.teams[tid];
+                    if (t && Array.isArray(t.members) && t.members.includes(p.name)) {
+                        p.teamId = tid;
+                        if (t.color) p.color = t.color;
+                        break;
+                    }
+                }
+            }
+        }
         if (typeof updateTeamManagementUI === 'function') {
             updateTeamManagementUI();
         }
@@ -923,6 +2014,8 @@ function socketSetup(){
         if (curPlayer) {
             curPlayer.teamId = data.teamId;
             curPlayer.teamData = data.team;
+            // Set player color to team color
+            curPlayer.color = data.team.color;
         }
         alert(`Joined team: ${data.team.name}`);
         if (typeof updateTeamManagementUI === 'function') {
@@ -954,8 +2047,17 @@ function socketSetup(){
     });
 
     socket.on('TEAM_REQUEST', (data) => {
-        if (typeof addTeamRequest === 'function') {
-            addTeamRequest(data);
+        // Update the team requests list in window.allTeams
+        if (window.allTeams && window.allTeams[data.teamId]) {
+            if (!window.allTeams[data.teamId].requests) {
+                window.allTeams[data.teamId].requests = [];
+            }
+            if (!window.allTeams[data.teamId].requests.includes(data.playerName)) {
+                window.allTeams[data.teamId].requests.push(data.playerName);
+            }
+        }
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
         }
     });
 
@@ -969,5 +2071,36 @@ function socketSetup(){
 
     socket.on('TEAM_ERROR', (data) => {
         alert(data.message);
+    });
+
+    socket.on('TEAM_MEMBER_REMOVED', (data) => {
+        if (curPlayer) {
+            curPlayer.teamId = null;
+            curPlayer.color = 0;
+        }
+        alert('You have been removed from your team');
+        if (typeof updateTeamManagementUI === 'function') {
+            updateTeamManagementUI();
+        }
+    });
+
+    socket.on('PLAYER_COLOR_CHANGED', (data) => {
+        // Update another player's color when they join/leave a team
+        if (players[data.playerId]) {
+            players[data.playerId].color = data.color;
+        }
+    });
+
+    socket.on('TEAM_INVITE', (data) => {
+        // Show invite dialog
+        showTeamInvitePrompt(data.teamName, data.inviterName, data.teamId);
+    });
+
+    socket.on('TEAM_INVITE_SENT', (data) => {
+        alert(`Invitation sent to ${data.playerName}`);
+    });
+
+    socket.on('TEAM_INVITE_DECLINED', (data) => {
+        alert('The player declined your invitation');
     });
 }

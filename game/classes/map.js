@@ -1,6 +1,38 @@
 const TILESIZE = 32;
 const CHUNKSIZE = 50; //how many nodes in 1 direction
 
+class ChunkKeyCache {
+    constructor() {
+        // Use global Map explicitly to avoid shadowing by the game Map class (declared below)
+        this.cache = new globalThis.Map();
+    }
+
+    key(x, y) {
+        let row = this.cache.get(x);
+        if (!row) {
+            row = new globalThis.Map();
+            this.cache.set(x, row);
+        }
+
+        const cached = row.get(y);
+        if (cached) return cached;
+
+        const key = x + "," + y;
+        row.set(y, key);
+        return key;
+    }
+}
+
+const chunkKeyCache = new ChunkKeyCache();
+
+function getChunkKey(x, y) {
+    return chunkKeyCache.key(x, y);
+}
+
+function getChunkFromPos(chunks, pos) {
+    return chunks[getChunkKey(pos.x, pos.y)];
+}
+
 class Map{
     constructor(){
         this.chunks = {}; //referance with a string "x,y"     {ex. chunks["0,0"]}
@@ -9,17 +41,20 @@ class Map{
     }
 
     getChunk(x,y){
-        if(this.chunkBools[x+","+y] == undefined && this.chunks[x+","+y] == undefined){
-            socket.emit("get_chunk", (x+","+y));
-            this.chunkBools[x+","+y] = false;
+        const key = getChunkKey(x, y);
+
+        if(this.chunkBools[key] == undefined && this.chunks[key] == undefined){
+            socket.emit("get_chunk", key);
+            this.chunkBools[key] = false;
         }
-        if(this.chunkBools[x+","+y] === true) return this.chunks[x+","+y];
+        if(this.chunkBools[key] === true) return this.chunks[key];
     }
 
     globalToChunk(x,y){
         let pos = {};
         pos.x = floor(x/(CHUNKSIZE*TILESIZE));
         pos.y = floor(y/(CHUNKSIZE*TILESIZE));
+        pos.key = getChunkKey(pos.x, pos.y);
         return pos;
     }
 
@@ -130,6 +165,10 @@ class Chunk{
         for(let i = this.projectiles.length-1; i >= 0; i--){
             this.projectiles[i].update();
             if(this.projectiles[i].deleteTag){
+                // Release to pool if it's a poolable projectile
+                if (typeof projectilePool !== 'undefined' && this.projectiles[i].type === "Simple") {
+                    projectilePool.release(this.projectiles[i]);
+                }
                 this.projectiles.splice(i, 1);
             }
         }
@@ -167,6 +206,10 @@ class Chunk{
     }
   
     render(){
+        const rightChunk = testMap.chunks[getChunkKey(this.cx + 1, this.cy)];
+        const bottomChunk = testMap.chunks[getChunkKey(this.cx, this.cy + 1)];
+        const bottomRightChunk = testMap.chunks[getChunkKey(this.cx + 1, this.cy + 1)];
+
         for(let i = 0; i < this.objects.length; i++){
             if(this.objects[i].z < 2){
                 this.objects[i].render("none");
@@ -197,22 +240,22 @@ class Chunk{
                     this.iron_data[x + (y + 1) * CHUNKSIZE]
                 ];
                 if(x == CHUNKSIZE-1){
-                    if(testMap.chunks[(this.cx+1)+","+this.cy] != undefined){
+                    if(rightChunk != undefined){
                         // right neighbor first column
-                        corners[1] = testMap.chunks[(this.cx+1)+","+this.cy].iron_data[0 + y * CHUNKSIZE];
-                        corners[2] = testMap.chunks[(this.cx+1)+","+this.cy].iron_data[0 + (y + 1) * CHUNKSIZE];
+                        corners[1] = rightChunk.iron_data[0 + y * CHUNKSIZE];
+                        corners[2] = rightChunk.iron_data[0 + (y + 1) * CHUNKSIZE];
                     }
                 }
                 if(y == CHUNKSIZE-1){
-                    if(testMap.chunks[this.cx+","+(this.cy+1)] != undefined){
+                    if(bottomChunk != undefined){
                         // bottom neighbor row
-                        corners[2] = testMap.chunks[this.cx+","+(this.cy+1)].iron_data[(x + 1) + 0 * CHUNKSIZE];
-                        corners[3] = testMap.chunks[this.cx+","+(this.cy+1)].iron_data[x + 0 * CHUNKSIZE];
+                        corners[2] = bottomChunk.iron_data[(x + 1) + 0 * CHUNKSIZE];
+                        corners[3] = bottomChunk.iron_data[x + 0 * CHUNKSIZE];
                     }
                 }
                 if(x == CHUNKSIZE-1 && y == CHUNKSIZE-1){
-                    if(testMap.chunks[(this.cx+1)+","+(this.cy+1)] != undefined){
-                        corners[2] = testMap.chunks[(this.cx+1)+","+(this.cy+1)].iron_data[0 + 0 * CHUNKSIZE];
+                    if(bottomRightChunk != undefined){
+                        corners[2] = bottomRightChunk.iron_data[0 + 0 * CHUNKSIZE];
                     }
                 }
                 for(let i=0; i < 4; i++){
@@ -425,20 +468,20 @@ class Chunk{
                     this.data[x + (y + 1) * CHUNKSIZE]
                 ];
                 if(x == CHUNKSIZE-1){
-                    if(testMap.chunks[(this.cx+1)+","+this.cy] != undefined){
-                        corners[1] = testMap.chunks[(this.cx+1)+","+this.cy].data[0 + y * CHUNKSIZE];
-                        corners[2] = testMap.chunks[(this.cx+1)+","+this.cy].data[0 + (y + 1) * CHUNKSIZE];
+                    if(rightChunk != undefined){
+                        corners[1] = rightChunk.data[0 + y * CHUNKSIZE];
+                        corners[2] = rightChunk.data[0 + (y + 1) * CHUNKSIZE];
                     }
                 }
                 if(y == CHUNKSIZE-1){
-                    if(testMap.chunks[this.cx+","+(this.cy+1)] != undefined){
-                        corners[2] = testMap.chunks[this.cx+","+(this.cy+1)].data[(x + 1) + 0 * CHUNKSIZE];
-                        corners[3] = testMap.chunks[this.cx+","+(this.cy+1)].data[x + 0 * CHUNKSIZE];
+                    if(bottomChunk != undefined){
+                        corners[2] = bottomChunk.data[(x + 1) + 0 * CHUNKSIZE];
+                        corners[3] = bottomChunk.data[x + 0 * CHUNKSIZE];
                     }
                 }
                 if(x == CHUNKSIZE-1 && y == CHUNKSIZE-1){
-                    if(testMap.chunks[(this.cx+1)+","+(this.cy+1)] != undefined){
-                        corners[2] = testMap.chunks[(this.cx+1)+","+(this.cy+1)].data[0 + 0 * CHUNKSIZE];
+                    if(bottomRightChunk != undefined){
+                        corners[2] = bottomRightChunk.data[0 + 0 * CHUNKSIZE];
                     }
                 }
                 for(let i=0; i < 4; i++){

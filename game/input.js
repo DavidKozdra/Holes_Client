@@ -9,10 +9,17 @@ function getIsChatting() {
 }
 
 function keyReleased() {
+    // Block all UI toggles (I, C, E, Q, etc.) if any input/textarea is focused
+    const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+    
     // Exit search state on ESC
     if (keyCode == 27 && gameState == "search") {
         gameState = lastGameState;
         blurActiveElement();
+        return;
+    }
+    // Ignore all other keys in search mode or when input is focused
+    if (gameState == "search" || isInputFocused) {
         return;
     }
     if (keyCode == 27 && gameState != "pause" && gameState != "initial" && gameState != "race_selection" && gameState != "controls" && gameState != "search") { //ESC
@@ -44,6 +51,8 @@ function keyReleased() {
 
     }
     if (gameState == "playing") {
+        // Block all actions except movement/cancel if concentrating (Meditate)
+        if (curPlayer && curPlayer.isConcentrating) return;
         // Spells 1/2/3
         if (!getIsChatting()) {
             const slotFromKey = {
@@ -136,7 +145,7 @@ function keyReleased() {
         if (keyCode == Controls_Interact_code) { //f
             let mouseVec = createVector(mouseX + camera.pos.x - (width / 2), mouseY + camera.pos.y - (height / 2));
             let chunkPos = testMap.globalToChunk(mouseVec.x, mouseVec.y);
-            let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+            let chunk = getChunkFromPos(testMap.chunks, chunkPos);
             let closest;
             let closestDist;
 
@@ -182,7 +191,7 @@ function keyReleased() {
                 }
                 else {
                     let chunkPos = testMap.globalToChunk(curPlayer.pos.x, curPlayer.pos.y);
-                    let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+                    let chunk = getChunkFromPos(testMap.chunks, chunkPos);
                     closest = undefined;
                     for (let i = 0; i < chunk.objects.length; i++) {
                         if (
@@ -237,8 +246,10 @@ function keyReleased() {
             gameState = "playing";
             invDiv.hide();
             spaceBarDiv.hide();
-            if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].type == "Seed") {
-                ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
+            const heldItemName = curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar];
+            const heldItem = heldItemName ? curPlayer.invBlock.items[heldItemName] : null;
+            if (heldItem && heldItem.type == "Seed") {
+                ghostBuild = createObject(heldItem.plantName, 0, 0, 0, curPlayer.color, " ", " ");
                 renderGhost = true;
             }
         }
@@ -310,38 +321,16 @@ function keyReleased() {
                 }
             }
 
-            let chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-            socket.emit("update_inv", {
-                cx: chunkPos.x, cy: chunkPos.y,
-                objName: curPlayer.otherInv.objName,
-                pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                z: curPlayer.otherInv.z,
-                invId: curPlayer.otherInv.invBlock?.invId,
-                items: curPlayer.otherInv.invBlock.items
-            });
-            // PERF FIX #10: Use fast highlight instead of full DOM rebuild after transfer
-            fastHighlightSwapLists(curPlayer.invBlock.curItem, curPlayer.otherInv.invBlock.curItem);
-            updatecurSwapItemDiv(curPlayer.otherInv.invBlock);
+            // Force full rebuild so amounts refresh
+            swapListCache.lastLeftHash = "";
+            swapListCache.lastRightHash = "";
+            updateSwapItemLists(curPlayer.otherInv.invBlock);
+            _syncOtherInv();
         }
         if (keyCode == Controls_Inventory_code) { //i
-            // push any chest/bag state back to server on close
-            if (curPlayer.otherInv && curPlayer.otherInv.pos) {
-                const chunkPos = testMap.globalToChunk(curPlayer.otherInv.pos.x, curPlayer.otherInv.pos.y);
-                socket.emit("update_inv", {
-                    cx: chunkPos.x, cy: chunkPos.y,
-                    objName: curPlayer.otherInv.objName,
-                    pos: { x: curPlayer.otherInv.pos.x, y: curPlayer.otherInv.pos.y },
-                    z: curPlayer.otherInv.z,
-                    invId: curPlayer.otherInv.invBlock?.invId,
-                    items: curPlayer.otherInv.invBlock.items
-                });
-            }
-            gameState = "playing";
-            swapInvDiv.hide();
-            spaceBarDiv.hide();
-            curPlayer.otherInv = undefined;
+            closeSwapInv();
         }
-        if (keyCode == 16) { //Shift
+        if (keyCode == 16 && gameState != "inventory" && gameState != "crafting" && gameState != "swap_inv") { //Shift
             updateSpaceBarDiv();
         }
     }
@@ -497,20 +486,51 @@ function keyReleased() {
 }
 
 function keyPressed() { //prevents normal key related actions
-    // Cancel meditation if any button is pressed
-    if (curPlayer && curPlayer.spells && curPlayer.spells.meditate.active) {
-        curPlayer.endMeditate();
-    }
-    
-    if (keyCode == 27) { //ESC
-        // Allow escape to exit search state
-        if (gameState == "search") {
-            gameState = lastGameState;
-            blurActiveElement();
-            return false;
-        }
+    // Cancel meditation if any button is pressed (handled in modular magic system now)
+    // If you want to cancel meditate, call the appropriate method on the MeditateAbility instance.
+     if (keyCode == 27) { //ESC
         return false;
     }
+
+    // Block all keys if in search mode except ESC
+    if (gameState == "search") {
+            // Block all keys if input/textarea is focused (prevents game keybinds from triggering while typing)
+        const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+        if (isInputFocused) {
+            return false; // Allow input element to handle the key normally
+        }
+    
+        console.log("🔍 Key pressed in search mode - keyCode:", keyCode, "char:", String.fromCharCode(keyCode));
+        if (keyCode == 27) { // ESC
+            gameState = lastGameState;
+            blurActiveElement();
+        }
+        return false; // Block all input
+    }
+    
+    // Handle 0-9 keys in moves editor to select slots
+    if (gameState === "inventory" && typeof movesEditorDiv !== 'undefined' && movesEditorDiv && movesEditorDiv.style('display') !== 'none') {
+        // Check if 0-9 key was pressed (48-57 are top row, 96-105 are numpad)
+        if ((keyCode >= 49 && keyCode <= 57) || keyCode === 48 || (keyCode >= 97 && keyCode <= 105) || keyCode === 96) {
+            let slotIndex;
+            if (keyCode >= 49 && keyCode <= 57) {
+                slotIndex = keyCode - 49; // 1-9 maps to 0-8
+            } else if (keyCode === 48) {
+                slotIndex = 9; // 0 maps to slot 9
+            } else if (keyCode >= 97 && keyCode <= 105) {
+                slotIndex = keyCode - 97; // Numpad 1-9 maps to 0-8
+            } else if (keyCode === 96) {
+                slotIndex = 9; // Numpad 0 maps to slot 9
+            }
+            
+            if (slotIndex !== undefined && typeof selectedMoveSlotIdx !== 'undefined' && typeof refreshMovesEditorUI === 'function') {
+                selectedMoveSlotIdx = slotIndex;
+                refreshMovesEditorUI();
+            }
+            return false;
+        }
+    }
+   
     if (keyCode == 9) { //TAB
         return false;
     }
@@ -518,22 +538,17 @@ function keyPressed() { //prevents normal key related actions
     if (keyCode === 32 && (gameState == "inventory" || gameState == "crafting")) { // 32 = Space
         return false;
     }
-    // Block most keys if in search mode (allow only basic input/control keys)
-    if (gameState == "search") {
-        const allowedKeyCodes = [8, 13, 16, 17, 18, 27, 37, 38, 39, 40]; // Backspace, Enter, Shift, Ctrl, Alt, ESC, arrows
-        if (!allowedKeyCodes.includes(keyCode)) {
-            // Letter/number keys are allowed in input, just let them through
-            return true;
-        }
-    }
     if (keyCode === 13 && isChatting) { // 13 = Enter
         //console.log("dd");
         blurActiveElement();
         isChatting = false
         return false; // prevent default enter behavior (like form submit)
     }
+    // Ignore Shift key press in search mode or when in UI
     if (keyCode == 16) { //Shift
-        updateSpaceBarDiv();
+        if (gameState != "search" && gameState != "inventory" && gameState != "crafting" && gameState != "swap_inv") {
+            updateSpaceBarDiv();
+        }
     }
 }
 function blurActiveElement() {
@@ -563,16 +578,19 @@ function mouseReleased() {
                 y = y * height / 2;
                 x = x + width / 2;
                 y = y + height / 2;
-                if (mouseX > x - 30 && mouseX < x + 30 && mouseY > y - 30 && mouseY < y + 30) {
+                // Use a larger tap target on mobile (50px radius instead of 30px)
+                var tapRadius = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ? 50 : 30;
+                if (mouseX > x - tapRadius && mouseX < x + tapRadius && mouseY > y - tapRadius && mouseY < y + tapRadius) {
                     //teleport to the portal
                     curPlayer.pos.x = knownPortals[i].pos.x;
                     curPlayer.pos.y = knownPortals[i].pos.y + 128;
 
-                    socket.emit("update_pos", {
-                        id: curPlayer.id,
-                        pos: curPlayer.pos,
-                        holding: curPlayer.holding
-                    });
+                    // Sync teleport through the batcher immediately
+                    if (typeof playerStateBatcher !== 'undefined') {
+                        playerStateBatcher.setPosition(curPlayer.pos);
+                        playerStateBatcher.setHolding(curPlayer.holding);
+                        playerStateBatcher.flushImmediate();
+                    }
 
                     gameState = "playing";
                     curPlayer.invBlock.useTimer = 10;
@@ -593,6 +611,9 @@ function mouseReleased() {
 function continousMouseInput() { //ran once every frame, good for anything like digging, or items
 
     if (isChatting || isElementVisible(pauseDiv)) return
+    if (curPlayer && curPlayer.isConcentrating) return;
+    // On mobile, touch input is handled by applyTouchInput — skip mouse simulation
+    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) return;
     if (mouseIsPressed) {
         //converts screen space to global space
         let x = mouseX + camera.pos.x - width / 2;
@@ -642,9 +663,11 @@ function continousMouseInput() { //ran once every frame, good for anything like 
                                 }
                             }
                             let chunkPos = testMap.globalToChunk(x, y);
+                            const chunkKey = chunkPos.key || getChunkKey(chunkPos.x, chunkPos.y);
+                            const chunk = testMap.chunks[chunkKey];
                             let temp = createObject(ghostBuild.objName, ghostBuild.pos.x, ghostBuild.pos.y, ghostBuild.rot, curPlayer.color, curPlayer.id, curPlayer.name);
-                            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.push(temp);
-                            testMap.chunks[chunkPos.x + "," + chunkPos.y].objects.sort((a, b) => a.z - b.z);
+                            chunk.objects.push(temp);
+                            chunk.objects.sort((a, b) => a.z - b.z);
                             socket.emit("new_object", {
                                 cx: chunkPos.x,
                                 cy: chunkPos.y,
@@ -653,7 +676,7 @@ function continousMouseInput() { //ran once every frame, good for anything like 
 
                             //play placing_structure sound and tell server
                             let temp2 = new SoundObj("placing_structure.ogg", x, y);
-                            testMap.chunks[chunkPos.x + "," + chunkPos.y].soundObjs.push(temp2);
+                            chunk.soundObjs.push(temp2);
                             socket.emit("new_sound", { sound: "placing_structure.ogg", cPos: chunkPos, pos: { x: x, y: y }, id: temp.id });
                             curPlayer.animationCreate("put");
                             socket.emit("update_player", {
@@ -685,7 +708,7 @@ function continousMouseInput() { //ran once every frame, good for anything like 
                 }
                 else {
                     let chunkPos = testMap.globalToChunk(x, y);
-                    let chunk = testMap.chunks[chunkPos.x + "," + chunkPos.y];
+                    let chunk = getChunkFromPos(testMap.chunks, chunkPos);
                     for (let i = 0; i < chunk.objects.length; i++) {
                         if (createVector(x, y).dist(chunk.objects[i].pos) < (chunk.objects[i].size.w + chunk.objects[i].size.h) / 4) {
                             if ((chunk.objects[i].color == 0 && chunk.objects[i].ownerName == curPlayer.name) || (chunk.objects[i].color != 0 && chunk.objects[i].color == curPlayer.color)) { //only team members and you can delete your objects
@@ -713,24 +736,16 @@ function continousMouseInput() { //ran once every frame, good for anything like 
 // Cast or activate a move based on the configured movesSlots
 function triggerMoveSlot(slotIdx) {
     if (!curPlayer || !Array.isArray(curPlayer.movesSlots)) return;
+    if (curPlayer.isConcentrating) return;
     const moveId = curPlayer.movesSlots[slotIdx];
     if (!moveId) return;
 
-    switch (moveId) {
-        case 'combustion':
-            curPlayer.activateCombustion();
-            break;
-        case 'forceField':
-            curPlayer.activateForceField();
-            break;
-        case 'meditate':
-            curPlayer.activateMeditate();
-            break;
-        case 'dash':
-            curPlayer.activateDash();
-            break;
-        default:
-            break;
+    // Find the ability in window.magicAbilities by id (case-insensitive, no spaces)
+    const ability = (window.magicAbilities || []).find(a =>
+        a.name.toLowerCase().replace(/\s+/g, '') === moveId.toLowerCase()
+    );
+    if (ability && typeof ability.activate === 'function') {
+        ability.activate(curPlayer);
     }
 }
 
@@ -742,18 +757,28 @@ function isElementVisible(el) {
 function continousKeyBoardInput() {
     if (getIsChatting() || isElementVisible(pauseDiv)) return
     if (gameState == "playing") {
-        // default all keys to false
-        curPlayer.holding = { w: false, a: false, s: false, d: false };
+        // On mobile, touch system is the sole source of truth for movement
+        if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
+            // Skip keyboard polling entirely — applyTouchInput handles all movement
+        } else {
+            // default all keys to false
+            curPlayer.holding = { w: false, a: false, s: false, d: false };
 
-        // Player controls
-        if (keyIsDown(Controls_move_Up_code)) curPlayer.holding.w = true; // W
-        if (keyIsDown(Controls_move_Left_code)) curPlayer.holding.a = true; // A
-        if (keyIsDown(Controls_move_Down_code)) curPlayer.holding.s = true; // S
-        if (keyIsDown(Controls_move_Right_code)) curPlayer.holding.d = true; // D
+            // Player controls
+            if (keyIsDown(Controls_move_Up_code)) curPlayer.holding.w = true; // W
+            if (keyIsDown(Controls_move_Left_code)) curPlayer.holding.a = true; // A
+            if (keyIsDown(Controls_move_Down_code)) curPlayer.holding.s = true; // S
+            if (keyIsDown(Controls_move_Right_code)) curPlayer.holding.d = true; // D
+        }
 
-        // Dash key
-        if (keyIsDown(Controls_Dash_code)) {
-            curPlayer.activateDash();
+        // Dash key (keyboard only — touch dash handled in applyTouchInput)
+        if (!(typeof isMobileDevice !== 'undefined' && isMobileDevice)) {
+            if (keyIsDown(Controls_Dash_code)) {
+                const dashAbility = (window.magicAbilities || []).find(a => a.name.toLowerCase() === 'dash');
+                if (dashAbility && typeof dashAbility.activate === 'function') {
+                    dashAbility.activate(curPlayer);
+                }
+            }
         }
 
         if (
@@ -762,11 +787,13 @@ function continousKeyBoardInput() {
             lastHolding.s !== curPlayer.holding.s ||
             lastHolding.d !== curPlayer.holding.d
         ) {
-            socket.emit("update_pos", {
-                id: curPlayer.id,
-                pos: curPlayer.pos,
-                holding: curPlayer.holding
-            });
+            // Force an immediate batcher flush on key change for responsiveness
+            // (no separate update_pos emit — the batcher is the single source of truth)
+            if (typeof playerStateBatcher !== 'undefined') {
+                playerStateBatcher.setPosition(curPlayer.pos);
+                playerStateBatcher.setHolding(curPlayer.holding);
+                playerStateBatcher.flushImmediate();
+            }
         }
     }
     else if (gameState == "inventory") {
@@ -825,8 +852,9 @@ function updatePlayerHotBarOffset() {
 
         if (!buildMode) {
             if (curPlayer.invBlock.hotbar[slot] != "") {
-                if (curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]].type == "Seed") {
-                    ghostBuild = createObject(curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]].plantName, 0, 0, 0, curPlayer.color, " ", " ");
+                const heldItem = curPlayer.invBlock.items[curPlayer.invBlock.hotbar[slot]];
+                if (heldItem && heldItem.type == "Seed") {
+                    ghostBuild = createObject(heldItem.plantName, 0, 0, 0, curPlayer.color, " ", " ");
                     renderGhost = true; //this is seperate from buildMode, because this is a placable item, not something you can find in buildMode
                 }
                 else {
