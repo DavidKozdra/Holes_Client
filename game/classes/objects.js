@@ -1324,6 +1324,8 @@ class Entity extends Placeable {
 
             // Clone cost array so we don't permanently mutate the objDic definition
             let cost = (objDic[this.objName].cost || []).map(c => c.slice());
+            // Roll entity-specific loot from ENTITY_DROP_TABLE
+            cost = cost.concat(rollEntityDrops(this.objName));
             if (random() < 0.5) {
                 cost.push(["Philosopher's Stone", 1]);
             }
@@ -1332,7 +1334,8 @@ class Entity extends Placeable {
                 objName: this.objName,
                 pos: { x: this.pos.x, y: this.pos.y },
                 z: this.z,
-                cost: cost
+                cost: cost,
+                brainID: this.brainID
             });
 
             for (let i = testMap.brains.length - 1; i >= 0; i--) {
