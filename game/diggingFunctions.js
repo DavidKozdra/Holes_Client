@@ -6,7 +6,14 @@ var digSoundTimer = 0;
 var _pendingNodeUpdates = {};  // key -> {chunkPos, index, amt}
 var _pendingIronUpdates = {}; // key -> {chunkPos, index, amt}
 var _nodeFlushTimer = null;
-var _NODE_FLUSH_INTERVAL = 50; // ms
+var _NODE_FLUSH_INTERVAL = 16; // ms – keep low for instant feel (was 50)
+
+// ── Optimistic prediction tracking ──
+// Tracks tiles we've already updated client-side so the server echo
+// doesn't double-apply the same change.  Entries auto-expire.
+var _predictedNodes = {};      // key -> { value: <current predicted value>, expiry: <timestamp> }
+var _predictedIronNodes = {};  // key -> { value: <current predicted value>, expiry: <timestamp> }
+var _PREDICTION_TTL = 2000;    // ms before a prediction expires (generous for bad latency)
 
 function _flushNodeUpdates() {
     _nodeFlushTimer = null;
@@ -287,6 +294,18 @@ function dig(x, y, amt, playerDiging, rayStart) {
                     dirtInv -= chunk.data[index]-1.3;
                 }
             }
+
+            // ── Optimistic terrain update — instant visual feedback ──
+            if(amt > 0){
+                if (chunk.data[index] > 0) chunk.data[index] -= amt;
+                if (chunk.data[index] < 0.3 && chunk.data[index] !== -1) chunk.data[index] = 0;
+            } else {
+                if (chunk.data[index] < 1.3 && chunk.data[index] !== -1) chunk.data[index] -= amt;
+                if (chunk.data[index] > 1.3) chunk.data[index] = 1.3;
+            }
+            // Track prediction so server echo is debounced
+            var predKey = chunkKey + ':' + index;
+            _predictedNodes[predKey] = { value: chunk.data[index], expiry: Date.now() + _PREDICTION_TTL };
         }
     }
 
@@ -522,6 +541,18 @@ function mine(x, y, amt, playerDiging, rayStart) {
                     curPlayer.invBlock.addItem("Raw Metal", 1, true);
                 }
             }
+
+            // ── Optimistic iron terrain update — instant visual feedback ──
+            if(amt > 0){
+                if (chunk.iron_data[index] > 0) chunk.iron_data[index] -= amt;
+                if (chunk.iron_data[index] < 0.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] = 0;
+            } else {
+                if (chunk.iron_data[index] < 1.3 && chunk.iron_data[index] !== -1) chunk.iron_data[index] -= amt;
+                if (chunk.iron_data[index] > 1.3) chunk.iron_data[index] = 1.3;
+            }
+            // Track prediction so server echo is debounced
+            var predKey = chunkKey + ':' + index;
+            _predictedIronNodes[predKey] = { value: chunk.iron_data[index], expiry: Date.now() + _PREDICTION_TTL };
         }
     }
 

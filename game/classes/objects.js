@@ -811,7 +811,7 @@ class Plant extends Placeable {
             let bagInv = [];
 
             if (this.stage == (objImgs[this.imgNum].length - 1)) {
-                bagInv = objDic[this.objName].cost;
+                bagInv = (objDic[this.objName].cost || []).map(c => c.slice());
             }
 
             socket.emit("delete_obj", { cx: chunkPos.x, cy: chunkPos.y, objName: this.objName, pos: { x: this.pos.x, y: this.pos.y }, z: this.z, cost: bagInv });
@@ -1322,7 +1322,8 @@ class Entity extends Placeable {
                 });
             }
 
-            let cost = objDic[this.objName].cost;
+            // Clone cost array so we don't permanently mutate the objDic definition
+            let cost = (objDic[this.objName].cost || []).map(c => c.slice());
             if (random() < 0.5) {
                 cost.push(["Philosopher's Stone", 1]);
             }

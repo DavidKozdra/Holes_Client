@@ -14,8 +14,8 @@ var eventQueue = (function () {
     'use strict';
 
     // ── Config ──
-    var BUDGET_PER_SEC  = 120;   // Max game events/sec we'll actually send
-    var FLUSH_INTERVAL  = 50;    // Flush every 50 ms (20 times/sec)
+    var BUDGET_PER_SEC  = 240;   // Max game events/sec we'll actually send (doubled for instant digging)
+    var FLUSH_INTERVAL  = 16;    // Flush every 16 ms (~60 times/sec, was 50)
     var BUDGET_PER_TICK = Math.ceil(BUDGET_PER_SEC / (1000 / FLUSH_INTERVAL));
 
     // ── Tier: IMMEDIATE (bypass queue entirely) ──
@@ -45,6 +45,9 @@ var eventQueue = (function () {
         'remove_member': true,
         'update_team': true,
         'player_saving': true,
+        'delete_obj': true,
+        'new_object': true,
+        'update_inv': true,
     };
 
     // ── Tier: COALESCE (latest-value-wins per composite key) ──
@@ -515,6 +518,16 @@ function socketSetup(){
         // Terrain updates
         udpTransport.on('UPDATE_NODE', (data) => {
             if (testMap.chunks[data.chunkPos] != undefined) {
+                // Debounce: skip if we already predicted this tile
+                var _pKey = data.chunkPos + ':' + data.index;
+                if (typeof _predictedNodes !== 'undefined' && _predictedNodes[_pKey]) {
+                    if (Date.now() < _predictedNodes[_pKey].expiry) {
+                        // Let server value win (self-correcting) then clear prediction
+                        delete _predictedNodes[_pKey];
+                        return;
+                    }
+                    delete _predictedNodes[_pKey];
+                }
                 if (data.amt > 0) {
                     if (testMap.chunks[data.chunkPos].data[data.index] > 0) testMap.chunks[data.chunkPos].data[data.index] -= data.amt;
                     if (testMap.chunks[data.chunkPos].data[data.index] < 0.3 && testMap.chunks[data.chunkPos].data[data.index] !== -1) testMap.chunks[data.chunkPos].data[data.index] = 0;
@@ -527,6 +540,15 @@ function socketSetup(){
 
         udpTransport.on('UPDATE_IRON_NODE', (data) => {
             if (testMap.chunks[data.chunkPos] != undefined) {
+                // Debounce: skip if we already predicted this tile
+                var _pKey = data.chunkPos + ':' + data.index;
+                if (typeof _predictedIronNodes !== 'undefined' && _predictedIronNodes[_pKey]) {
+                    if (Date.now() < _predictedIronNodes[_pKey].expiry) {
+                        delete _predictedIronNodes[_pKey];
+                        return;
+                    }
+                    delete _predictedIronNodes[_pKey];
+                }
                 if (data.amt > 0) {
                     if (testMap.chunks[data.chunkPos].iron_data[data.index] > 0) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
                     if (testMap.chunks[data.chunkPos].iron_data[data.index] < 0.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1) testMap.chunks[data.chunkPos].iron_data[data.index] = 0;
@@ -1372,6 +1394,15 @@ function socketSetup(){
 
     socket.on("UPDATE_NODE", (data) => {
         if(testMap.chunks[data.chunkPos] != undefined){
+            // Debounce: skip if we already predicted this tile
+            var _pKey = data.chunkPos + ':' + data.index;
+            if (typeof _predictedNodes !== 'undefined' && _predictedNodes[_pKey]) {
+                if (Date.now() < _predictedNodes[_pKey].expiry) {
+                    delete _predictedNodes[_pKey];
+                    return;
+                }
+                delete _predictedNodes[_pKey];
+            }
             if(data.amt > 0){
                 if (testMap.chunks[data.chunkPos].data[data.index] > 0) testMap.chunks[data.chunkPos].data[data.index] -= data.amt;
                 if (testMap.chunks[data.chunkPos].data[data.index] < 0.3 && testMap.chunks[data.chunkPos].data[data.index] !== -1){
@@ -1391,6 +1422,15 @@ function socketSetup(){
 
     socket.on("UPDATE_IRON_NODE", (data) => {
         if(testMap.chunks[data.chunkPos] != undefined){
+            // Debounce: skip if we already predicted this tile
+            var _pKey = data.chunkPos + ':' + data.index;
+            if (typeof _predictedIronNodes !== 'undefined' && _predictedIronNodes[_pKey]) {
+                if (Date.now() < _predictedIronNodes[_pKey].expiry) {
+                    delete _predictedIronNodes[_pKey];
+                    return;
+                }
+                delete _predictedIronNodes[_pKey];
+            }
             if(data.amt > 0){
                 if (testMap.chunks[data.chunkPos].iron_data[data.index] > 0) testMap.chunks[data.chunkPos].iron_data[data.index] -= data.amt;
                 if (testMap.chunks[data.chunkPos].iron_data[data.index] < 0.3 && testMap.chunks[data.chunkPos].iron_data[data.index] !== -1){
