@@ -2979,9 +2979,10 @@ function defineTutorialUI() {
         margin: "auto",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
         alignItems: "center",
         padding: "10px",
+        paddingBottom: "60px",
+        boxSizing: "border-box",
         zIndex: "9999",
     });
     tutorialDiv.hide();
@@ -3031,15 +3032,18 @@ function defineTutorialUI() {
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
+        paddingBottom: "60px",
     });
 
     // BOTTOM BAR (fixed footer)
     let bottomBar = createDiv().parent(tutorialDiv);
     applyStyle(bottomBar, {
-        display: "flex",
-        width: "100%",
+        position: "absolute",
+        bottom: "10px",
+        left: "10px",
+        right: "10px",
         height: "50px",
-        flexShrink: "0",
+        display: "flex",
         flexDirection: "row",
         alignItems: "center",
     });
