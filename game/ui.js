@@ -16,6 +16,14 @@ if (typeof socket !== 'undefined') {
 // Main menu globals moved to mainMenu.js
 // This file focuses on in-game UI only
 
+// Ensure magicUI.js is loaded for updateMoveHotbarDOM
+if (typeof window.updateMoveHotbarDOM === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'game/magicUI.js';
+    script.async = false;
+    document.head.appendChild(script);
+}
+
 // Lightweight perf toggle; enable with `window.__perfLog = true`
 
 

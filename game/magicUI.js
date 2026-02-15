@@ -380,54 +380,76 @@ function ensureMoveHotbarDOM() {
       #moveHotbarRoot {
         position: fixed;
         left: 50%;
-        bottom: 22px;
+        bottom: 24px;
         transform: translateX(-50%);
         z-index: 9986;
         pointer-events: auto;
         user-select: none;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
         max-width: 50dvw;
       }
 
       #moveHotbarBar {
         display: flex;
-        gap: 10px;
+        gap: 12px;
         align-items: flex-end;
-        padding: 8px 10px;
-        border-radius: 10px;
-        background: rgba(0,0,0,0.45);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-        border: 1px solid rgba(255,255,255,0.10);
+        padding: 14px 20px;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(40,35,45,0.92) 0%, rgba(20,18,25,0.95) 100%);
+        box-shadow: 
+          0 8px 32px rgba(0,0,0,0.5),
+          0 2px 8px rgba(0,0,0,0.3),
+          inset 0 1px 0 rgba(255,255,255,0.08);
+        border: 1px solid rgba(120,110,140,0.25);
+        backdrop-filter: blur(8px);
       }
 
       .moveSlot {
         position: relative;
-        width: 56px;
-        height: 56px;
-        border-radius: 8px;
-        border: 2px solid rgba(140,240,140,0.9);
-        background: rgba(30,30,30,0.75);
-        overflow: hidden;
+        width: 72px;
+        height: 72px;
+        border-radius: 14px;
+        border: 2px solid rgba(130,200,130,0.85);
+        background: linear-gradient(145deg, rgba(45,42,55,0.9) 0%, rgba(28,26,35,0.95) 100%);
+        overflow: visible;
+        transition: all 0.15s ease;
+        box-shadow: 
+          0 2px 6px rgba(0,0,0,0.35),
+          inset 0 1px 0 rgba(255,255,255,0.05);
+      }
+
+      .moveSlot:hover {
+        transform: scale(1.08);
+        border-color: rgba(160,220,160,0.95);
+        box-shadow: 
+          0 4px 12px rgba(0,0,0,0.4),
+          0 0 16px rgba(100,180,100,0.2);
       }
 
       .moveSlot.isLocked {
-        border-color: rgba(120,90,40,0.9);
-        background: rgba(25,25,25,0.85);
-        filter: saturate(0.7);
+        border-color: rgba(140,110,50,0.85);
+        background: linear-gradient(145deg, rgba(45,40,30,0.85) 0%, rgba(30,25,20,0.9) 100%);
+        filter: saturate(0.65);
       }
 
       .moveSlot.isOnCd {
-        border-color: rgba(110,110,110,0.9);
-        background: rgba(30,30,30,0.85);
+        border-color: rgba(100,100,120,0.8);
+        background: linear-gradient(145deg, rgba(40,38,48,0.9) 0%, rgba(25,24,32,0.95) 100%);
       }
 
       .moveSlot.isActive {
-        box-shadow: 0 0 0 2px rgba(255,255,255,0.35) inset;
+        border-color: rgba(255,255,255,0.9);
+        box-shadow: 
+          0 0 0 2px rgba(255,255,255,0.25) inset,
+          0 0 20px rgba(120,200,120,0.4),
+          0 4px 12px rgba(0,0,0,0.4);
+        transform: scale(1.05);
       }
 
       .moveSlot.cantAfford {
-        border-color: rgba(170,70,70,0.95);
-        background: rgba(60,20,20,0.75);
+        border-color: rgba(200,80,80,0.9);
+        background: linear-gradient(145deg, rgba(60,30,35,0.9) 0%, rgba(40,20,25,0.95) 100%);
+        box-shadow: 0 0 12px rgba(200,60,60,0.25);
       }
 
       .moveIcon {
@@ -439,59 +461,96 @@ function ensureMoveHotbarDOM() {
         object-fit: cover;
       }
 
-      /* Cooldown overlay: grows downward (like your rect overlay) */
+      /* Cooldown overlay: grows downward */
       .cdOverlay {
         position: absolute;
         left: 0;
         top: 0;
         width: 100%;
         height: 0%;
-        background: rgba(255,100,100,0.55);
-        border-radius: 10px;
+        background: linear-gradient(180deg, 
+          rgba(180,60,60,0.7) 0%, 
+          rgba(120,30,30,0.75) 100%);
+        border-radius: 8px;
         pointer-events: none;
+        transition: height 0.1s linear;
       }
 
       .keyLabel {
         position: absolute;
         left: 50%;
-        top: -34px;
+        top: -28px;
         transform: translateX(-50%);
-        height: 26px;
-        min-width: 48px;
-        padding: 0 10px;
-        border-radius: 8px;
-        background: rgba(0,0,0,0.7);
+        height: 20px;
+        min-width: 22px;
+        padding: 0 5px;
+        border-radius: 4px;
+        background: linear-gradient(180deg, rgba(55,50,65,0.95) 0%, rgba(35,32,42,0.98) 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 800;
-        font-size: 18px;
-        letter-spacing: 0.5px;
-        color: #fff;
-        border: 1px solid rgba(255,255,255,0.12);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.3px;
+        color: rgba(255,255,255,0.92);
+        border: 1px solid rgba(120,110,140,0.35);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        z-index: 10;
       }
 
       .keyLabel.lockedKey {
-        color: rgb(255,220,160);
+        color: rgba(255,210,140,0.9);
       }
 
       .nameLabel {
         position: absolute;
         left: 50%;
-        bottom: -30px;
+        bottom: -20px;
         transform: translateX(-50%);
-        width: 160px;
+        width: 130px;
         text-align: center;
-        font-size: 14px;
-        color: rgba(230,230,230,0.95);
-        text-shadow: 0 1px 2px rgba(0,0,0,0.65);
+        font-size: 9px;
+        font-weight: 500;
+        color: rgba(225,225,235,0.92);
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        letter-spacing: 0.2px;
+        z-index: 10;
+        display: none;
+      }
+
+      .nameLabel.showNoMana {
+        display: block;
       }
 
       .nameLabel.lockedName {
-        color: rgb(230,190,120);
+        color: rgba(230,180,100,0.9);
+      }
+
+      .nameLabel.noManaName {
+        color: rgba(255,120,120,0.9);
+      }
+
+      /* Mana indicator bar */
+      .manaBar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: rgba(0,0,0,0.5);
+        border-radius: 0 0 8px 8px;
+        overflow: hidden;
+      }
+
+      .manaBarFill {
+        height: 100%;
+        background: linear-gradient(90deg, #4a9eff, #70b8ff);
+        transition: width 0.15s ease;
+        box-shadow: 0 0 8px rgba(70,150,255,0.5);
       }
     `;
     document.head.appendChild(style);
@@ -511,7 +570,6 @@ function ensureMoveHotbarDOM() {
     for (let i = 0; i < 10; i++) {
       const slot = document.createElement("div");
       slot.className = "moveSlot";
-      slot.style.transform = "scale(0.9)";
 
       const icon = document.createElement("img");
       icon.className = "moveIcon";
@@ -520,41 +578,15 @@ function ensureMoveHotbarDOM() {
       const cd = document.createElement("div");
       cd.className = "cdOverlay";
 
-      // Hotkey label (top right)
+      // Hotkey label
       const key = document.createElement("div");
       key.className = "keyLabel";
       key.textContent = (i === 9 ? "0" : String(i + 1));
-      key.style.position = "absolute";
-      key.style.top = "4px";
-      key.style.right = "8px";
-      key.style.left = "auto";
-      key.style.transform = "none";
-      key.style.background = "rgba(0,0,0,0.7)";
-      key.style.fontSize = "10px";
-      key.style.padding = "2px 10px";
-      key.style.borderRadius = "8px";
-      key.style.minWidth = "unset";
-      key.style.height = "auto";
-      key.style.zIndex = "2";
 
       // Move name label (bottom center)
       const name = document.createElement("div");
       name.className = "nameLabel";
       name.textContent = "";
-      name.style.position = "absolute";
-      name.style.left = "50%";
-      name.style.bottom = "4px";
-      name.style.transform = "translateX(-50%)";
-      name.style.width = "90%";
-      name.style.textAlign = "center";
-      name.style.fontSize = "10px";
-      name.style.color = "rgba(230,230,230,0.95)";
-      name.style.textShadow = "0 1px 2px rgba(0,0,0,0.65)";
-      name.style.whiteSpace = "nowrap";
-      name.style.overflow = "hidden";
-      name.style.textOverflow = "ellipsis";
-      name.style.pointerEvents = "none";
-      name.style.zIndex = "2";
 
       slot.appendChild(icon);
       slot.appendChild(cd);
@@ -588,10 +620,11 @@ function ensureMoveHotbarDOM() {
   return window._moveHotbarDOM;
 }
 
+// Expose updateMoveHotbarDOM globally
+window.updateMoveHotbarDOM = updateMoveHotbarDOM;
+
 // Build icons once and keep dataURLs around for <img>
 function ensureMoveHotbarIcons() {
- // Expose for use in other scripts
- window.updateMoveHotbarDOM = updateMoveHotbarDOM;
   if (window._moveHotbarIcons) return window._moveHotbarIcons;
 
   // If you already have getSpellIcon(id, drawFn) from your code, reuse it.
@@ -834,16 +867,15 @@ function updateMoveHotbarDOM(curPlayer) {
     // NAME LABEL
     // ======================
     if (locked) {
-      s.name.textContent = `Unlocks Lv ${entry.unlockLevel}`;
-      s.name.classList.add("lockedName");
-      s.name.classList.remove("noManaName");
+      s.name.textContent = "";
+      s.name.classList.remove("noManaName", "showNoMana");
     } else if (noMana) {
       s.name.textContent = "NO MANA";
-      s.name.classList.add("noManaName");
+      s.name.classList.add("noManaName", "showNoMana");
       s.name.classList.remove("lockedName");
     } else {
-      s.name.textContent = entry.nameLabel;
-      s.name.classList.remove("lockedName", "noManaName");
+      s.name.textContent = "";
+      s.name.classList.remove("lockedName", "noManaName", "showNoMana");
     }
   }
 }
