@@ -110,6 +110,21 @@ function renderLinks() {
     linksRendered = true; // Set flag to true
 }
 
+function hideMainMenuUI() {
+    if (linkContainer && linkContainer.elt) {
+        linkContainer.elt.style.setProperty('display', 'none', 'important');
+    }
+    if (settingsToggle && settingsToggle.elt) {
+        settingsToggle.elt.style.setProperty('display', 'none', 'important');
+    }
+    if (markee && markee.elt) {
+        markee.elt.style.setProperty('display', 'none', 'important');
+    }
+    if (titleImage && titleImage.elt) {
+        titleImage.elt.style.setProperty('display', 'none', 'important');
+    }
+}
+
 // 🎯 Helper Function to Create Buttons
 function createLinkButton(parent, text, url) {
     let button = createButton(text).parent(parent);
@@ -170,10 +185,11 @@ function hideLinks() {
     if (!linksRendered) return;
 
     // Hide all link-related UI elements; do not overwrite functions or toggle repeatedly
-    if (linkContainer) linkContainer.style("display", "none");
-    if (settingsToggle) settingsToggle.style("display", "none");
-    if (markee) markee.style("display", "none");
-    if (titleImage) titleImage.style("display", "none");
+    // Use !important to override CSS display rules
+    if (linkContainer && linkContainer.elt) linkContainer.elt.style.setProperty('display', 'none', 'important');
+    if (settingsToggle && settingsToggle.elt) settingsToggle.elt.style.setProperty('display', 'none', 'important');
+    if (markee && markee.elt) markee.elt.style.setProperty('display', 'none', 'important');
+    if (titleImage && titleImage.elt) titleImage.elt.style.setProperty('display', 'none', 'important');
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -889,6 +905,7 @@ function startGame() {
             socket.emit("get_teams");
 
             gameState = "playing";
+            hideMainMenuUI();
             hideRaceSelect();
 
             if (localStorage.getItem("tut_seen") == "true") {

@@ -139,26 +139,77 @@ select:focus {
 
 /* ===== Inventory Panel ===== */
 #inventory.container {
-  /* Provide a border, background, etc., if you like */
-  border-radius: 10px;
-  background: rgba(20, 20, 20, 1);
-  /* You can also add a media query to ensure responsiveness on smaller devices */
+  border-radius: 12px;
+  background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
   max-width: 70%;
   width: 59%;
   max-height: 70%;
   min-height: 50%;
   height: auto;
   overflow-y: clip;
-  /* CR - I want the pieces inside to deal with their overflow not the entire container */
+  box-shadow:
+      0 0 60px rgba(59, 47, 47, 0.5),
+      0 0 120px rgba(255, 215, 0, 0.06),
+      inset 0 1px 0 rgba(255, 215, 0, 0.08);
+  position: relative;
+  border: 3px solid var(--color-dirt-dark);
+}
+
+#inventory.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  opacity: 0.6;
+  border-radius: 10px 10px 0 0;
 }
 
 /* Title styling */
 .inventory-title {
   font-size: 1.2rem;
   font-weight: bold;
-  text-decoration: underline;
   margin: 0 10px;
-  color: whitesmoke;
+  color: var(--color-beige);
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.8);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+
+.inventory-title:hover {
+  color: var(--color-gold);
+  text-shadow: 0 0 16px rgba(255, 215, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8);
+  border-bottom-color: rgba(255, 215, 0, 0.3);
+}
+
+.inventory-title.selected,
+.inventory-title[style*="yellow"] {
+  color: #ffff00 !important;
+  text-shadow: 0 0 20px rgba(255, 255, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+  border-bottom-color: #ffff00;
+  padding-bottom: 6px;
+  transform: translateY(-2px);
+  position: relative;
+}
+
+.inventory-title.selected::after,
+.inventory-title[style*="yellow"]::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #ffff00, transparent);
+  box-shadow: 0 0 10px #ffff00;
+  border-radius: 2px;
 }
 
 
@@ -328,12 +379,80 @@ button:hover::before {
 
 .container {
   padding: 20px;
-  border: 2px solid var(--color-dirt-dark);
-  background: var(--color-ui-dark);
-  border-radius: 10px;
+  border: 3px solid var(--color-dirt-dark);
+  background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+  border-radius: 12px;
   text-align: center;
   transition: 0.3s ease-in-out;
   flex-grow: calc(10);
+  box-shadow:
+      0 0 60px rgba(59, 47, 47, 0.5),
+      0 0 120px rgba(255, 215, 0, 0.06),
+      inset 0 1px 0 rgba(255, 215, 0, 0.08);
+  position: relative;
+  overflow: visible;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  opacity: 0.6;
+  border-radius: 12px 12px 0 0;
+}
+
+.container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-dirt-clay), transparent);
+  opacity: 0.4;
+  border-radius: 0 0 12px 12px;
+}
+
+/* ===== Tutorial Panel ===== */
+#tutorialDiv {
+  background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+  border: 3px solid var(--color-dirt-dark);
+  border-radius: 12px;
+  color: var(--color-beige);
+  box-shadow:
+      0 0 60px rgba(59, 47, 47, 0.5),
+      0 0 120px rgba(255, 215, 0, 0.06),
+      inset 0 1px 0 rgba(255, 215, 0, 0.08);
+  position: relative;
+}
+
+#tutorialDiv::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  opacity: 0.6;
+  border-radius: 10px 10px 0 0;
+}
+
+#tutorialCloseBtn {
+  background: linear-gradient(180deg, #3b2f2f 0%, #2a1f1f 100%);
+  border: 2px solid rgba(160, 82, 45, 0.5);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+#tutorialCloseBtn:hover {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+  transform: scale(1.05);
 }
 
 /* Only apply dramatic focus styling on desktop (fine pointer) */
@@ -930,8 +1049,12 @@ button:hover::before {
 }
 
 .tag-button.selected {
-  background-color: var(--color-gold);
+  background: linear-gradient(180deg, var(--color-gold) 0%, var(--color-hover) 100%);
   color: var(--color-dirt-dark);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5), inset 0 0 6px rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  font-weight: bold;
+  border-color: var(--color-gold);
 }
 
 .bottom-area {
@@ -940,6 +1063,10 @@ button:hover::before {
   align-items: stretch;
   gap: 1rem;
   flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 8px;
+  margin: 0 8px 8px;
 }
 
 .item-details {
@@ -1850,38 +1977,73 @@ input.fmt-italic-apply {
     width: 85%;
     max-width: 1100px;
     height: 75vh;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+    box-shadow:
+        0 0 60px rgba(59, 47, 47, 0.5),
+        0 0 120px rgba(255, 215, 0, 0.06),
+        inset 0 1px 0 rgba(255, 215, 0, 0.08);
+    position: relative;
+}
+
+.craft-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  opacity: 0.6;
+}
+
+.craft-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-dirt-clay), transparent);
+  opacity: 0.4;
 }
 
 .craft-header {
     display: flex;
     align-items: center;
     padding: 12px 16px;
-    border-bottom: 2px solid var(--color-dirt-dark);
-    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 2px solid rgba(59, 47, 47, 0.6);
+    background: linear-gradient(180deg, rgba(26, 18, 8, 0.8) 0%, rgba(13, 10, 6, 0.9) 100%);
     gap: 10px;
 }
 
 .craft-tab-btn {
     padding: 8px 16px;
-    background: #333;
-    border: 2px solid transparent;
-    color: #999;
+    background: linear-gradient(180deg, #3b2f2f 0%, #2a1f1f 100%);
+    border: 2px solid rgba(160, 82, 45, 0.5);
+    color: var(--color-beige);
     font-weight: bold;
     font-size: 14px;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    font-family: 'Press Start 2P', cursive;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .craft-tab-btn:hover {
-    color: #fff;
-    background: #444;
+    color: var(--color-gold);
+    background: linear-gradient(180deg, #4a3a30 0%, #3b2f2f 100%);
+    border-color: var(--color-gold);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
 }
 
 .craft-tab-btn.craft-tab-active {
     color: var(--color-gold);
-    background: rgba(255, 193, 7, 0.2);
+    background: linear-gradient(180deg, rgba(255, 215, 0, 0.25) 0%, rgba(255, 193, 7, 0.15) 100%);
     border-color: var(--color-gold);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.35), inset 0 0 10px rgba(255, 215, 0, 0.1);
+    transform: translateY(-2px);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
 
 .craft-close-btn {
@@ -1906,55 +2068,63 @@ input.fmt-italic-apply {
     display: flex;
     gap: 8px;
     padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(26, 18, 8, 0.6) 0%, rgba(13, 10, 6, 0.7) 100%);
+    border-bottom: 1px solid rgba(160, 82, 45, 0.3);
     overflow-x: auto;
     flex-wrap: wrap;
 }
 
 .craft-category-btn {
     padding: 6px 14px;
-    background: #333;
-    border: 2px solid transparent;
-    color: #999;
+    background: linear-gradient(180deg, #3b2f2f 0%, #2a1f1f 100%);
+    border: 2px solid rgba(160, 82, 45, 0.4);
+    color: var(--color-beige);
     font-size: 13px;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     white-space: nowrap;
+    font-family: 'Press Start 2P', cursive;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .craft-category-btn:hover {
-    background: #444;
-    color: #fff;
+    background: linear-gradient(180deg, #4a3a30 0%, #3b2f2f 100%);
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.15);
 }
 
 .craft-category-btn.craft-category-active {
-    background: rgba(76, 175, 80, 0.3);
-    border-color: #4caf50;
-    color: #4caf50;
+    background: linear-gradient(180deg, rgba(255, 215, 0, 0.25) 0%, rgba(255, 193, 7, 0.15) 100%);
+    border-color: var(--color-gold);
+    color: var(--color-gold);
     font-weight: bold;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), inset 0 0 8px rgba(255, 215, 0, 0.1);
+    transform: translateY(-1px);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
 .craft-search-input {
     margin: 10px 16px;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(160, 82, 45, 0.4);
     border-radius: 6px;
-    color: #fff;
+    color: var(--color-beige);
     font-size: 14px;
-    transition: border 0.2s;
+    transition: border 0.2s, box-shadow 0.2s;
+    font-family: 'Press Start 2P', cursive;
 }
 
 .craft-search-input:focus {
     outline: none;
     border-color: var(--color-gold);
-    box-shadow: 0 0 8px rgba(255, 193, 7, 0.3);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
 }
 
 .craft-search-input::placeholder {
-    color: #666;
+    color: rgba(245, 222, 179, 0.4);
 }
 
 .craft-content {
@@ -1964,6 +2134,9 @@ input.fmt-italic-apply {
     padding: 12px;
     flex: 1;
     overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    margin: 0 8px 8px;
 }
 
 .craft-recipe-list {
@@ -1972,22 +2145,25 @@ input.fmt-italic-apply {
 
 .craft-recipe-name {
     font-size: 14px;
-    color: #fff;
+    color: var(--color-beige);
     margin: 0;
     flex: 1;
 }
 
 .craft-recipe-details {
     padding: 16px;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 8px;
+    border: 1px solid rgba(160, 82, 45, 0.3);
 }
 
 .craft-detail-name {
     font-size: 20px;
     font-weight: bold;
-    color: #fff;
+    color: var(--color-gold);
     margin: 0 0 8px 0;
     text-align: center;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
 }
 
 .craft-detail-desc {
@@ -2158,14 +2334,32 @@ input.fmt-italic-apply {
 /* ═══════════════════════════════════════════════════════════════ */
 
 #moves-editor.container {
-  border-radius: 10px;
-  background: rgba(20, 20, 20, 1);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
   max-width: 70%;
   width: 59%;
   max-height: 70%;
   min-height: 50%;
   height: auto;
   overflow-y: clip;
+  box-shadow:
+      0 0 60px rgba(59, 47, 47, 0.5),
+      0 0 120px rgba(255, 215, 0, 0.06),
+      inset 0 1px 0 rgba(255, 215, 0, 0.08);
+  position: relative;
+  border: 3px solid var(--color-dirt-dark);
+}
+
+#moves-editor.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+  opacity: 0.6;
+  border-radius: 10px 10px 0 0;
 }
 
 .me-section-title {
@@ -2176,7 +2370,9 @@ input.fmt-italic-apply {
   letter-spacing: 0.5px;
   padding: 8px 12px;
   margin: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(160, 82, 45, 0.4);
+  background: linear-gradient(180deg, rgba(26, 18, 8, 0.6) 0%, rgba(13, 10, 6, 0.7) 100%);
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
 }
 
 /* ── Slot rows (left panel) ── */
@@ -2186,18 +2382,20 @@ input.fmt-italic-apply {
   gap: 10px;
   padding: 10px 12px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.15s;
+  border-bottom: 1px solid rgba(160, 82, 45, 0.2);
+  transition: background 0.15s, border-left 0.15s;
   border-left: 3px solid transparent;
 }
 
 .me-slot-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 215, 0, 0.08);
+  border-left-color: var(--color-dirt-clay);
 }
 
 .me-slot-row.me-slot-selected {
-  background: rgba(255, 215, 0, 0.12);
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 215, 0, 0.08) 100%);
   border-left-color: var(--color-gold);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.2), inset 0 0 12px rgba(255, 215, 0, 0.15);
 }
 
 .me-slot-key {
