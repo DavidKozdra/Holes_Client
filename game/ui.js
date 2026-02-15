@@ -3134,13 +3134,9 @@ function setupTutorialPages(pageHolder) {
     let movementTitle = createP("Movement:").parent(page2);
     movementTitle.class("tutorial-section-title");
 
-    keyToVisualKey(Controls_Up_key);
-    keyToVisualKey(Controls_Left_key);
-    keyToVisualKey(Controls_Down_key);
-    keyToVisualKey(Controls_Right_key);
-    addControlStep(page2, "" + Controls_Up_key + Controls_Left_key + Controls_Down_key + Controls_Right_key, "Move");
-    addControlStep(page2, Controls_Dash_key, "Dash");
-    addControlStep(page2, Controls_MoveHotBarLeft_key + " / " + Controls_MoveHotBarRight_key, "Switch hotbar");
+    addControlStep(page2, "WASD", "Move");
+    addControlStep(page2, "Shift", "Dash");
+    addControlStep(page2, "Q / E", "Switch hotbar");
 
     page2.hide();
     pages.push(page2);
@@ -3152,11 +3148,10 @@ function setupTutorialPages(pageHolder) {
 
     addControlStep(page3, "Left Click", "Use item / Break");
     addControlStep(page3, "Right Click", "Place / Attack");
-    addControlStep(page3, Controls_Interact_key, "Interact");
-    addControlStep(page3, Controls_Build_key, "Build menu");
-    addControlStep(page3, Controls_Inventory_key, "Inventory");
-    addControlStep(page3, Controls_Crafting_key, "Crafting");
-    addControlStep(page3, Controls_Space_key, "Place item in slot");
+    addTutorialStep(page3, "images/ui/f_tutorial_icon.png", "F - Interact with objects");
+    addControlStep(page3, "I", "Inventory");
+    addControlStep(page3, "C", "Crafting");
+    addControlStep(page3, "Space", "Place item in slot");
 
     page3.hide();
     pages.push(page3);
@@ -3166,7 +3161,7 @@ function setupTutorialPages(pageHolder) {
     let buildingTitle = createP("Building:").parent(page4);
     buildingTitle.class("tutorial-section-title");
 
-    addControlStep(page4, Controls_Build_key, "Open build menu");
+    addTutorialStep(page4, "images/ui/hammer.png", "R - Open build menu");
     addControlStep(page4, "1-9", "Select build slot");
     addControlStep(page4, "Right Click", "Place selected");
     addControlStep(page4, "Mouse", "Aim to rotate");
@@ -3226,10 +3221,7 @@ function setupTutorialPages(pageHolder) {
 
     addControlStep(page8, "ESC", "Pause / Settings");
     addControlStep(page8, "TAB", "Leaderboard");
-    
-    let chatNote = createP("Chat: Click chat button").parent(page8);
-    chatNote.class("tutorial-label");
-    chatNote.style("margin-top", "10px");
+    addControlStep(page8, "💬", "Click chat button to chat");
 
     page8.hide();
     pages.push(page8);
@@ -3240,8 +3232,7 @@ function setupTutorialPages(pageHolder) {
     refTitle.class("tutorial-section-title");
 
     addControlStep(page9, "WASD", "Move");
-    addControlStep(page9, "Shift", "Dash");
-    addControlStep(page9, "Q/E", "Hotbar");
+    addControlStep(page9, "Q / E", "Hotbar");
     addControlStep(page9, "F", "Interact");
     addControlStep(page9, "I", "Inventory");
     addControlStep(page9, "C", "Crafting");
