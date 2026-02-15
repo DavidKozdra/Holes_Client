@@ -566,17 +566,37 @@ input.fmt-italic-apply {
 /* Settings/Pause Container */
 .settings-container {
     position: absolute;
-    font-family: Arial, sans-serif;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Press Start 2P', cursive;
     margin: 0 auto;
-    width: 300px;
-    background-color: #222;
-    color: white;
-    padding: 20px;
-    border-radius: 10px;
+    width: 380px;
+    max-width: 90vw;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+    color: var(--color-beige);
+    padding: 0;
+    border-radius: 12px;
     display: none;
     flex-direction: column;
     align-items: center;
     z-index: 1000;
+    border: 3px solid var(--color-dirt-dark);
+    box-shadow: 0 0 40px rgba(59, 47, 47, 0.6), inset 0 1px 0 rgba(255, 215, 0, 0.1);
+    overflow: hidden;
+}
+
+.settings-container h2 {
+    width: 100%;
+    margin: 0;
+    padding: 16px 20px;
+    font-size: 18px;
+    color: var(--color-gold);
+    text-align: center;
+    background: linear-gradient(180deg, rgba(160, 82, 45, 0.4) 0%, rgba(59, 47, 47, 0.6) 100%);
+    border-bottom: 2px solid var(--color-dirt-dark);
+    text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    letter-spacing: 1px;
 }
 
 /* Pause Menu Container */
@@ -588,63 +608,246 @@ input.fmt-italic-apply {
     display: none;
     flex-direction: column;
     align-items: center;
-    justify-content: space-evenly;
-    width: 30%;
-    height: 40%;
-    border: 2px solid black;
-    border-radius: 10px;
+    justify-content: center;
+    width: 500px;
+    max-width: 92vw;
+    border: 3px solid var(--color-dirt-dark);
+    border-radius: 12px;
     text-align: center;
-    padding: 20px;
-    background-color: rgba(0, 0, 0, 0.9);
+    padding: 0;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
     z-index: 999;
+    box-shadow:
+        0 0 60px rgba(59, 47, 47, 0.5),
+        0 0 120px rgba(255, 215, 0, 0.06),
+        inset 0 1px 0 rgba(255, 215, 0, 0.08);
+    overflow: hidden;
+}
+
+.pause-menu::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+    opacity: 0.6;
+}
+
+.pause-menu::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--color-dirt-clay), transparent);
+    opacity: 0.4;
+}
+
+/* Pause logo */
+.pause-logo {
+    width: clamp(140px, 50%, 260px);
+    height: auto;
+    margin: 24px auto 0;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 4px 12px rgba(255, 215, 0, 0.2));
+}
+
+/* Pause title area */
+.pause-title {
+    width: 100%;
+    padding: 12px 20px 16px;
+    margin: 0;
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--color-gold);
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: none;
+    border-bottom: 2px solid rgba(59, 47, 47, 0.6);
+}
+
+/* Pause button group */
+.pause-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 24px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* System UI Button */
 .system-button {
-    width: 80%;
-    padding: 10px;
-    margin: 10px;
-    font-size: 18px;
-    border-radius: 5px;
+    width: 100%;
+    max-width: 320px;
+    padding: 14px 20px;
+    margin: 0;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 13px;
+    border-radius: 8px;
     cursor: pointer;
-    color: white;
-    background-color: #333;
-    border: none;
+    color: var(--color-beige);
+    background: linear-gradient(180deg, #3b2f2f 0%, #2a1f1f 100%);
+    border: 2px solid rgba(160, 82, 45, 0.5);
+    border-bottom: 4px solid rgba(0, 0, 0, 0.6) !important;
+    transition: all 0.2s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.system-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.2), transparent);
 }
 
 .system-button:hover {
-    background-color: #555;
+    background: linear-gradient(180deg, #4a3a30 0%, #3b2f2f 100%);
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.15);
+    transform: translateY(-2px) !important;
+}
+
+.system-button:active {
+    transform: translateY(1px) !important;
+    box-shadow: none;
+    border-bottom-width: 2px !important;
+}
+
+.system-button .btn-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.system-button .btn-label {
+    flex: 1;
+}
+
+/* Button variants */
+.system-button.btn-resume {
+    background: linear-gradient(180deg, #2a4d2a 0%, #1a3a1a 100%);
+    border-color: rgba(76, 175, 80, 0.5);
+}
+.system-button.btn-resume:hover {
+    border-color: #4caf50;
+    color: #8f8;
+    box-shadow: 0 0 16px rgba(76, 175, 80, 0.2);
+}
+
+.system-button.btn-disconnect {
+    background: linear-gradient(180deg, #4d2a2a 0%, #3a1a1a 100%);
+    border-color: rgba(211, 47, 47, 0.4);
+}
+.system-button.btn-disconnect:hover {
+    border-color: #d32f2f;
+    color: #f88;
+    box-shadow: 0 0 16px rgba(211, 47, 47, 0.2);
+}
+
+/* Pause footer info */
+.pause-footer {
+    width: 100%;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 8px;
+    color: #555;
+    border-top: 1px solid rgba(59, 47, 47, 0.4);
+    background: rgba(0, 0, 0, 0.3);
 }
 
 /* Settings Button */
 .settings-button {
-    padding: 10px;
-    margin-top: 20px;
-    background-color: #444;
-    border: none;
-    color: white;
-    border-radius: 5px;
+    padding: 12px 16px;
+    margin-top: 0;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 11px;
+    background: linear-gradient(180deg, #3b2f2f 0%, #2a1f1f 100%);
+    border: 2px solid rgba(160, 82, 45, 0.4);
+    border-bottom: 3px solid rgba(0, 0, 0, 0.4) !important;
+    color: var(--color-beige);
+    border-radius: 6px;
     cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .settings-button:hover {
-    background-color: #666;
+    background: linear-gradient(180deg, #4a3a30 0%, #3b2f2f 100%);
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+    transform: translateY(-1px) !important;
 }
 
-/* Slider Container Row */
+.settings-button:active {
+    transform: translateY(1px) !important;
+}
+
+.settings-button .btn-icon {
+    font-size: 16px;
+    width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Settings inner layout */
+.settings-inner {
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.settings-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(160, 82, 45, 0.4), transparent);
+    margin: 12px 0;
+}
+
+/* Slider styling overrides */
+.slider-container {
+    width: 100%;
+}
+
 .slider-row {
     display: flex;
     align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(59, 47, 47, 0.3);
 }
 
 .slider-label {
-    font-size: 16px;
-    margin-right: 10px;
-    color: white;
+    font-size: 12px;
+    margin-right: 12px;
+    color: var(--color-beige);
+    white-space: nowrap;
+    min-width: 90px;
 }
 
 .slider-input {
-    width: 150px;
+    width: 100%;
+    flex: 1;
+    accent-color: var(--color-gold);
 }
 
 /* Control Label */
@@ -652,8 +855,8 @@ input.fmt-italic-apply {
     padding: 10px 5px;
     margin: 0;
     text-align: end;
-    font-size: 20px;
-    color: white;
+    font-size: 13px;
+    color: var(--color-beige);
 }
 
 /* Control Button */
@@ -661,34 +864,55 @@ input.fmt-italic-apply {
     min-width: 90px;
     cursor: pointer;
     padding: 10px 10px;
+    background: linear-gradient(180deg, #3b2f2f 0%, #2a1f1f 100%);
+    border: 2px solid rgba(160, 82, 45, 0.4);
+    color: var(--color-beige);
+    font-size: 12px;
+    transition: all 0.15s ease;
+}
+
+.control-button:hover {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
 }
 
 /* Binding UI Container */
 .binding-container {
-    background-color: var(--color-ui-dark);
-    border: 2px solid var(--color-dirt-dark);
-    border-radius: 10px;
-    padding: 10px;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+    border: 3px solid var(--color-dirt-dark);
+    border-radius: 12px;
+    padding: 0;
     z-index: 1001;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    box-shadow: 0 0 40px rgba(59, 47, 47, 0.6), inset 0 1px 0 rgba(255, 215, 0, 0.1);
+    overflow: hidden;
+    max-height: 85vh;
+    overflow-y: auto;
 }
 
 /* Binding Title */
 .binding-title {
-    padding: 10px 5px;
+    width: 100%;
+    padding: 16px 20px;
     margin: 0;
     text-align: center;
-    font-size: 30px;
-    color: white;
+    font-size: 18px;
+    color: var(--color-gold);
+    background: linear-gradient(180deg, rgba(160, 82, 45, 0.4) 0%, rgba(59, 47, 47, 0.6) 100%);
+    border-bottom: 2px solid var(--color-dirt-dark);
+    text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    letter-spacing: 1px;
+    box-sizing: border-box;
 }
 
 /* Content Wrapper */
 .binding-content {
     display: flex;
-    gap: 20px;
+    gap: 12px;
+    padding: 16px 20px;
 }
 
 /* Names Column */
@@ -707,14 +931,24 @@ input.fmt-italic-apply {
 
 /* Done Button */
 .done-button {
-    font-size: 25px;
-    background-color: rgb(76, 175, 80);
-    border-radius: 10px;
-    color: white;
-    border: none;
+    font-size: 14px;
+    font-family: 'Press Start 2P', cursive;
+    background: linear-gradient(180deg, #2a4d2a 0%, #1a3a1a 100%);
+    border: 2px solid rgba(76, 175, 80, 0.5);
+    border-radius: 8px;
+    color: #8f8;
     cursor: pointer;
-    padding: 10px 20px;
-    margin-top: 20px;
+    padding: 12px 24px;
+    margin: 0 20px 16px;
+    transition: all 0.2s ease;
+    width: calc(100% - 40px);
+}
+
+.done-button:hover {
+    border-color: #4caf50;
+    color: #fff;
+    box-shadow: 0 0 16px rgba(76, 175, 80, 0.2);
+    transform: translateY(-2px) !important;
 }
 
 /* Player Status Container */
@@ -726,48 +960,75 @@ input.fmt-italic-apply {
     width: 30%;
     min-width: 400px;
     height: 40%;
-    border: 2px solid black;
-    border-radius: 10px;
+    border: 3px solid var(--color-dirt-dark);
+    border-radius: 12px;
     text-align: center;
-    padding: 20px;
+    padding: 0;
     overflow: hidden;
-    background-color: #222;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
     z-index: 999;
     display: none;
+    box-shadow: 0 0 40px rgba(59, 47, 47, 0.6);
 }
 
 .player-status-table {
     width: 100%;
-    color: white;
+    color: var(--color-beige);
     border-collapse: collapse;
-    font-size: 1rem;
+    font-size: 0.85rem;
 }
 
 .player-status-table thead {
-    background-color: #333;
+    background: linear-gradient(180deg, rgba(160, 82, 45, 0.4) 0%, rgba(59, 47, 47, 0.5) 100%);
+}
+
+.player-status-table thead th {
+    padding: 10px 8px;
+    color: var(--color-gold);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .player-status-table tbody tr {
-    border-bottom: 1px solid #444;
+    border-bottom: 1px solid rgba(59, 47, 47, 0.4);
+    transition: background 0.15s;
+}
+
+.player-status-table tbody tr:hover {
+    background: rgba(255, 215, 0, 0.05);
+}
+
+.player-status-table tbody td {
+    padding: 8px;
 }
 
 .player-status-title {
-    font-size: 28px;
+    font-size: 20px;
     font-weight: bold;
-    color: white;
-    text-decoration: underline;
+    color: var(--color-gold);
+    text-decoration: none;
+    padding: 16px 20px;
+    margin: 0;
+    background: linear-gradient(180deg, rgba(160, 82, 45, 0.4) 0%, rgba(59, 47, 47, 0.6) 100%);
+    border-bottom: 2px solid var(--color-dirt-dark);
+    text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    letter-spacing: 1px;
 }
 
 .player-status-age {
-    font-size: 16px;
-    color: #00ff00;
-    margin-bottom: 15px;
+    font-size: 12px;
+    color: #4caf50;
+    margin: 0;
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(59, 47, 47, 0.3);
 }
 
 .player-status-wrapper {
     overflow-y: auto;
     max-height: 70%;
-    margin-top: 10px;
+    margin-top: 0;
+    padding: 0 12px;
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -1858,26 +2119,32 @@ input.fmt-italic-apply {
     transform: none !important;
     width: 100vw !important;
     height: 100dvh !important;
-    min-width: 100vw !important;
-    min-height: 100dvh !important;
     max-width: 100vw !important;
-    max-height: 100dvh !important;
     border-radius: 0 !important;
     border: none !important;
-    padding: 24px 16px !important;
+    padding: 0 !important;
     z-index: 9990 !important;
-    background: rgba(0, 0, 0, 0.95) !important;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%) !important;
     box-sizing: border-box !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
+    justify-content: flex-start !important;
+  }
+
+  .pause-title {
+    padding: 24px 16px 18px !important;
+  }
+
+  .pause-buttons {
+    padding: 20px 16px !important;
   }
 
   .system-button {
-    font-size: 16px !important;
-    padding: 16px !important;
+    font-size: 14px !important;
+    padding: 16px 20px !important;
     min-height: 54px;
     border-radius: 10px !important;
-    width: 90% !important;
+    width: 100% !important;
     max-width: 360px !important;
   }
 
@@ -1913,9 +2180,9 @@ input.fmt-italic-apply {
     max-height: 100dvh !important;
     border-radius: 0 !important;
     border: none !important;
-    padding: 20px 16px !important;
+    padding: 0 !important;
     z-index: 9991 !important;
-    background: rgba(20, 20, 20, 0.98) !important;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%) !important;
     box-sizing: border-box !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;

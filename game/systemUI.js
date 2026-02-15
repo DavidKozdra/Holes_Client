@@ -74,16 +74,19 @@ function definePauseUI() {
     gameSettingsContainer.class("settings-container");
     gameSettingsContainer.hide();
 
-    let title = createElement("h2", "Settings");
+    let title = createElement("h2", "⚙ Settings");
     title.parent(gameSettingsContainer);
 
-    let sliderContainer = createDiv()
+    let settingsInner = createDiv()
         .parent(gameSettingsContainer)
+        .class("settings-inner");
+
+    let sliderContainer = createDiv()
+        .parent(settingsInner)
         .class("slider-container")
         .style("display", "flex")
         .style("flex-direction", "column")
-        .style("gap", "15px")
-        .style("margin", "20px 0");
+        .style("gap", "12px");
 
     let effectsRow = createDiv()
         .parent(sliderContainer)
@@ -130,7 +133,7 @@ function definePauseUI() {
         if (MusicPlayer) MusicPlayer.setVolume();
     });
 
-    keyBind_Button = createButton("Key Bindings");
+    keyBind_Button = createButton('<span class="btn-icon">⌨</span> Key Bindings');
     keyBind_Button.parent(sliderContainer);
     keyBind_Button.class("settings-button");
     keyBind_Button.mousePressed(() => {
@@ -141,7 +144,7 @@ function definePauseUI() {
     });
 
     // Password Management Button
-    let passwordButton = createButton("🔐 Manage Password");
+    let passwordButton = createButton('<span class="btn-icon">🔐</span> Manage Password');
     passwordButton.parent(sliderContainer);
     passwordButton.class("settings-button");
     passwordButton.mousePressed(() => {
@@ -240,7 +243,7 @@ function definePauseUI() {
         }
     });
 
-    removeData_button = createButton("Remove Data");
+    removeData_button = createButton('<span class="btn-icon">🗑</span> Remove Data');
     removeData_button.parent(sliderContainer);
     removeData_button.class("settings-button");
     removeData_button.mousePressed(() => {
@@ -290,9 +293,12 @@ function definePauseUI() {
     });
 
 
-    saveButton = createButton("Save");
+    saveButton = createButton('<span class="btn-icon">💾</span> Save & Close');
     saveButton.class("settings-button");
-    saveButton.parent(gameSettingsContainer);
+    saveButton.style("margin-top", "12px");
+    saveButton.style("background", "linear-gradient(180deg, #2a4d2a 0%, #1a3a1a 100%)");
+    saveButton.style("border-color", "rgba(76, 175, 80, 0.5)");
+    saveButton.parent(settingsInner);
     saveButton.mousePressed(() => {
         localStorage.setItem("volume", volumeSlider.value());
         localStorage.setItem("musicVolume", musicVolumeSlider.value());
@@ -337,28 +343,35 @@ function definePauseUI() {
     pauseDiv = createDiv();
     pauseDiv.class("pause-menu");
 
+    // Logo image
+    let pauseLogo = createImg("images/ui/title.png", "Holes").parent(pauseDiv);
+    pauseLogo.class("pause-logo");
+
     let pauseTitle = createP("Paused");
-    pauseTitle.style("font-size", "28px");
-    pauseTitle.style("font-weight", "bold");
-    pauseTitle.style("color", "white");
-    pauseTitle.style("text-decoration", "underline");
+    pauseTitle.class("pause-title");
     pauseTitle.parent(pauseDiv);
 
-    resumeButton = createButton("Resume");
+    let buttonGroup = createDiv();
+    buttonGroup.class("pause-buttons");
+    buttonGroup.parent(pauseDiv);
+
+    resumeButton = createButton('<span class="btn-icon">▶</span><span class="btn-label">Resume</span>');
     styleButton(resumeButton);
+    resumeButton.addClass("btn-resume");
     resumeButton.mousePressed(() => {
         pauseDiv.hide();
         gameState = "playing";
     });
-    resumeButton.parent(pauseDiv);
+    resumeButton.parent(buttonGroup);
 
-    settingsButton = createButton(" Settings");
+    settingsButton = createButton('<span class="btn-icon">⚙</span><span class="btn-label">Settings</span>');
     styleButton(settingsButton);
     settingsButton.mousePressed(toggleSettings);
-    settingsButton.parent(pauseDiv);
+    settingsButton.parent(buttonGroup);
 
-    serverSelectButton = createButton("Disconnect");
+    serverSelectButton = createButton('<span class="btn-icon">⏻</span><span class="btn-label">Disconnect</span>');
     styleButton(serverSelectButton);
+    serverSelectButton.addClass("btn-disconnect");
     serverSelectButton.mousePressed(() => {
         // Save player data and notify server before disconnecting
         try {
@@ -392,7 +405,11 @@ function definePauseUI() {
         // Always reload — delay lets the final packets flush
         setTimeout(() => { location.reload(); }, 150);
     });
-    serverSelectButton.parent(pauseDiv);
+    serverSelectButton.parent(buttonGroup);
+
+    // Footer with version/tip
+    let footer = createDiv("Press ESC to resume").parent(pauseDiv);
+    footer.class("pause-footer");
 }
 
 // ─────────────────────────────────────────────────────────
