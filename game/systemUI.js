@@ -603,7 +603,7 @@ function defineKeyBindingUI() {
                 control_set = setId;
                 key = keyRef;
                 lastKey = key;
-                btn.style("background-color", "var(--color-gold)");
+                btn.style("background-color", "var(--text-highlight)");
             }
         });
         btn.parent(keysDiv);

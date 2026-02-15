@@ -426,7 +426,7 @@ function defineInvUI() {
 
     let invTitle = createP("Inventory").parent(topBar);
     invTitle.class("inventory-title");
-    invTitle.style("color", "var(--color-gold)");
+    invTitle.style("color", "var(--text-highlight)");
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
@@ -2251,7 +2251,7 @@ function defineCraftingUI() {
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
-    craftingTitle.style("color", "var(--color-gold)");
+    craftingTitle.style("color", "var(--text-highlight)");
 
     // Moves tab
     let movesTitle = createP("Moves").parent(topBar);
@@ -2704,7 +2704,7 @@ craftAllButton.mousePressed(() => {
     let costText = createDiv("Ingredients").parent(itemCostDiv);
     applyStyle(costText, {
         fontSize: "18px",
-        color: "var(--color-gold)",
+        color: "var(--text-highlight)",
         textAlign: "center",
         border: "2px solid black",
         borderRadius: "10px",

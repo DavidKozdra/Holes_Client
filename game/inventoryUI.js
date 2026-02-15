@@ -43,7 +43,7 @@ function defineCraftingUI() {
     invTitle.style("cursor", "pointer");
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
-    craftingTitle.style("color", "var(--color-gold)");
+    craftingTitle.style("color", "var(--text-highlight)");
     let tagBar = createDiv().parent(craftDiv);
     tagBar.class("tag-bar");
     const categories = ["All", "Tools/Seeds", "Weapons", "Equipment", "Consumables"];
@@ -172,7 +172,7 @@ function defineInvUI() {
     });
     let invTitle = createP("Inventory").parent(topBar);
     invTitle.class("inventory-title");
-    invTitle.style("color", "var(--color-gold)");
+    invTitle.style("color", "var(--text-highlight)");
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
     craftingTitle.mousePressed(() => {
