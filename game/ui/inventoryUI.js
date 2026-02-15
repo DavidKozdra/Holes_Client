@@ -926,6 +926,12 @@ function closeSwapInv() {
 /* ─── Consolidated Take All ─── */
 function swapTakeAll() {
     if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.invBlock) return;
+    // Show loading spinner
+    let spinner = document.createElement('div');
+    spinner.className = 'swap-loading-spinner';
+    spinner.innerHTML = '<div class="spinner"></div><div>Transferring items...</div>';
+    swapInvDiv.elt.appendChild(spinner);
+
     const otherInv = curPlayer.otherInv.invBlock;
     const otherItems = otherInv.items || {};
     Object.keys(otherItems).forEach((itemName) => {
@@ -937,12 +943,16 @@ function swapTakeAll() {
     });
     curPlayer.invBlock.curItem = "";
     otherInv.curItem = "";
-    // Force full rebuild (cache will detect change)
-    swapListCache.lastLeftHash = "";
-    swapListCache.lastRightHash = "";
+    // Force full rebuild and clear cache/selections
+    swapListCache.lastLeftHash = "force-refresh";
+    swapListCache.lastRightHash = "force-refresh";
+    swapListCache.leftSelected = "";
+    swapListCache.rightSelected = "";
     updateSwapItemLists(otherInv);
     _syncOtherInv();
     _syncPlayerInv();
+    // Remove spinner
+    if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
 }
 
 /* ─── Sync helper — emits update_inv for the other inventory ─── */
