@@ -680,6 +680,15 @@ function updateItemList() {
 }
 
 function updatecurItemDiv() {
+        // Add durability if present
+        if (typeof curEntry.durability !== 'undefined') {
+            let durabilityDiv = createDiv("Durability: " + curEntry.durability);
+            durabilityDiv.style("width", "100%");
+            durabilityDiv.style("margin-top", "8px");
+            durabilityDiv.style("color", "#fff");
+            durabilityDiv.style("font-size", "1em");
+            durabilityDiv.parent(itemNameDescDiv);
+        }
     if (curPlayer == undefined) return;
 
     //clear the div (timed when perfLog is on)
@@ -742,6 +751,19 @@ function updatecurItemDiv() {
     itemNameDiv.style("border", "2px solid black");
     itemNameDiv.style("border-radius", "10px");
     itemNameDiv.parent(itemNameDescDiv);
+
+    // Set item name
+    itemNameDiv.html("<span style='color: #6cf; font-size: 1.2em;'>" + curPlayer.invBlock.curItem + "</span>");
+
+    // Add description
+    let descDiv = createDiv(curEntry.desc || "No description.");
+    descDiv.style("width", "100%");
+    descDiv.style("margin-top", "8px");
+    descDiv.style("color", "#fff");
+    descDiv.style("font-size", "1em");
+    descDiv.parent(itemNameDescDiv);
+
+    // Optionally add durability, stats, etc. here
 
     // fastHighlightSwapLists lives in ui/inventoryUI.js; remove duplicate definitions here to avoid overrides.
 }

@@ -405,124 +405,72 @@ function updatecurItemDiv() {
     }
 
     let itemCardDiv = createDiv();
-    itemCardDiv.style("width", "100%");
-    itemCardDiv.style("height", "30%");
-    itemCardDiv.style("display", "flex");
-    itemCardDiv.style("margin-bottom", "20px");
+    itemCardDiv.class("item-card");
     itemCardDiv.parent(curItemDiv);
 
     let itemImgDiv = createDiv();
-    itemImgDiv.style("width", "50%");
-    itemImgDiv.style("height", "100%");
-    itemImgDiv.style("border", "2px solid black");
-    itemImgDiv.style("border-radius", "10px");
+    itemImgDiv.class("item-image");
 
     const curEntry = curPlayer.invBlock.items[curPlayer.invBlock.curItem];
     const curURL = resolveItemImgURL(curPlayer.invBlock.curItem, curEntry);
     if (curURL) {
         itemImgDiv.style("background-image", "url('" + curURL + "')");
     } else {
-        itemImgDiv.style("display", "flex");
-        itemImgDiv.style("align-items", "center");
-        itemImgDiv.style("justify-content", "center");
         const dot = createDiv("•");
         dot.style("font-size", "28px");
         dot.style("color", "#ccc");
         dot.parent(itemImgDiv);
     }
-    itemImgDiv.style("background-size", "contain");
-    itemImgDiv.style("background-repeat", "no-repeat");
-    itemImgDiv.style("background-position", "center");
-    itemImgDiv.style("image-rendering", "pixelated");
     itemImgDiv.parent(itemCardDiv);
 
     let itemNameDescDiv = createDiv();
-    itemNameDescDiv.style("width", "calc(50% - 8px)");
-    itemNameDescDiv.style("height", "100%");
+    itemNameDescDiv.class("item-name-desc");
     itemNameDescDiv.parent(itemCardDiv);
 
     let itemNameDiv = createDiv();
-    itemNameDiv.style("width", "100%");
-    itemNameDiv.style("height", "20%");
-    itemNameDiv.style("border", "2px solid black");
-    itemNameDiv.style("border-radius", "10px");
+    itemNameDiv.class("item-name");
     itemNameDiv.parent(itemNameDescDiv);
 
     let itemNameP = createP(curPlayer.invBlock.curItem);
-    itemNameP.style("font-size", "20px");
     itemNameP.style("color", rarityColorCSS(curPlayer.invBlock.curItem));
-    itemNameP.style("margin", "5px");
-    itemNameP.style("padding", "0");
-    itemNameP.style("word-wrap", "break-word");
-    itemNameP.style("overflow-wrap", "break-word");
-    itemNameP.style("white-space", "normal");
     itemNameP.parent(itemNameDiv);
 
     let itemDescDiv = createDiv();
-    itemDescDiv.style("width", "100%");
-    itemDescDiv.style("height", "calc(80% - 5px)");
-    itemDescDiv.style("border", "2px solid black");
-    itemDescDiv.style("border-radius", "10px");
+    itemDescDiv.class("item-desc");
     itemDescDiv.parent(itemNameDescDiv);
 
-    let itemDescP = createP(curPlayer.invBlock.items[curPlayer.invBlock.curItem].desc);
-    itemDescP.style("font-size", "20px");
-    itemDescP.style("color", "white");
-    itemDescP.style("margin", "5px");
+    let itemDescP = createP(curPlayer.invBlock.items[curPlayer.invBlock.curItem].desc || "No description");
     itemDescP.parent(itemDescDiv);
 
     let itemStatsDiv = createDiv();
-    itemStatsDiv.style("width", "100%");
-    itemStatsDiv.style("height", "calc(70% - 10px)");
+    itemStatsDiv.class("item-stats");
     itemStatsDiv.parent(curItemDiv);
 
     if (curPlayer.invBlock.items[curPlayer.invBlock.curItem].type != "Simple") {
         let durabilityDiv = createDiv();
-        durabilityDiv.style("width", "calc(100% - 14px)");
-        durabilityDiv.style("height", "10%");
-        durabilityDiv.style("padding", "5px");
-        durabilityDiv.style("border", "2px solid black");
-        durabilityDiv.style("border-radius", "10px");
-        durabilityDiv.style("display", "flex");
-        durabilityDiv.style("align-items", "center");
-        durabilityDiv.style("justify-content", "center");
-        durabilityDiv.style("margin-bottom", "5px");
+        durabilityDiv.class("durability-bar");
         durabilityDiv.parent(itemStatsDiv);
 
         let durabilityText = createP("Durability:");
-        durabilityText.style("font-size", "20px");
-        durabilityText.style("color", "white");
         durabilityText.parent(durabilityDiv);
 
         let durabilityBar = createDiv();
-        durabilityBar.style("width", "80%");
-        durabilityBar.style("height", "20px");
-        durabilityBar.style("background-color", "red");
-        durabilityBar.style("border", "2px solid black");
-        durabilityBar.style("border-radius", "10px");
+        durabilityBar.class("durability-fill-container");
         durabilityBar.parent(durabilityDiv);
 
         let durabilityFill = createDiv();
-        durabilityFill.style("width", ((curPlayer.invBlock.items[curPlayer.invBlock.curItem].durability / curPlayer.invBlock.items[curPlayer.invBlock.curItem].maxDurability) * 100) + "%");
-        durabilityFill.style("height", "100%");
-        durabilityFill.style("background-color", "green");
-        durabilityFill.style("border-radius", "10px");
+        const durPercent = (curPlayer.invBlock.items[curPlayer.invBlock.curItem].durability / curPlayer.invBlock.items[curPlayer.invBlock.curItem].maxDurability) * 100;
+        durabilityFill.class("durability-fill");
+        durabilityFill.style("width", durPercent + "%");
         durabilityFill.parent(durabilityBar);
     }
 
     let statsText = createDiv("Stats");
-    statsText.style("font-size", "20px");
-    statsText.style("color", "white");
-    statsText.style("text-align", "center");
-    statsText.style("border", "2px solid black");
-    statsText.style("border-radius", "10px");
-    statsText.style("padding", "10px");
-    statsText.style("margin-bottom", "5px");
+    statsText.class("stats-title");
     statsText.parent(itemStatsDiv);
 
     let statsList = createDiv();
     statsList.style("width", "100%");
-    statsList.style("height", "calc(90% - 10px)");
     statsList.style("overflow-y", "auto");
     statsList.parent(itemStatsDiv);
 
@@ -531,32 +479,30 @@ function updatecurItemDiv() {
         if (stat[0] == "Durability") { }
         else {
             let statDiv = createDiv();
-            statDiv.style("width", "100%");
-            statDiv.style("height", "20px");
             statDiv.style("display", "flex");
-            statDiv.style("margin-bottom", "12px");
+            statDiv.style("gap", "8px");
+            statDiv.style("margin-bottom", "8px");
             statDiv.parent(statsList);
 
             let statNameDiv = createDiv(stat[0] + ":");
-            statNameDiv.style("width", "50%");
-            statNameDiv.style("height", "100%");
-            statNameDiv.style("color", "white");
+            statNameDiv.style("flex", "1");
+            statNameDiv.style("color", "var(--color-beige)");
             statNameDiv.style("text-align", "center");
-            statNameDiv.style("font-size", "20px");
-            statNameDiv.style("border", "2px solid black");
-            statNameDiv.style("border-radius", "10px");
-            statNameDiv.style("padding", "5px");
+            statNameDiv.style("background", "rgba(0,0,0,0.4)");
+            statNameDiv.style("border", "2px solid var(--color-dirt-dark)");
+            statNameDiv.style("border-radius", "8px");
+            statNameDiv.style("padding", "8px");
             statNameDiv.parent(statDiv);
 
             let statNumDiv = createDiv(stat[1]);
-            statNumDiv.style("width", "50%");
-            statNumDiv.style("height", "100%");
-            statNumDiv.style("color", "white");
+            statNumDiv.style("flex", "1");
+            statNumDiv.style("color", "var(--color-gold)");
             statNumDiv.style("text-align", "center");
-            statNumDiv.style("font-size", "20px");
-            statNumDiv.style("border", "2px solid black");
-            statNumDiv.style("border-radius", "10px");
-            statNumDiv.style("padding", "5px");
+            statNumDiv.style("background", "rgba(0,0,0,0.4)");
+            statNumDiv.style("border", "2px solid var(--color-dirt-dark)");
+            statNumDiv.style("border-radius", "8px");
+            statNumDiv.style("padding", "8px");
+            statNumDiv.parent(statDiv);
             statNumDiv.parent(statDiv);
         }
     });
