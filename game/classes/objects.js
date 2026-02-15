@@ -612,15 +612,34 @@ class Placeable {
         // (Optional) shift upward so the bar is above the sprite
         translate(0, -this.size.h / 2 - 10);
 
+
         // Draw health bar background
-        fill(255, 0, 0);
+        fill(60, 60, 60); // dark background
         noStroke();
         rect(0, 0, 32, 6);
 
-        // Draw health portion
-        fill(0, 255, 0);
+        // Draw health portion with color based on percentage
+        let pct = this.hp / this.mhp;
+        let barColor;
+        let doPulse = false;
+        if (pct > 0.6) {
+            barColor = color(0, 200, 40); // green
+        } else if (pct > 0.3) {
+            barColor = color(255, 200, 0); // yellow
+        } else {
+            barColor = color(220, 40, 0); // red
+            doPulse = true;
+        }
         let healthWidth = constrain(map(this.hp, 0, this.mhp, 0, 32), 0, 32);
+        fill(barColor);
         rect(0, 0, healthWidth, 6);
+
+        // White pulsing highlight for red bar
+        if (doPulse && healthWidth > 0) {
+            let pulse = 120 + 80 * sin(millis() / 200);
+            fill(255, 255, 255, pulse);
+            rect(0, 0, healthWidth, 6, 2);
+        }
 
         pop();
     }

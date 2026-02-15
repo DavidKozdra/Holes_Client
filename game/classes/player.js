@@ -551,7 +551,7 @@ updateRemote() {
         strokeWeight(2);  // Slightly thicker outline
 
         // Draw the health bar background with rounded corners
-        fill(255, 0, 0);
+        fill(60, 60, 60); // dark background
         rect(
             this.pos.x,
             this.pos.y + 40,
@@ -561,16 +561,30 @@ updateRemote() {
         );
 
         // Calculate current health width
+        let hp = this.statBlock.stats.hp;
+        let mhp = this.statBlock.stats.mhp;
+        let pct = hp / mhp;
         let healthWidth = constrain(
-            map(this.statBlock.stats.hp, 0, this.statBlock.stats.mhp, 0, 32),
+            map(hp, 0, mhp, 0, 32),
             0,
             32
         );
 
+        // Determine bar color and pulse
+        let barColor;
+        let doPulse = false;
+        if (pct > 0.6) {
+            barColor = color(0, 200, 40); // green
+        } else if (pct > 0.3) {
+            barColor = color(255, 200, 0); // yellow
+        } else {
+            barColor = color(220, 40, 0); // red
+            doPulse = true;
+        }
+
         // Draw the health bar foreground
-        // Switch to noStroke if you want the green bar to have no outline
         noStroke();
-        fill(0, 255, 0);
+        fill(barColor);
         rect(
             this.pos.x,
             this.pos.y + 40,
@@ -578,6 +592,19 @@ updateRemote() {
             6,
             3  // same radius so the corners match up
         );
+
+        // White pulsing highlight for red bar
+        if (doPulse && healthWidth > 0) {
+            let pulse = 120 + 80 * sin(millis() / 200);
+            fill(255, 255, 255, pulse);
+            rect(
+                this.pos.x,
+                this.pos.y + 40,
+                healthWidth,
+                6,
+                2
+            );
+        }
 
         pop();
     }

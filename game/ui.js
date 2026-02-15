@@ -1120,6 +1120,9 @@ function defineStatsPanel() {
     
     /* ── Desktop Player HUD (HTML-based health bar) ── */
     definePlayerHUD();
+    
+    /* ── Create stats popup ── */
+    defineHudStatsPopup();
 }
 
 var hudStatsPopup;
@@ -1222,79 +1225,47 @@ function definePlayerHUD() {
     let mpText = createSpan().parent(mpTrack);
     mpText.id('dhud-mp-text');
     mpText.class('desktop-hud-bar-text');
-    
-    // Create stats popup
-    defineHudStatsPopup();
 }
 
 function defineHudStatsPopup() {
-    hudStatsPopup = createDiv();
-    hudStatsPopup.id('hud-stats-popup');
-    
-    let title = createP('Player Stats').parent(hudStatsPopup);
-    title.class('hud-stats-title');
-    
-    let content = createDiv().parent(hudStatsPopup);
-    content.class('hud-stats-content');
-    
-    // Attributes group
-    let attrGroup = createDiv().parent(content);
-    attrGroup.class('hud-stat-group');
-    
-    let attrTitle = createP('Attributes').parent(attrGroup);
-    attrTitle.class('hud-stat-group-title');
-    
-    let attrStats = ['str', 'dex', 'con', 'int', 'wis', 'cha', 'lck'];
-    let attrLabels = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma', 'Luck'];
-    
-    attrStats.forEach((stat, i) => {
-        let row = createDiv().parent(attrGroup);
-        row.class('hud-stat-row');
-        let label = createSpan(attrLabels[i]).parent(row);
-        label.class('hud-stat-label');
-        let value = createSpan().parent(row);
-        value.class('hud-stat-value');
-        value.id('hud-stat-' + stat);
-    });
-    
-    // Combat group
-    let combatGroup = createDiv().parent(content);
-    combatGroup.class('hud-stat-group');
-    
-    let combatTitle = createP('Combat').parent(combatGroup);
-    combatTitle.class('hud-stat-group-title');
-    
-    let combatStats = ['atk', 'def', 'mag', 'spd'];
-    let combatLabels = ['Attack', 'Defense', 'Magic', 'Speed'];
-    
-    combatStats.forEach((stat, i) => {
-        let row = createDiv().parent(combatGroup);
-        row.class('hud-stat-row');
-        let label = createSpan(combatLabels[i]).parent(row);
-        label.class('hud-stat-label');
-        let value = createSpan().parent(row);
-        value.class('hud-stat-value');
-        value.id('hud-stat-' + stat);
-    });
-    
-    // Race info
-    let raceRow = createDiv().parent(content);
-    raceRow.class('hud-stat-row');
-    let raceLabel = createSpan('Race').parent(raceRow);
-    raceLabel.class('hud-stat-label');
-    let raceValue = createSpan().parent(raceRow);
-    raceValue.class('hud-stat-value');
-    raceValue.id('hud-stat-race');
+    hudStatsPopup = document.createElement('div');
+    hudStatsPopup.id = 'hud-stats-popup';
+    hudStatsPopup.innerHTML = `
+        <p class="hud-stats-title">Player Stats</p>
+        <div class="hud-stats-content">
+            <div class="hud-stat-group">
+                <p class="hud-stat-group-title">Attributes</p>
+                <div class="hud-stat-row"><span class="hud-stat-label">Strength</span><span class="hud-stat-value" id="hud-stat-str">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Dexterity</span><span class="hud-stat-value" id="hud-stat-dex">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Constitution</span><span class="hud-stat-value" id="hud-stat-con">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Intelligence</span><span class="hud-stat-value" id="hud-stat-int">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Wisdom</span><span class="hud-stat-value" id="hud-stat-wis">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Charisma</span><span class="hud-stat-value" id="hud-stat-cha">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Luck</span><span class="hud-stat-value" id="hud-stat-lck">0</span></div>
+            </div>
+            <div class="hud-stat-group">
+                <p class="hud-stat-group-title">Combat</p>
+                <div class="hud-stat-row"><span class="hud-stat-label">Attack</span><span class="hud-stat-value" id="hud-stat-atk">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Defense</span><span class="hud-stat-value" id="hud-stat-def">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Magic</span><span class="hud-stat-value" id="hud-stat-mag">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Speed</span><span class="hud-stat-value" id="hud-stat-spd">0</span></div>
+            </div>
+            <div class="hud-stat-group">
+                <div class="hud-stat-row"><span class="hud-stat-label">Race</span><span class="hud-stat-value" id="hud-stat-race">-</span></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(hudStatsPopup);
 }
 
 function toggleHudStatsPopup() {
     if (!hudStatsPopup) return;
     
-    if (hudStatsPopup.style('display') === 'none') {
+    if (hudStatsPopup.style.display === 'none') {
         updateHudStatsPopup();
-        hudStatsPopup.style('display', 'block');
+        hudStatsPopup.style.display = 'block';
     } else {
-        hudStatsPopup.style('display', 'none');
+        hudStatsPopup.style.display = 'none';
     }
 }
 
@@ -1306,20 +1277,20 @@ function updateHudStatsPopup() {
     
     // Attributes
     ['str', 'dex', 'con', 'int', 'wis', 'cha', 'lck'].forEach(stat => {
-        let el = select('#hud-stat-' + stat);
-        if (el) el.html(s[stat] || 0);
+        let el = document.getElementById('hud-stat-' + stat);
+        if (el) el.textContent = s[stat] || 0;
     });
     
     // Combat
     ['atk', 'def', 'mag', 'spd'].forEach(stat => {
-        let el = select('#hud-stat-' + stat);
-        if (el) el.html(Math.floor(s[stat] || 0));
+        let el = document.getElementById('hud-stat-' + stat);
+        if (el) el.textContent = Math.floor(s[stat] || 0);
     });
     
     // Race
-    let raceEl = select('#hud-stat-race');
+    let raceEl = document.getElementById('hud-stat-race');
     if (raceEl && typeof races !== 'undefined') {
-        raceEl.html(races[curPlayer.race] || 'Unknown');
+        raceEl.textContent = races[curPlayer.race] || 'Unknown';
     }
 }
 
@@ -1602,13 +1573,13 @@ function renderPlayerCardUI() {
         statsPanel.hide();
     }
     if (hudStatsPopup) {
-        hudStatsPopup.style('display', 'none');
+        hudStatsPopup.style.display = 'none';
     }
     
     if (showHUD && curPlayer && curPlayer.statBlock) {
         updateDesktopPlayerHUD();
     } else if (desktopPlayerHUD) {
-        desktopPlayerHUD.style.display = 'none';
+        desktopPlayerHUD.elt.style.display = 'none';
     }
     
     updateMoveHotbarDOM(curPlayer);
