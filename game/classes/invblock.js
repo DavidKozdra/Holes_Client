@@ -66,7 +66,7 @@ class InvBlock{
     unEquipItem(slot){
         if(this.equiped[slot] != ""){
             curPlayer.statBlock.stats[this.items[this.equiped[slot]].statName] -= this.items[this.equiped[slot]].statBoost;
-            curPlayer.defense += this.items[this.equiped[slot]].defense;
+            curPlayer.defense -= this.items[this.equiped[slot]].defense;
             this.equiped[slot] = "";
         }
     }
@@ -190,8 +190,10 @@ class InvBlock{
                 ];
             }
             else if(this.items[item].type == "Equipment"){
-                ["Durability", this.items[item].durability], 
-                ["Weight", this.items[item].weight]
+                return [
+                    ["Durability", this.items[item].durability], 
+                    ["Weight", this.items[item].weight]
+                ];
             }
         }
     }

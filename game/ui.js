@@ -320,6 +320,7 @@ function defineSpaceBarUI() {
             fastHighlightSwapLists(curPlayer.invBlock.curItem, curPlayer.otherInv.invBlock.curItem);
             updateSwapItemLists(curPlayer.otherInv.invBlock);
             _syncOtherInv();
+            _syncPlayerInv();
         }
     });
 

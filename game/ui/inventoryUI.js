@@ -882,6 +882,7 @@ function closeSwapInv() {
     if (curPlayer.invBlock) curPlayer.invBlock.useTimer = 10;
     hideSwapInv();
     if (typeof spaceBarDiv !== 'undefined' && spaceBarDiv) spaceBarDiv.hide();
+    _syncPlayerInv();
     curPlayer.otherInv = undefined;
 }
 
@@ -904,6 +905,7 @@ function swapTakeAll() {
     swapListCache.lastRightHash = "";
     updateSwapItemLists(otherInv);
     _syncOtherInv();
+    _syncPlayerInv();
 }
 
 /* ─── Sync helper — emits update_inv for the other inventory ─── */
@@ -917,6 +919,25 @@ function _syncOtherInv() {
         z: curPlayer.otherInv.z,
         invId: curPlayer.otherInv.invBlock?.invId,
         items: curPlayer.otherInv.invBlock.items
+    });
+}
+
+/* ─── Sync helper — saves the player's own inventory to the server ─── */
+function _syncPlayerInv() {
+    if (!curPlayer || !curPlayer.invBlock || !socket) return;
+    socket.emit("save_player_state", {
+        pos: curPlayer.pos ? { x: curPlayer.pos.x, y: curPlayer.pos.y } : { x: 0, y: 0 },
+        invBlock: {
+            items: curPlayer.invBlock.items || {},
+            hotbar: Array.isArray(curPlayer.invBlock.hotbar) ? curPlayer.invBlock.hotbar : ["","","","",""],
+            selectedHotBar: typeof curPlayer.invBlock.selectedHotBar === 'number' ? curPlayer.invBlock.selectedHotBar : 0,
+            equiped: curPlayer.invBlock.equiped || { head: "", neck: "", chest: "", legs: "", feet: "" }
+        },
+        statBlock: curPlayer.statBlock ? {
+            level: curPlayer.statBlock.level,
+            xp: curPlayer.statBlock.xp,
+            xpNeeded: curPlayer.statBlock.xpNeeded
+        } : null,
     });
 }
 
@@ -1089,6 +1110,7 @@ function swapMobileTransfer(moveAll) {
     swapListCache.lastRightHash = "";
     updateSwapItemLists(otherInv);
     _syncOtherInv();
+    _syncPlayerInv();
 }
 
 /* ═══ Rebuild both inventory columns ═══ */

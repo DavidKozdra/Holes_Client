@@ -218,16 +218,18 @@ function keyReleased() {
                     }
 
                     // Fallback with appropriate range
-                    let fallbackRange = closest.objName == "ItemBag" ? 3 * TILESIZE : 4 * TILESIZE;
-                    if (closestDist < fallbackRange) {
-                        if (closest.type == "InvObj") {
-                            closest.useInv();
-                        }
-                        else if (closest.type == "Plant") {
-                            closest.usePlant();
-                        }
-                        else if (closest.objName == "Door") {
-                            closest.useDoor();
+                    if (closest != undefined) {
+                        let fallbackRange = closest.objName == "ItemBag" ? 3 * TILESIZE : 4 * TILESIZE;
+                        if (closestDist < fallbackRange) {
+                            if (closest.type == "InvObj") {
+                                closest.useInv();
+                            }
+                            else if (closest.type == "Plant") {
+                                closest.usePlant();
+                            }
+                            else if (closest.objName == "Door") {
+                                closest.useDoor();
+                            }
                         }
                     }
                 }
@@ -326,6 +328,7 @@ function keyReleased() {
             swapListCache.lastRightHash = "";
             updateSwapItemLists(curPlayer.otherInv.invBlock);
             _syncOtherInv();
+            _syncPlayerInv();
         }
         if (keyCode == Controls_Inventory_code) { //i
             closeSwapInv();
