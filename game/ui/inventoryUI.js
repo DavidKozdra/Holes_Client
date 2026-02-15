@@ -563,23 +563,23 @@ function updateCraftList() {
         if (tag === "All") return true;
         if (tag === "Tools/Seeds") return recipe.type === "Shovel" || recipe.type === "Seed";
         if (tag === "Weapons") return recipe.type === "Melee" || recipe.type === "Ranged";
-        if (tag === "Equipment") return recipe.type === "Equipment";
+        if (tag === "Equipment") return recipe.type === "Equipment" || recipe.type === "CustomItem";
         if (tag === "Consumables") return recipe.type === "Food" || recipe.type === "Potion";
         return false;
     });
 
-    const ROW_H = 50;
     arr.forEach((recipe) => {
         let recipeDiv = createDiv().parent(craftListDiv);
         recipeDiv.attribute('data-item', recipe.name);
         recipeDiv.style("width", "100%");
-        recipeDiv.style("height", ROW_H + "px");
+        recipeDiv.style("min-height", "70px");
         recipeDiv.style("display", "flex");
         recipeDiv.style("align-items", "center");
         recipeDiv.style("justify-content", "center");
         recipeDiv.style("border-bottom", "2px solid black");
         recipeDiv.style("cursor", "pointer");
         recipeDiv.style("position", "relative");
+        recipeDiv.style("padding", "8px 0");
         recipeDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = recipe.name;
             highlightCraftList();
@@ -590,14 +590,14 @@ function updateCraftList() {
 
         let recipeInfoDiv = createDiv().parent(recipeDiv);
         recipeInfoDiv.style("width", "80%");
-        recipeInfoDiv.style("height", ROW_H + "px");
         recipeInfoDiv.style("display", "flex");
         recipeInfoDiv.style("align-items", "center");
         recipeInfoDiv.style("justify-content", "space-between");
+        recipeInfoDiv.style("gap", "8px");
 
         let imgDiv = createDiv().parent(recipeInfoDiv);
-        imgDiv.style("width", "2.2em");
-        imgDiv.style("height", "2.2em");
+        imgDiv.style("width", "2.8em");
+        imgDiv.style("height", "2.8em");
         imgDiv.style("minWidth", "28px");
         imgDiv.style("minHeight", "28px");
         imgDiv.style("marginRight", "0.5em");
@@ -620,9 +620,46 @@ function updateCraftList() {
             placeholder.style("justifyContent", "center");
         }
 
-        let recipeNameP = createP(recipe.name).parent(recipeInfoDiv);
-        recipeNameP.style("font-size", "20px");
+        // Name + ingredient preview container
+        let nameAndIngsDiv = createDiv().parent(recipeInfoDiv);
+        nameAndIngsDiv.style("flex", "1");
+        nameAndIngsDiv.style("min-width", "0");
+
+        let recipeNameP = createP(recipe.name).parent(nameAndIngsDiv);
+        recipeNameP.style("font-size", "16px");
         recipeNameP.style("color", rarityColorCSS(recipe.name));
+        recipeNameP.style("margin", "0");
+        recipeNameP.style("line-height", "1.3");
+
+        // Mini ingredient icons
+        const rd = itemDic?.[recipe.name];
+        if (rd && rd.cost && rd.cost.length > 1) {
+            let ingsRow = createDiv().parent(nameAndIngsDiv);
+            ingsRow.class("craft-row-ingredients");
+            for (let ci = 1; ci < rd.cost.length; ci++) {
+                const ingName = rd.cost[ci][0];
+                const ingAmt  = rd.cost[ci][1];
+                const ingHave = (ingName === "Dirt") ? dirtInv : (curPlayer.invBlock.items[ingName]?.amount ?? 0);
+                const ingEnough = ingHave >= ingAmt;
+
+                let ingChip = createDiv().parent(ingsRow);
+                ingChip.class("craft-row-ing-chip" + (ingEnough ? "" : " craft-row-ing-missing"));
+
+                const ingUrl = resolveItemImgURL(ingName);
+                if (ingUrl) {
+                    let ingImg = createImg(ingUrl, '').parent(ingChip);
+                    ingImg.class("craft-row-ing-img");
+                }
+                let ingLabel = createSpan("\u00d7" + ingAmt).parent(ingChip);
+                ingLabel.class("craft-row-ing-label");
+            }
+        }
+
+        // Dim unaffordable recipes
+        const canCraftThis = curPlayer?.invBlock?.craftCheck?.(recipe.name);
+        if (!canCraftThis) {
+            recipeDiv.style("opacity", "0.5");
+        }
     });
     highlightCraftList();
 }
@@ -702,7 +739,8 @@ function updatecurCraftItemDiv() {
     itemDescDiv.style("border-radius", "10px");
     itemDescDiv.parent(itemNameDescDiv);
 
-    let itemDescP = createP("Cost: " + JSON.stringify(recipe.cost));
+    const descText = itemDic?.[recipe.name]?.desc || "No description";
+    let itemDescP = createP(descText);
     itemDescP.style("font-size", "16px");
     itemDescP.style("color", "white");
     itemDescP.style("margin", "5px");
@@ -722,19 +760,62 @@ function updatecurCraftItemDiv() {
     costDiv.style("overflow-y", "auto");
     costDiv.parent(itemStatsDiv);
 
-    let costText = createP("Recipe Cost:");
-    costText.style("color", "white");
-    costText.style("font-size", "18px");
-    costText.style("margin", "0 0 10px 0");
+    let costText = createP("Ingredients:");
+    costText.style("color", "var(--color-gold)");
+    costText.style("font-size", "16px");
+    costText.style("margin", "0 0 8px 0");
+    costText.style("text-transform", "uppercase");
+    costText.style("letter-spacing", "1px");
     costText.parent(costDiv);
 
-    recipe.cost.forEach(([mat, amt]) => {
-        let matDiv = createP(mat + " x" + amt);
-        matDiv.style("color", "white");
-        matDiv.style("font-size", "14px");
-        matDiv.style("margin", "5px 0");
-        matDiv.parent(costDiv);
-    });
+    // Output row
+    const itemData = itemDic?.[recipe.name];
+    if (itemData && itemData.cost && itemData.cost.length > 0) {
+        let outRow = createDiv().parent(costDiv);
+        outRow.class("craft-cost-row");
+        let outImgWrap = createDiv().parent(outRow);
+        outImgWrap.class("craft-cost-img-wrap");
+        const outUrl = resolveItemImgURL(recipe.name, { imgNum: recipe.img });
+        if (outUrl) {
+            let outImg = createImg(outUrl, '').parent(outImgWrap);
+            outImg.class("craft-cost-img");
+        }
+        let outLabel = createDiv("Output:").parent(outRow);
+        outLabel.class("craft-cost-label");
+        let outAmt = createDiv("\u00d7" + itemData.cost[0]).parent(outRow);
+        outAmt.class("craft-cost-amount");
+        outAmt.style("color", "white");
+
+        // Ingredient rows with images
+        for (let i = 1; i < itemData.cost.length; i++) {
+            const mat = itemData.cost[i][0];
+            const needed = itemData.cost[i][1];
+            const have = (mat === "Dirt") ? dirtInv : (curPlayer.invBlock.items[mat]?.amount ?? 0);
+            const enough = have >= needed;
+
+            let matRow = createDiv().parent(costDiv);
+            matRow.class("craft-cost-row" + (enough ? "" : " craft-cost-missing"));
+
+            let matImgWrap = createDiv().parent(matRow);
+            matImgWrap.class("craft-cost-img-wrap");
+            const matUrl = resolveItemImgURL(mat);
+            if (matUrl) {
+                let matImg = createImg(matUrl, '').parent(matImgWrap);
+                matImg.class("craft-cost-img");
+            } else {
+                let dot = createDiv("\u2022").parent(matImgWrap);
+                dot.style("color", "#666");
+            }
+
+            let matLabel = createDiv(mat).parent(matRow);
+            matLabel.class("craft-cost-label");
+            matLabel.style("color", rarityColorCSS(mat));
+
+            let matAmt = createDiv(`${have}/${needed}`).parent(matRow);
+            matAmt.class("craft-cost-amount");
+            matAmt.style("color", enough ? "#27f50e" : "#ff4444");
+        }
+    }
 
     const canCraft = curPlayer?.invBlock?.craftCheck?.(recipe.name);
 

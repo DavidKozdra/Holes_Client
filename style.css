@@ -1321,6 +1321,104 @@ input.fmt-italic-apply {
   margin: auto;
 }
 
+/* ── Craft Cost Row (ingredient list in detail panel) ── */
+.craft-cost-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid rgba(76, 175, 80, 0.5);
+  transition: background 0.2s;
+}
+
+.craft-cost-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.craft-cost-row.craft-cost-missing {
+  border-left-color: #ff4444;
+  background: rgba(255, 68, 68, 0.06);
+}
+
+.craft-cost-img-wrap {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+}
+
+.craft-cost-img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.craft-cost-label {
+  flex: 1;
+  font-size: 14px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.craft-cost-amount {
+  font-size: 14px;
+  font-weight: bold;
+  flex-shrink: 0;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ── Mini Ingredient Icons in Recipe List Rows ── */
+.craft-row-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+  padding-top: 2px;
+}
+
+.craft-row-ing-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: rgba(76, 175, 80, 0.15);
+  border-radius: 4px;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  line-height: 1;
+}
+
+.craft-row-ing-chip.craft-row-ing-missing {
+  background: rgba(255, 68, 68, 0.12);
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.craft-row-ing-img {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.craft-row-ing-label {
+  font-size: 11px;
+  color: #ccc;
+}
+
+.craft-row-ing-missing .craft-row-ing-label {
+  color: #ff6b6b;
+}
+
 /* ═══════════════════════════════════════════════════════════════ */
 /* MOBILE / TOUCH DEVICE OVERRIDES                                */
 /* ═══════════════════════════════════════════════════════════════ */

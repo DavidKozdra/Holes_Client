@@ -941,9 +941,10 @@ class Brain {
         // Exception: entering Idle should start decelerating (handled in _updateIdle)
     }
 
-    /** Check if a world-space position is solid terrain.
+    /** Check if a world-space position is blocked (terrain OR placed objects).
      *  Thresholds tuned to match visual solidity — partial remnants (<0.7) are walkable. */
     _isSolidAt(wx, wy){
+        // 1. Terrain check
         const cp = testMap.globalToChunk(wx, wy);
         const ck = cp.key || getChunkKey(cp.x, cp.y);
         const chunk = testMap.chunks[ck];
@@ -956,6 +957,39 @@ class Brain {
         if(d === -1 || d > 0.7) return true;
         const ir = chunk.iron_data ? chunk.iron_data[idx] : 0;
         if(ir > 0.3) return true;
+
+        // 2. Placed object check (trees, walls, chests, turrets, etc.)
+        if(this._isBlockedByObject(wx, wy)) return true;
+
+        return false;
+    }
+
+    /** Check if a world position overlaps any solid placed object (z===2).
+     *  Mirrors the player's collidesWithObjectsAt() — same distance formula, same door exception. */
+    _isBlockedByObject(wx, wy){
+        const probePos = createVector(wx, wy);
+        const entityRadius = this.obj ? ((this.obj.size?.w || 32) + (this.obj.size?.h || 32)) * 0.125 : 8;
+        const cp = testMap.globalToChunk(wx, wy);
+
+        // Check objects in 3×3 chunk neighborhood
+        for(let dx = -1; dx <= 1; dx++){
+            for(let dy = -1; dy <= 1; dy++){
+                const key = (cp.x + dx) + "," + (cp.y + dy);
+                const chunk = testMap.chunks[key];
+                if(!chunk) continue;
+                for(let j = 0; j < chunk.objects.length; j++){
+                    const obj = chunk.objects[j];
+                    if(!obj || obj === this.obj || obj.deleteTag) continue;
+                    // Only z-level 2 objects are solid (walls, trees, chests, etc.)
+                    if(obj.z !== 2) continue;
+                    // Open doors are walkable
+                    if(obj.objName === "Door" && obj.alpha !== 255) continue;
+                    // Same distance formula as player collision
+                    const objRadius = ((obj.size.w + obj.size.h) * 0.25) + entityRadius;
+                    if(probePos.dist(obj.pos) < objRadius) return true;
+                }
+            }
+        }
         return false;
     }
 
