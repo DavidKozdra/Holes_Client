@@ -588,11 +588,11 @@ function setupRaceSelectionUI() {
     raceContainer.style("display", "none");
     raceContainer.style("flex-wrap", "wrap");
     raceContainer.style("justify-content", "center");
-    raceContainer.style("align-items", "flex-start");
-    raceContainer.style("gap", "clamp(10px, 2vw, 30px)");
-    raceContainer.style("padding", "16px");
+    raceContainer.style("align-items", "stretch");
+    raceContainer.style("gap", "16px");
+    raceContainer.style("padding", "20px");
     raceContainer.style("width", "95vw");
-    raceContainer.style("max-width", "1000px");
+    raceContainer.style("max-width", "900px");
     raceContainer.style("max-height", "clamp(200px, 50dvh, 60dvh)");
     raceContainer.style("overflow-y", "auto");
     raceContainer.style("overflow-x", "hidden");
@@ -614,10 +614,6 @@ function setupRaceSelectionUI() {
         card.style("display", "flex");
         card.style("flex-direction", "column");
         card.style("align-items", "center");
-
-        // Responsive card width
-        let cardWidth = constrain(width * 0.18, 160, 280);
-        card.style("width", cardWidth + "px");
         card.style("cursor", "pointer");
         card.selected = false;
 
