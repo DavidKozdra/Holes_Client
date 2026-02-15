@@ -40,11 +40,17 @@ function ensureMoveSlots() {
 
 function showMovesEditor() {
     ensureMoveSlots();
-    if (!movesEditorDiv) {
-        defineMovesEditorUI();
-    }
-    refreshMovesEditorUI();
+    // Hide other UIs
     invDiv.hide();
+    if (typeof craftDiv !== 'undefined' && craftDiv) craftDiv.hide();
+
+    // Always recreate for clean state
+    if (movesEditorDiv) {
+        movesEditorDiv.remove();
+        movesEditorDiv = null;
+    }
+    defineMovesEditorUI();
+    refreshMovesEditorUI();
     movesEditorDiv.show();
 }
 
@@ -54,200 +60,306 @@ var movesSlotList;
 var movesAllList;
 var selectedMoveSlotIdx = 0;
 
+// Save moves to server
+function _saveMoves() {
+    if (curPlayer && curPlayer.movesSlots && typeof socket !== 'undefined') {
+        socket.emit("update_moves", {
+            playerId: curPlayer.id,
+            movesSlots: curPlayer.movesSlots
+        });
+    }
+}
+
+// Generate a spell icon data URL
+function _getSpellIconUrl(move) {
+    if (typeof getSpellIcon !== 'function') return '';
+    const iconKey = move.id + '_editor';
+    const g = getSpellIcon(iconKey, (g) => {
+        g.clear();
+        g.push();
+        g.translate(g.width / 2, g.height / 2);
+        g.noStroke();
+        const col = move.color || { r: 120, g: 200, b: 255 };
+        g.fill(col.r, col.g, col.b);
+        g.ellipse(0, 0, 22, 22);
+        g.fill(255);
+        g.textAlign(g.CENTER, g.CENTER);
+        g.textSize(10);
+        g.text(move.name.substring(0, 2).toUpperCase(), 0, 0);
+        g.pop();
+    });
+    try { return g?.canvas?.toDataURL('image/png') || ''; } catch (e) { return ''; }
+}
+
 function defineMovesEditorUI() {
-    movesEditorDiv = invDiv;
+    movesEditorDiv = createDiv();
     movesEditorDiv.id("moves-editor");
-    movesEditorDiv.html('');
-    const panel = movesEditorDiv;
-    panel.style("display", "grid");
-    panel.style("grid-template-columns", "300px 1fr");
-    panel.style("gap", "12px");
-    panel.style("width", "80vw");
-    panel.style("max-width", "1200px");
-    panel.style("max-height", "80vh");
-    
-    const header = createDiv("<strong>Edit Moves (Slots 0-9)</strong>").parent(panel);
-    header.style("grid-column", "1 / span 2");
-    header.style("display", "flex");
-    header.style("justify-content", "space-between");
-    header.style("align-items", "center");
-    header.style("margin-bottom", "12px");
-    header.style("color", "yellow");
-    
-    const backBtn = createButton("Back to Inventory").parent(header);
-    backBtn.style("padding", "8px 16px");
-    backBtn.style("cursor", "pointer");
-    backBtn.style("touch-action", "manipulation");
-    backBtn.style("pointer-events", "auto");
-    backBtn.elt.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (curPlayer && curPlayer.movesSlots) {
-            socket.emit("update_moves", {
-                playerId: curPlayer.id,
-                movesSlots: curPlayer.movesSlots
-            });
-        }
+    movesEditorDiv.class("container");
+    applyStyle(movesEditorDiv, {
+        position: "absolute",
+        top: "45%",
+        left: "55%",
+        transform: "translate(-50%, -50%)",
+        display: "none",
+        zIndex: "50",
+    });
+
+    // ── Top bar with navigation tabs ──
+    let topBar = createDiv().parent(movesEditorDiv);
+    applyStyle(topBar, {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    });
+
+    let invTitle = createP("Inventory").parent(topBar);
+    invTitle.class("inventory-title");
+    invTitle.style("cursor", "pointer");
+    invTitle.mousePressed(() => {
+        _saveMoves();
         movesEditorDiv.hide();
+        gameState = "inventory";
         defineInvUI();
         invDiv.show();
         updateItemList();
         updatecurItemDiv();
     });
-    
-    movesSlotList = createDiv().parent(panel);
-    movesSlotList.style("border-radius", "8px");
-    movesSlotList.style("padding", "12px");
-    movesSlotList.style("overflow-y", "auto");
-    movesSlotList.style("background", "#222");
-    movesSlotList.style("max-height", "calc(80vh - 100px)");
-    
-    movesAllList = createDiv().parent(panel);
-    movesAllList.style("border-radius", "8px");
-    movesAllList.style("padding", "12px");
-    movesAllList.style("overflow-y", "auto");
-    movesAllList.style("background", "#222");
-    movesAllList.style("max-height", "calc(80vh - 100px)");
+
+    let craftingTitle = createP("Crafting").parent(topBar);
+    craftingTitle.class("inventory-title");
+    craftingTitle.style("cursor", "pointer");
+    craftingTitle.mousePressed(() => {
+        _saveMoves();
+        movesEditorDiv.hide();
+        gameState = "crafting";
+        craftDiv.show();
+        curPlayer.invBlock.curItem = "";
+        updateCraftList();
+    });
+
+    let movesTitle = createP("Moves").parent(topBar);
+    movesTitle.class("inventory-title");
+    movesTitle.style("color", "yellow");
+
+    let closeButton = createImg("images/ui/x.png", "").parent(topBar);
+    closeButton.class("close-button");
+    closeButton.addClass("icon-btn");
+    applyStyle(closeButton, {
+        marginLeft: "auto",
+        position: "absolute",
+        right: "0",
+        width: "22px",
+        height: "22px",
+        cursor: "pointer",
+        imageRendering: "pixelated",
+        border: "none",
+    });
+    closeButton.mousePressed(() => {
+        _saveMoves();
+        gameState = "playing";
+        curPlayer.invBlock.useTimer = 10;
+        movesEditorDiv.hide();
+    });
+
+    // ── Bottom area (two-panel layout, matching inventory/crafting) ──
+    let bottomDiv = createDiv().parent(movesEditorDiv);
+    bottomDiv.class("bottom-area");
+
+    movesSlotList = createDiv().parent(bottomDiv);
+    movesSlotList.class("item-list");
+
+    movesAllList = createDiv().parent(bottomDiv);
+    movesAllList.class("item-details");
 }
 
 function refreshMovesEditorUI() {
     if (!curPlayer) return;
     ensureMoveSlots();
     const slotKeys = ['1','2','3','4','5','6','7','8','9','0'];
-    
-    // Left panel: Slots
-    movesSlotList.html('<div style="margin-bottom:12px; font-weight:bold; font-size:16px; color:#aef;">Your Slots</div>');
+    const playerLevel = curPlayer?.statBlock?.level || 0;
+
+    // ── Left panel: Your Slots ──
+    movesSlotList.html('');
+
+    let slotsHeader = createDiv('Your Slots').parent(movesSlotList);
+    slotsHeader.class("me-section-title");
+
     for (let i = 0; i < 10; i++) {
         const moveId = curPlayer.movesSlots[i];
         const move = moveId ? ALL_MOVES.find(m => m.id === moveId) : null;
-        const displayName = move ? move.name : 'Empty';
-        const slotBtn = createButton(`${slotKeys[i]}: ${displayName}`).parent(movesSlotList);
-        slotBtn.style("width", "100%");
-        slotBtn.style("margin-bottom", "6px");
-        slotBtn.style("padding", "10px");
-        slotBtn.style("background", i === selectedMoveSlotIdx ? "#4a9eff" : "#333");
-        slotBtn.style("color", i === selectedMoveSlotIdx ? "#fff" : (moveId ? "#aef" : "#888"));
-        slotBtn.style("border", i === selectedMoveSlotIdx ? "3px solid #fff" : "1px solid #555");
-        slotBtn.style("cursor", "pointer");
-        slotBtn.style("text-align", "left");
-        slotBtn.style("font-size", "14px");
-        slotBtn.style("font-weight", i === selectedMoveSlotIdx ? "bold" : "normal");
-        slotBtn.style("transition", "all 0.2s");
-        slotBtn.style("touch-action", "manipulation");
-        slotBtn.style("pointer-events", "auto");
-        slotBtn.elt.addEventListener('pointerdown', (function(idx) {
-            return function(e) {
+        const isSelected = (i === selectedMoveSlotIdx);
+
+        let row = createDiv().parent(movesSlotList);
+        row.class("me-slot-row");
+        if (isSelected) row.addClass("me-slot-selected");
+
+        // Key badge
+        let keyBadge = createSpan(slotKeys[i]).parent(row);
+        keyBadge.class("me-slot-key");
+
+        if (move) {
+            // Spell icon
+            const iconUrl = _getSpellIconUrl(move);
+            if (iconUrl) {
+                let icon = createImg(iconUrl, move.name).parent(row);
+                icon.class("me-slot-icon");
+            }
+            // Spell name
+            let name = createSpan(move.name).parent(row);
+            name.class("me-slot-name");
+        } else {
+            let name = createSpan("Empty").parent(row);
+            name.class("me-slot-name");
+            name.addClass("me-slot-empty-text");
+        }
+
+        // Clear button
+        if (move) {
+            let clearBtn = createImg("images/ui/x.png", "Clear").parent(row);
+            clearBtn.class("me-slot-clear");
+            clearBtn.addClass("icon-btn");
+            clearBtn.elt.addEventListener('pointerdown', ((idx) => (e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                selectedMoveSlotIdx = idx;
+                curPlayer.movesSlots[idx] = null;
                 refreshMovesEditorUI();
-            };
-        })(i));
-        
-        const clearBtn = createImg("images/ui/x.png", "Clear").parent(slotBtn);
-        clearBtn.style("width", "24px");
-        clearBtn.style("height", "24px");
-        clearBtn.style("padding", "4px");
-        clearBtn.style("float", "right");
-        clearBtn.style("cursor", "pointer");
-        clearBtn.style("image-rendering", "pixelated");
-        clearBtn.style("touch-action", "manipulation");
-        clearBtn.mousePressed((e) => {
-            e.stopPropagation();
-            curPlayer.movesSlots[i] = null;
-            refreshMovesEditorUI();
-        });
-    }
-    
-    // Right panel: Available spells in a grid
-    let html = `<div style="margin-bottom:12px; font-weight:bold; font-size:16px; color:#aef;">Available Spells</div>
-                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px;">`;
-    
-    for (const move of ALL_MOVES) {
-        const ability = magicAbilities.find(a => a.name.toLowerCase().replace(/\s+/g, '') === move.id);
-        const iconKey = move.id + '_icon';
-        
-        // Generate spell icon
-        let iconDataUrl = '';
-        if (typeof getSpellIcon === 'function') {
-            const iconGraphics = getSpellIcon(iconKey, (g) => {
-                g.clear();
-                g.push();
-                g.translate(g.width / 2, g.height / 2);
-                // Simple colored circle for now - you can customize per spell
-                g.noStroke();
-                const col = move.color || { r: 120, g: 200, b: 255 };
-                g.fill(col.r, col.g, col.b);
-                g.ellipse(0, 0, 20, 20);
-                g.fill(255);
-                g.textAlign(g.CENTER, g.CENTER);
-                g.textSize(10);
-                g.text(move.name.substring(0, 2).toUpperCase(), 0, 0);
-                g.pop();
-            });
-            if (iconGraphics && iconGraphics.canvas) {
-                iconDataUrl = iconGraphics.canvas.toDataURL('image/png');
-            }
+            })(i));
         }
-        
-        html += `<div class='spell-card' data-moveid='${move.id}' style="
-            background:#333; 
-            border:2px solid #555; 
-            border-radius:8px; 
-            padding:8px; 
-            cursor:pointer; 
-            text-align:center;
-            transition: all 0.2s;
-            position:relative;
-        " 
-        onmouseover="this.style.background='#444';this.style.borderColor='#aef';" 
-        onmouseout="this.style.background='#333';this.style.borderColor='#555';">
-            ${iconDataUrl ? `<img src="${iconDataUrl}" style="width:48px;height:48px;image-rendering:pixelated;margin-bottom:6px;">` : ''}
-            <div style="font-size:12px;font-weight:bold;color:#aef;margin-bottom:4px;">${move.name}</div>
-            <div style="font-size:10px;color:#ff8;margin-bottom:4px;">Lv ${move.requiredLevel}</div>
-            <div style="font-size:10px;color:#8cf;">${move.manaCost} MP</div>
-            <div style="font-size:9px;color:#999;margin-top:4px;line-height:1.2;">${move.description}</div>
-            <button class='assign-move-btn' data-moveid='${move.id}' style="
-                margin-top:8px;
-                padding:6px 12px;
-                cursor:pointer;
-                background:#4a9eff;
-                color:white;
-                border:none;
-                border-radius:4px;
-                font-weight:bold;
-                font-size:11px;
-                width:100%;
-            ">Assign to [${slotKeys[selectedMoveSlotIdx]}]</button>
-        </div>`;
-    }
-    
-    html += '</div>';
-    movesAllList.html(html);
-    
-    // Add event listeners for assign buttons (touch + click)
-    movesAllList.elt.querySelectorAll('.assign-move-btn').forEach(btn => {
-        const handler = (e) => {
+
+        // Click to select slot
+        row.elt.style.touchAction = 'manipulation';
+        row.elt.style.pointerEvents = 'auto';
+        row.elt.addEventListener('pointerdown', ((idx) => (e) => {
+            if (e.target.closest('.me-slot-clear')) return;
             e.stopPropagation();
             e.preventDefault();
-            const moveId = btn.getAttribute('data-moveid');
-            curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
+            selectedMoveSlotIdx = idx;
             refreshMovesEditorUI();
-        };
-        btn.addEventListener('pointerdown', handler);
-    });
-    
-    // Add event listeners for spell cards (tap anywhere to assign)
-    movesAllList.elt.querySelectorAll('.spell-card').forEach(card => {
-        const handler = (e) => {
-            if (e.target.closest('.assign-move-btn')) return;
-            e.preventDefault();
-            const moveId = card.getAttribute('data-moveid');
-            curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
-            refreshMovesEditorUI();
-        };
-        card.addEventListener('pointerdown', handler);
-    });
+        })(i));
+    }
+
+    // ── Right panel: Spell browser ──
+    movesAllList.html('');
+
+    // Detail header — show currently assigned spell info
+    const currentMoveId = curPlayer.movesSlots[selectedMoveSlotIdx];
+    const currentSpell = currentMoveId ? ALL_MOVES.find(m => m.id === currentMoveId) : null;
+
+    let detailHeader = createDiv().parent(movesAllList);
+    detailHeader.class("me-detail-header");
+
+    if (currentSpell) {
+        const iconUrl = _getSpellIconUrl(currentSpell);
+        if (iconUrl) {
+            let headerIcon = createImg(iconUrl, currentSpell.name).parent(detailHeader);
+            headerIcon.style("width", "36px");
+            headerIcon.style("height", "36px");
+            headerIcon.style("image-rendering", "pixelated");
+            headerIcon.style("border-radius", "6px");
+        }
+        let headerInfo = createDiv().parent(detailHeader);
+        let headerName = createP('Slot ' + slotKeys[selectedMoveSlotIdx] + ': ' + currentSpell.name).parent(headerInfo);
+        headerName.style("color", "#aef");
+        headerName.style("font-size", "16px");
+        headerName.style("margin", "0 0 4px 0");
+        let headerDesc = createP(currentSpell.description).parent(headerInfo);
+        headerDesc.style("color", "#999");
+        headerDesc.style("font-size", "11px");
+        headerDesc.style("margin", "0");
+        headerDesc.style("line-height", "1.4");
+        let headerMeta = createDiv().parent(headerInfo);
+        headerMeta.style("display", "flex");
+        headerMeta.style("gap", "12px");
+        headerMeta.style("margin-top", "6px");
+        let mpLabel = createSpan(currentSpell.manaCost + ' MP').parent(headerMeta);
+        mpLabel.style("color", "#8cf");
+        mpLabel.style("font-size", "12px");
+        let cdLabel = createSpan((currentSpell.cooldown / 60).toFixed(1) + 's CD').parent(headerMeta);
+        cdLabel.style("color", "#ff8");
+        cdLabel.style("font-size", "12px");
+        let lvlLabel = createSpan('Lv ' + (currentSpell.requiredLevel || 1)).parent(headerMeta);
+        lvlLabel.style("color", "#4caf50");
+        lvlLabel.style("font-size", "12px");
+    } else {
+        let headerText = createP('Slot ' + slotKeys[selectedMoveSlotIdx] + ': Empty — select a spell below').parent(detailHeader);
+        headerText.style("color", "#666");
+        headerText.style("font-size", "14px");
+        headerText.style("margin", "0");
+    }
+
+    // Available spells section
+    let spellsTitle = createDiv('Available Spells').parent(movesAllList);
+    spellsTitle.class("me-section-title");
+
+    let spellListDiv = createDiv().parent(movesAllList);
+    spellListDiv.class("me-spell-list");
+
+    for (const move of ALL_MOVES) {
+        const isAssigned = curPlayer.movesSlots.includes(move.id);
+        const isCurrentSlot = curPlayer.movesSlots[selectedMoveSlotIdx] === move.id;
+        const isLocked = playerLevel < (move.requiredLevel || 1);
+
+        let row = createDiv().parent(spellListDiv);
+        row.class("me-spell-row");
+        if (isCurrentSlot) row.addClass("me-spell-current");
+        if (isLocked) row.addClass("me-spell-locked");
+
+        // Spell icon
+        const iconUrl = _getSpellIconUrl(move);
+        if (iconUrl) {
+            let iconWrap = createDiv().parent(row);
+            iconWrap.class("me-spell-icon-wrap");
+            let icon = createImg(iconUrl, move.name).parent(iconWrap);
+            icon.class("me-spell-icon");
+        }
+
+        // Spell info
+        let info = createDiv().parent(row);
+        info.class("me-spell-info");
+
+        let nameRow = createDiv().parent(info);
+        nameRow.class("me-spell-name-row");
+
+        let name = createSpan(move.name).parent(nameRow);
+        name.class("me-spell-name");
+
+        if (isAssigned && !isCurrentSlot) {
+            let badge = createSpan("In Use").parent(nameRow);
+            badge.class("me-spell-badge me-spell-badge-used");
+        }
+        if (isCurrentSlot) {
+            let badge = createSpan("Selected").parent(nameRow);
+            badge.class("me-spell-badge me-spell-badge-current");
+        }
+        if (isLocked) {
+            let badge = createSpan('Lv ' + (move.requiredLevel || 1)).parent(nameRow);
+            badge.class("me-spell-badge me-spell-badge-locked");
+        }
+
+        // Meta: mana cost + cooldown
+        let meta = createDiv().parent(info);
+        meta.class("me-spell-meta");
+        let manaSpan = createSpan(move.manaCost + ' MP').parent(meta);
+        manaSpan.class("me-spell-mana");
+        let cdSpan = createSpan((move.cooldown / 60).toFixed(1) + 's CD').parent(meta);
+        cdSpan.class("me-spell-cd");
+
+        // Description
+        let desc = createP(move.description).parent(info);
+        desc.class("me-spell-desc");
+
+        // Click to assign (if not locked)
+        row.elt.style.touchAction = 'manipulation';
+        row.elt.style.pointerEvents = 'auto';
+        if (!isLocked) {
+            row.elt.addEventListener('pointerdown', ((moveId) => (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                curPlayer.movesSlots[selectedMoveSlotIdx] = moveId;
+                refreshMovesEditorUI();
+            })(move.id));
+        }
+    }
 }
 
 // --- Hotbar rendering (example, see ui.js for full details) ---

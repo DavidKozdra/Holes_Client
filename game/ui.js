@@ -432,11 +432,13 @@ function defineInvUI() {
     });
     craftingTitle.style("cursor", "pointer");
 
-    // Moves editor button
-    let movesBtn = createButton("Edit Moves").parent(topBar);
-    movesBtn.class("inventory-title");
-    movesBtn.style("margin-left", "12px");
-    movesBtn.mousePressed(() => {
+    // Moves tab
+    let movesTitle = createP("Moves").parent(topBar);
+    movesTitle.class("inventory-title");
+    movesTitle.style("cursor", "pointer");
+    movesTitle.mousePressed(() => {
+        invDiv.hide();
+        spaceBarDiv.hide();
         showMovesEditor();
     });
 
@@ -2221,6 +2223,15 @@ function defineCraftingUI() {
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
     craftingTitle.style("color", "yellow");
+
+    // Moves tab
+    let movesTitle = createP("Moves").parent(topBar);
+    movesTitle.class("inventory-title");
+    movesTitle.style("cursor", "pointer");
+    movesTitle.mousePressed(() => {
+        craftDiv.hide();
+        showMovesEditor();
+    });
 
     let tagBar = createDiv().parent(craftDiv);
     tagBar.class("tag-bar");
