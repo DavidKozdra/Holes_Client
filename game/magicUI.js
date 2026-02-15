@@ -552,6 +552,50 @@ function ensureMoveHotbarDOM() {
         transition: width 0.15s ease;
         box-shadow: 0 0 8px rgba(70,150,255,0.5);
       }
+
+      /* Mobile responsive - more aggressive */
+      @media (max-width: 800px), (max-height: 600px), (pointer: coarse) {
+        #moveHotbarRoot {
+          bottom: 12px;
+          max-width: 98vw;
+          z-index: 100;
+        }
+        
+        #moveHotbarBar {
+          gap: 4px;
+          padding: 6px 10px;
+          flex-wrap: wrap;
+          justify-content: center;
+          max-width: 98vw;
+        }
+        
+        .moveSlot {
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          border-width: 1px;
+        }
+        
+        .moveSlot[style*="display: none"] {
+          display: none !important;
+        }
+        
+        .keyLabel {
+          top: -14px;
+          font-size: 8px;
+          min-width: 14px;
+          padding: 0 2px;
+          height: 12px;
+        }
+        
+        .nameLabel {
+          display: none;
+        }
+        
+        .cdOverlay {
+          border-radius: 4px;
+        }
+      }
     `;
     document.head.appendChild(style);
   }
@@ -792,25 +836,41 @@ function getMoveEntryForDOM(curPlayer, moveId, slotLabel) {
 function updateMoveHotbarDOM(curPlayer) {
   const dom = ensureMoveHotbarDOM();
 
-  // Only show if we have a player + spells
+  // Only show if we have a player + spells and are actually playing
+  const inGame = (typeof gameState !== 'undefined' && gameState === 'playing');
+  
   if (!curPlayer || !curPlayer.spells) {
     dom.root.style.display = "none";
     return;
   }
-  dom.root.style.display = "block";
+  
+  // Lower z-index when in menu so UI panels can cover it
+  if (!inGame) {
+    dom.root.style.zIndex = "100";
+  } else {
+    dom.root.style.zIndex = "9986";
+  }
 
   const slotLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
   const moves = Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : [];
   const movesForHud = moves.slice(0, 10);
   while (movesForHud.length < 10) movesForHud.push(null);
 
+  // Check if any slots are actually filled
+  const hasFilledSlots = movesForHud.some(m => m && typeof m === 'string' && m.trim() !== '');
+  if (!hasFilledSlots) {
+    dom.root.style.display = "none";
+    return;
+  }
+  dom.root.style.display = "block";
+
   for (let i = 0; i < 10; i++) {
     const moveId = movesForHud[i];
     const entry = getMoveEntryForDOM(curPlayer, moveId, slotLabels[i]);
     const s = dom.slots[i];
 
-    // Hide slot if not filled
-    if (!moveId) {
+    // Hide slot if not filled (null, undefined, or empty string)
+    if (!moveId || typeof moveId !== 'string' || moveId.trim() === '') {
       s.slot.style.display = "none";
       continue;
     } else {

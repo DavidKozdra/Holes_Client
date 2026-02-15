@@ -128,6 +128,16 @@ class StatBlock{
                 update_values: [curPlayer.statBlock.level]
             });
 
+            // Trigger level up animation/effect for local player
+            if (typeof curPlayer !== 'undefined' && curPlayer && curPlayer.id === socket.id) {
+                curPlayer.levelUpEffectTimer = 60;
+                curPlayer.levelUpTextTimer = 40;
+                // Play sound if available
+                if (typeof window.soundDic !== 'undefined' && soundDic.levelup && soundDic.levelup.sounds && soundDic.levelup.sounds[0]) {
+                    soundDic.levelup.sounds[0].play();
+                }
+            }
+
             // Apply growth per level
             const growth = BASE_STATS[this.race].growth;
             for (let key in growth) {

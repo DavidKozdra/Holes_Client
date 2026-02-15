@@ -35,6 +35,10 @@ class Player {
         this.animationFrame = 0;
         this.animationType = ""; // Name of current animation
 
+        // Level up effect
+        this.levelUpEffectTimer = 0;
+        this.levelUpTextTimer = 0;
+
 
         this.regenTimer = 0;         
         this.regenInterval = 3 
@@ -307,6 +311,17 @@ collidesAt(pos) {
     return false;
 }
 update() {
+                    // Level up effect timer decrement
+                    if (this.levelUpEffectTimer > 0) {
+                        this.levelUpEffectTimer--;
+                    }
+                    if (this.levelUpTextTimer > 0) {
+                        this.levelUpTextTimer--;
+                    }
+            // Level up effect timer decrement
+            if (this.levelUpEffectTimer > 0) {
+                this.levelUpEffectTimer--;
+            }
     const isLocal = (this === curPlayer);
 
     /* =========================
@@ -509,7 +524,32 @@ updateRemote() {
         fill(0, 150);
         noStroke();
         rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4);
-        
+
+        // Level up animation effect (soft glow and elegant text)
+        if (this.levelUpEffectTimer > 0) {
+            // Soft gold glow
+            push();
+            let glowAlpha = map(this.levelUpEffectTimer, 0, 60, 0, 120);
+            let glowSize = 110 + 20 * sin((60 - this.levelUpEffectTimer) * 0.15);
+            noStroke();
+            fill(255, 220, 100, glowAlpha); // soft gold
+            ellipse(this.pos.x, this.pos.y, glowSize, glowSize * 0.7);
+            pop();
+        }
+
+        // Floating 'Level Up!' text (smaller, elegant)
+        if (this.levelUpTextTimer > 0) {
+            push();
+            textAlign(CENTER, CENTER);
+            textSize(24);
+            let tAlpha = map(this.levelUpTextTimer, 0, 40, 0, 200);
+            fill(255, 230, 120, tAlpha);
+            noStroke();
+            let floatY = this.pos.y - 80 - (40 - this.levelUpTextTimer) * 0.8;
+            text('Level Up!', this.pos.x, floatY);
+            pop();
+        }
+
         // Determine display color: use team color if available, otherwise use index-based color
         let displayColor;
         if (typeof this.color === 'object' && this.color !== null && this.color.r !== undefined) {
@@ -522,7 +562,7 @@ updateRemote() {
             // Use index-based color
             displayColor = teamColors[this.color] || teamColors[0];
         }
-        
+
         fill(displayColor.r, displayColor.g, displayColor.b);
         textStyle(BOLD);
         text(nameText, this.pos.x, this.pos.y - yOffset);

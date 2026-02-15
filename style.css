@@ -4390,8 +4390,6 @@ input.fmt-italic-apply {
         display: none !important;
     }
 }
-    }
-}
 
 /* Extra small phones */
 @media (pointer: coarse) and (max-width: 480px) {
