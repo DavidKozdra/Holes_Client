@@ -2960,12 +2960,10 @@ function showDeathUI() {
 }
 
 var tutorialDiv;
-var pages;
-var currentTutorialPage = 0;
-var seen = localStorage.getItem("tut_seen");
+var tutorialReturnState;
 var pages = [];
 var currentTutorialPage = 0;
-var tutorialDiv;
+var seen = localStorage.getItem("tut_seen");
 var pageNumberText;
 
 function defineTutorialUI() {
@@ -2984,6 +2982,7 @@ function defineTutorialUI() {
         justifyContent: "space-between",
         alignItems: "center",
         padding: "10px",
+        zIndex: "9999",
     });
     tutorialDiv.hide();
 
@@ -2992,6 +2991,8 @@ function defineTutorialUI() {
     applyStyle(topBar, {
         display: "flex",
         width: "100%",
+        height: "40px",
+        flexShrink: "0",
         justifyContent: "flex-end",
     });
     let closeButton = createImg("images/ui/x.png", "").parent(topBar);
@@ -3006,8 +3007,16 @@ function defineTutorialUI() {
         touchAction: "manipulation",
     });
     closeButton.mousePressed(() => {
-        gameState = "playing";
-        curPlayer.invBlock.useTimer = 10;
+        if (tutorialReturnState) {
+            gameState = tutorialReturnState;
+            if (tutorialReturnState === "settings") {
+                gameSettingsContainer.show();
+            }
+            tutorialReturnState = null;
+        } else {
+            gameState = "playing";
+            if (curPlayer && curPlayer.invBlock) curPlayer.invBlock.useTimer = 10;
+        }
         tutorialDiv.hide();
     });
 
@@ -3015,7 +3024,7 @@ function defineTutorialUI() {
     let pageHolder = createDiv().parent(tutorialDiv);
     pageHolder.class("tutorial-content");
     applyStyle(pageHolder, {
-        flexGrow: "1",
+        flex: "1",
         width: "100%",
         overflow: "auto",
         display: "flex",
@@ -3024,11 +3033,13 @@ function defineTutorialUI() {
         textAlign: "center",
     });
 
-    // BOTTOM BAR
+    // BOTTOM BAR (fixed footer)
     let bottomBar = createDiv().parent(tutorialDiv);
     applyStyle(bottomBar, {
         display: "flex",
         width: "100%",
+        height: "50px",
+        flexShrink: "0",
         flexDirection: "row",
         alignItems: "center",
     });
@@ -3079,48 +3090,163 @@ function defineTutorialUI() {
 
     // SETUP PAGES
     setupTutorialPages(pageHolder);
+    currentTutorialPage = 0;
     updatePageNumber();
 }
 
 
 function setupTutorialPages(pageHolder) {
-    // --- Page 1 ---
+    // --- Page 0: Welcome ---
+    let page0 = createDiv().parent(pageHolder);
+    
+    let logoImg = createImg("images/ui/title.png", "Holes").parent(page0);
+    logoImg.style("width", "200px");
+    logoImg.style("image-rendering", "pixelated");
+    logoImg.style("margin-bottom", "20px");
+    
+    let welcomeDesc = createP("Dig, build, and survive!").parent(page0);
+    welcomeDesc.class("tutorial-label");
+    welcomeDesc.style("margin-bottom", "20px");
+    
+    let tipText = createP("Tip: Press ← → to navigate").parent(page0);
+    tipText.class("tutorial-label");
+    tipText.style("color", "#aaa");
+    
+    pages.push(page0);
+
+    // --- Page 1: Basics ---
     let page1 = createDiv().parent(pageHolder);
-
-    let skipText = createP("Press X above to skip").parent(page1);
-    skipText.class("tutorial-title");
-
-    addTutorialStep(page1, "images/items/shovel1.png", "You can dig with an empty hand or shovel.");
-    addTutorialStep(page1, "images/items/apple.png", "Any type of food will heal you.");
-    addTutorialStep(page1, "images/ui/dirtbag.png", "Don't fill your dirt bag unless you know where to empty it.");
-    addTutorialStep(page1, "images/items/sword1.png", "Use your sword to break things.");
-    addTutorialStep(page1, "images/ui/f_tutorial_icon.png", "Move your mouse close to objects to interact with them (F key).");
+    
+    addTutorialStep(page1, "images/items/shovel1.png", "Dig with empty hand or shovel.");
+    addTutorialStep(page1, "images/items/apple.png", "Food restores health.");
+    addTutorialStep(page1, "images/ui/dirtbag.png", "Collect dirt for building.");
+    addTutorialStep(page1, "images/items/sword1.png", "Weapons break things faster.");
+    addTutorialStep(page1, "images/ui/f_tutorial_icon.png", "Press F near objects to interact.");
+    page1.hide();
     pages.push(page1);
 
-    // --- Page 2 ---
+    // --- Page 2: Movement ---
     let page2 = createDiv().parent(pageHolder);
-    let controlsTitle = createP("Controls:").parent(page2);
-    controlsTitle.class("tutorial-section-title");
+    let movementTitle = createP("Movement:").parent(page2);
+    movementTitle.class("tutorial-section-title");
 
     keyToVisualKey(Controls_Up_key);
     keyToVisualKey(Controls_Left_key);
     keyToVisualKey(Controls_Down_key);
     keyToVisualKey(Controls_Right_key);
-    //console.log(Controls_Up_key, Controls_Left_key)
-    addControlStep(page2, "" + Controls_Up_key + Controls_Left_key + Controls_Down_key + Controls_Right_key, "Move around");
-    addControlStep(page2, "Left/Right Click", "Use item");
+    addControlStep(page2, "" + Controls_Up_key + Controls_Left_key + Controls_Down_key + Controls_Right_key, "Move");
     addControlStep(page2, Controls_Dash_key, "Dash");
-    addControlStep(page2, Controls_Interact_key, "Interact");
-    addControlStep(page2, Controls_MoveHotBarLeft_key + "&" + Controls_MoveHotBarRight_key + " / Mouse Wheel", "Switch Hotbar slot");
-    addControlStep(page2, Controls_Build_key, "Build menu");
-    addControlStep(page2, "ESC", "Pause");
-    addControlStep(page2, "TAB", "Leaderboard");
-    addControlStep(page2, Controls_Inventory_key, "Inventory");
-    addControlStep(page2, Controls_Crafting_key, "Crafting");
-    addControlStep(page2, Controls_Space_key, "Do stuff in Inventory");
+    addControlStep(page2, Controls_MoveHotBarLeft_key + " / " + Controls_MoveHotBarRight_key, "Switch hotbar");
 
     page2.hide();
     pages.push(page2);
+
+    // --- Page 3: Actions ---
+    let page3 = createDiv().parent(pageHolder);
+    let actionsTitle = createP("Actions:").parent(page3);
+    actionsTitle.class("tutorial-section-title");
+
+    addControlStep(page3, "Left Click", "Use item / Break");
+    addControlStep(page3, "Right Click", "Place / Attack");
+    addControlStep(page3, Controls_Interact_key, "Interact");
+    addControlStep(page3, Controls_Build_key, "Build menu");
+    addControlStep(page3, Controls_Inventory_key, "Inventory");
+    addControlStep(page3, Controls_Crafting_key, "Crafting");
+    addControlStep(page3, Controls_Space_key, "Place item in slot");
+
+    page3.hide();
+    pages.push(page3);
+
+    // --- Page 4: Building ---
+    let page4 = createDiv().parent(pageHolder);
+    let buildingTitle = createP("Building:").parent(page4);
+    buildingTitle.class("tutorial-section-title");
+
+    addControlStep(page4, Controls_Build_key, "Open build menu");
+    addControlStep(page4, "1-9", "Select build slot");
+    addControlStep(page4, "Right Click", "Place selected");
+    addControlStep(page4, "Mouse", "Aim to rotate");
+
+    let buildingNote = createP("Requires dirt or items").parent(page4);
+    buildingNote.class("tutorial-label");
+    buildingNote.style("margin-top", "10px");
+
+    page4.hide();
+    pages.push(page4);
+
+    // --- Page 5: Enemies ---
+    let page5 = createDiv().parent(pageHolder);
+    let enemiesTitle = createP("Enemies:").parent(page5);
+    enemiesTitle.class("tutorial-section-title");
+
+    addTutorialStep(page5, "images/characters/gnome/gnome_portrait.png", "Watch out for hostile gnomes!");
+    addTutorialStep(page5, "images/items/sword1.png", "Attack with weapons. Enemies drop items.");
+
+    let enemiesNote = createP("Some enemies are aggressive, others cautious").parent(page5);
+    enemiesNote.class("tutorial-label");
+    enemiesNote.style("margin-top", "10px");
+
+    page5.hide();
+    pages.push(page5);
+
+    // --- Page 6: Chests & Bags ---
+    let page6 = createDiv().parent(pageHolder);
+    let chestsTitle = createP("Chests & Bags:").parent(page6);
+    chestsTitle.class("tutorial-section-title");
+
+    addTutorialStep(page6, "images/structures/chest.png", "Press F to open chests.");
+    addTutorialStep(page6, "images/structures/item_bag1.png", "Item bags appear from dropped items.");
+
+    page6.hide();
+    pages.push(page6);
+
+    // --- Page 7: Portals ---
+    let page7 = createDiv().parent(pageHolder);
+    let portalsTitle = createP("Portals:").parent(page7);
+    portalsTitle.class("tutorial-section-title");
+
+    addTutorialStep(page7, "images/structures/portal1.png", "Build to teleport between players.");
+    addTutorialStep(page7, "images/items/philosopher_stone.png", "Requires Philosopher's Stone + Tech + Metal.");
+
+    let portalNote = createP("Click portal to teleport").parent(page7);
+    portalNote.class("tutorial-label");
+    portalNote.style("margin-top", "10px");
+
+    page7.hide();
+    pages.push(page7);
+
+    // --- Page 8: Other ---
+    let page8 = createDiv().parent(pageHolder);
+    let systemsTitle = createP("Other:").parent(page8);
+    systemsTitle.class("tutorial-section-title");
+
+    addControlStep(page8, "ESC", "Pause / Settings");
+    addControlStep(page8, "TAB", "Leaderboard");
+    
+    let chatNote = createP("Chat: Click chat button").parent(page8);
+    chatNote.class("tutorial-label");
+    chatNote.style("margin-top", "10px");
+
+    page8.hide();
+    pages.push(page8);
+
+    // --- Page 9: Quick Reference ---
+    let page9 = createDiv().parent(pageHolder);
+    let refTitle = createP("Quick Reference:").parent(page9);
+    refTitle.class("tutorial-section-title");
+
+    addControlStep(page9, "WASD", "Move");
+    addControlStep(page9, "Shift", "Dash");
+    addControlStep(page9, "Q/E", "Hotbar");
+    addControlStep(page9, "F", "Interact");
+    addControlStep(page9, "I", "Inventory");
+    addControlStep(page9, "C", "Crafting");
+    addControlStep(page9, "R", "Build");
+    addControlStep(page9, "ESC", "Pause");
+    addControlStep(page9, "X", "Close");
+
+    page9.hide();
+    pages.push(page9);
 }
 
 function addTutorialStep(parent, imgPath, text) {

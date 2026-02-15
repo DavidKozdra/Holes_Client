@@ -143,6 +143,15 @@ function definePauseUI() {
         updateSpellLockDisplay();
     });
 
+    let tutorialButton = createButton('<span class="btn-icon">❓</span> Tutorial');
+    tutorialButton.parent(sliderContainer);
+    tutorialButton.class("settings-button");
+    tutorialButton.mousePressed(() => {
+        gameSettingsContainer.hide();
+        tutorialReturnState = "settings";
+        tutorialDiv.show();
+    });
+
     // Password Management Button
     let passwordButton = createButton('<span class="btn-icon">🔐</span> Manage Password');
     passwordButton.parent(sliderContainer);
