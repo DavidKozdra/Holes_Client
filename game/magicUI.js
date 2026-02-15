@@ -139,7 +139,7 @@ function defineMovesEditorUI() {
 
     let movesTitle = createP("Moves").parent(topBar);
     movesTitle.class("inventory-title");
-    movesTitle.style("color", "yellow");
+    movesTitle.style("color", "var(--color-gold)");
 
     let closeButton = createImg("images/ui/x.png", "").parent(topBar);
     closeButton.class("close-button");

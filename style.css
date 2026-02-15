@@ -5,7 +5,7 @@
   /* Base colors */
   --color-dirt-dark: #3b2f2f;
   --color-dirt-clay: #a0522d;
-  --color-gold: #ffd700;
+  --color-gold: #ffffff;
   --color-beige: #f5deb3;
   --color-black: #000000;
   --color-hover: #9b6d19;
@@ -26,6 +26,11 @@
   --success: #4caf50;
   --danger: #f44336;
   --info: #2196f3;
+}
+
+::selection {
+  background: white;
+  color: black;
 }
 
 /* ===== 🎯 Reusable Theme Classes ===== */

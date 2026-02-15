@@ -36,7 +36,7 @@ function defineInvUI() {
 
     let invTitle = createP("Inventory").parent(topBar);
     invTitle.class("inventory-title");
-    invTitle.style("color", "yellow");
+    invTitle.style("color", "var(--color-gold)");
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
@@ -150,7 +150,7 @@ function defineCraftingUI() {
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
-    craftingTitle.style("color", "yellow");
+    craftingTitle.style("color", "var(--color-gold)");
 
     let movesTitle = createP("Moves").parent(topBar);
     movesTitle.class("inventory-title");

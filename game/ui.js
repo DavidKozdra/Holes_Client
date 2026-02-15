@@ -426,7 +426,7 @@ function defineInvUI() {
 
     let invTitle = createP("Inventory").parent(topBar);
     invTitle.class("inventory-title");
-    invTitle.style("color", "yellow");
+    invTitle.style("color", "var(--color-gold)");
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
@@ -1176,7 +1176,7 @@ function updateMobileHUD() {
     if (hpFill) hpFill.style.width = hpPct + '%';
     if (hpText) hpText.textContent = Math.floor(s.hp) + ' / ' + Math.floor(maxHp);
 
-    // HP color shift: green → yellow → red
+    // HP color shift: green → white → red
     if (hpFill) {
         if (hpPct > 50) hpFill.style.background = 'linear-gradient(90deg, #27f50e, #1a9e0a)';
         else if (hpPct > 25) hpFill.style.background = 'linear-gradient(90deg, #f5e60e, #c9a800)';
@@ -2251,7 +2251,7 @@ function defineCraftingUI() {
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
-    craftingTitle.style("color", "yellow");
+    craftingTitle.style("color", "var(--color-gold)");
 
     // Moves tab
     let movesTitle = createP("Moves").parent(topBar);
