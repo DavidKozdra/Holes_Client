@@ -2943,14 +2943,13 @@ function defineTutorialUI() {
     // MAIN CONTAINER
     tutorialDiv = createDiv();
     tutorialDiv.id("tutorialDiv");
+    tutorialDiv.class("container");
     applyStyle(tutorialDiv, {
-        backgroundColor: "#1a1a1a",
         width: "50%",
         height: "50%",
         position: "absolute",
         top: "0", left: "0", bottom: "0", right: "0",
         margin: "auto",
-        color: "white",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -2968,13 +2967,13 @@ function defineTutorialUI() {
     });
     let closeButton = createImg("images/ui/x.png", "").parent(topBar);
     closeButton.id("tutorialCloseBtn");
+    closeButton.addClass("icon-btn");
     applyStyle(closeButton, {
         width: "36px",
         height: "36px",
         padding: "6px",
         cursor: "pointer",
         imageRendering: "pixelated",
-        border: "none",
         touchAction: "manipulation",
     });
     closeButton.mousePressed(() => {
@@ -2985,6 +2984,7 @@ function defineTutorialUI() {
 
     // PAGE HOLDER
     let pageHolder = createDiv().parent(tutorialDiv);
+    pageHolder.class("tutorial-content");
     applyStyle(pageHolder, {
         flexGrow: "1",
         width: "100%",
@@ -3012,13 +3012,7 @@ function defineTutorialUI() {
         justifyContent: "flex-start",
     });
     let leftButton = createButton("<").parent(leftDiv);
-    applyStyle(leftButton, {
-        fontSize: "18px",
-        cursor: "pointer",
-        background: "none",
-        color: "white",
-        border: "none",
-    });
+    leftButton.class("tutorial-nav-btn");
 
     // PAGE NUMBER WRAPPER
     let centerDiv = createDiv().parent(bottomBar);
@@ -3028,11 +3022,7 @@ function defineTutorialUI() {
         justifyContent: "center",
     });
     pageNumberText = createP("").parent(centerDiv);
-    applyStyle(pageNumberText, {
-        fontSize: "12px",
-        color: "white",
-        margin: "0",
-    });
+    pageNumberText.class("tutorial-page-number");
 
     // → BUTTON WRAPPER
     let rightDiv = createDiv().parent(bottomBar);
@@ -3042,13 +3032,7 @@ function defineTutorialUI() {
         justifyContent: "flex-end",
     });
     let rightButton = createButton(">").parent(rightDiv);
-    applyStyle(rightButton, {
-        fontSize: "18px",
-        cursor: "pointer",
-        background: "none",
-        color: "white",
-        border: "none",
-    });
+    rightButton.class("tutorial-nav-btn");
 
     // NAVIGATION LOGIC
     leftButton.mousePressed(() => {
@@ -3075,12 +3059,7 @@ function setupTutorialPages(pageHolder) {
     let page1 = createDiv().parent(pageHolder);
 
     let skipText = createP("Press X above to skip").parent(page1);
-    applyStyle(skipText, {
-        textAlign: "right",
-        fontSize: "12px",
-        width: "100%",
-        marginBottom: "10px"
-    });
+    skipText.class("tutorial-title");
 
     addTutorialStep(page1, "images/items/shovel1.png", "You can dig with an empty hand or shovel.");
     addTutorialStep(page1, "images/items/apple.png", "Any type of food will heal you.");
@@ -3091,7 +3070,8 @@ function setupTutorialPages(pageHolder) {
 
     // --- Page 2 ---
     let page2 = createDiv().parent(pageHolder);
-    createP("Controls:").parent(page2).style("margin-bottom", "10px");
+    let controlsTitle = createP("Controls:").parent(page2);
+    controlsTitle.class("tutorial-section-title");
 
     keyToVisualKey(Controls_Up_key);
     keyToVisualKey(Controls_Left_key);
@@ -3116,6 +3096,7 @@ function setupTutorialPages(pageHolder) {
 
 function addTutorialStep(parent, imgPath, text) {
     let step = createDiv().parent(parent);
+    step.class("tutorial-step");
     applyStyle(step, {
         display: "flex",
         flexDirection: "column",
@@ -3125,7 +3106,9 @@ function addTutorialStep(parent, imgPath, text) {
     let img = createImg(imgPath).parent(step);
     img.style("width", "50px");
     img.style("height", "50px");
+    img.style("image-rendering", "pixelated");
     let label = createP(text).parent(step);
+    label.class("tutorial-label");
     applyStyle(label, {
         marginTop: "5px",
         fontSize: "14px",
@@ -3135,6 +3118,7 @@ function addTutorialStep(parent, imgPath, text) {
 function addControlStep(parent, control, description) {
     let key =keyToVisualKey(control);
     let line = createP(key + " - " + description).parent(parent);
+    line.class("tutorial-label");
     applyStyle(line, {
         marginBottom: "5px",
         fontSize: "14px",
