@@ -407,9 +407,6 @@ function definePauseUI() {
     });
     serverSelectButton.parent(buttonGroup);
 
-    // Footer with version/tip
-    let footer = createDiv("Press ESC to resume").parent(pauseDiv);
-    footer.class("pause-footer");
 }
 
 // ─────────────────────────────────────────────────────────
