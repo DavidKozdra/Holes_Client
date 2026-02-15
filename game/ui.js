@@ -1566,16 +1566,6 @@ function showCurrentTeam() {
     teamName.style("font-weight", "bold");
     teamName.parent(teamContainer);
 
-    // Color preview
-    let colorBox = createDiv();
-    colorBox.style("width", "60px");
-    colorBox.style("height", "60px");
-    colorBox.style("background", `rgb(${team.color.r}, ${team.color.g}, ${team.color.b})`);
-    colorBox.style("margin", "10px auto");
-    colorBox.style("border", "2px solid white");
-    colorBox.style("border-radius", "5px");
-    colorBox.parent(teamContainer);
-
     // Members list
     let membersTitle = createP("Members:");
     membersTitle.style("color", "white");
@@ -2875,20 +2865,10 @@ function defineDeathUI() {
     });
 
     //disconnect button
-    let disconnectButton = createButton("Disconnect").parent(deathDiv);
-    disconnectButton.class("system-button");
+    let disconnectButton = createButton('<span class="btn-icon">⏻</span><span class="btn-label">Disconnect</span>').parent(deathDiv);
+    disconnectButton.class("system-button btn-disconnect");
     disconnectButton.style("width", "80%");
-    disconnectButton.style("padding", "12px");
-    disconnectButton.style("margin", "10px");
-    disconnectButton.style("font-size", "16px");
-    disconnectButton.style("border-radius", "8px");
-    disconnectButton.style("cursor", "pointer");
-    disconnectButton.style("color", "white");
-    disconnectButton.style("background-color", "#333");
-    disconnectButton.style("border", "none");
-    disconnectButton.style("transition", "background-color 0.3s");
-    disconnectButton.mouseOver(() => disconnectButton.style("background-color", "#555"));
-    disconnectButton.mouseOut(() => disconnectButton.style("background-color", "#333"));
+    disconnectButton.style("margin", "10px auto");
     disconnectButton.mousePressed(() => {
         // Save player data before disconnecting
         try {
