@@ -775,6 +775,11 @@ button:hover::before {
     transition: border-color 0.2s, box-shadow 0.2s;
     box-sizing: border-box;
     margin-bottom: 12px;
+       box-shadow: 0 0 8px rgba(255, 215, 0, 0.3) !important;
+    font-size: 10px !important;
+    font-weight: normal !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    color: var(--color-beige) !important;
 }
 .server-search-input::placeholder {
     color: rgba(245, 222, 179, 0.4);
