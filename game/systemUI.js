@@ -247,6 +247,8 @@ function definePauseUI() {
     removeData_button.parent(sliderContainer);
     removeData_button.class("settings-button");
     removeData_button.mousePressed(() => {
+        if (!confirm("Are you sure you want to remove all local data? This cannot be undone.")) return;
+
         localStorage.clear();
         localStorage.setItem("keyBindings", JSON.stringify(default_keys));
 
