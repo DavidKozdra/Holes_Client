@@ -131,7 +131,6 @@
 .canvas-container {
   flex: 1;
   background-color: var(--color-ui-dark);
-  border: 2px solid var(--color-black);
   display: flex;
   justify-content: center;
   align-items: center;

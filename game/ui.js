@@ -1144,10 +1144,7 @@ function definePlayerHUD() {
     portrait.class('desktop-hud-portrait');
     portrait.id('dhud-portrait');
     portrait.elt.style.cursor = 'pointer';
-    portrait.elt.addEventListener('click', function() {
-        console.log('Portrait clicked, calling toggleHudStatsPopup');
-        toggleHudStatsPopup();
-    });
+    portrait.elt.addEventListener('click', toggleHudStatsPopup);
     
     // Info section
     let info = createDiv().parent(header);
@@ -1238,21 +1235,17 @@ function defineHudStatsPopup() {
         <p class="hud-stats-title">Player Stats</p>
         <div class="hud-stats-content">
             <div class="hud-stat-group">
-                <p class="hud-stat-group-title">Attributes</p>
-                <div class="hud-stat-row"><span class="hud-stat-label">Strength</span><span class="hud-stat-value" id="hud-stat-str">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Dexterity</span><span class="hud-stat-value" id="hud-stat-dex">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Constitution</span><span class="hud-stat-value" id="hud-stat-con">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Intelligence</span><span class="hud-stat-value" id="hud-stat-int">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Wisdom</span><span class="hud-stat-value" id="hud-stat-wis">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Charisma</span><span class="hud-stat-value" id="hud-stat-cha">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Luck</span><span class="hud-stat-value" id="hud-stat-lck">0</span></div>
+                <p class="hud-stat-group-title">Combat</p>
+                <div class="hud-stat-row"><span class="hud-stat-label">Attack</span><span class="hud-stat-value" id="hud-stat-attack">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Magic</span><span class="hud-stat-value" id="hud-stat-magic">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Magic Resist</span><span class="hud-stat-value" id="hud-stat-magicResistance">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Health Regen</span><span class="hud-stat-value" id="hud-stat-healthRegen">0</span></div>
             </div>
             <div class="hud-stat-group">
-                <p class="hud-stat-group-title">Combat</p>
-                <div class="hud-stat-row"><span class="hud-stat-label">Attack</span><span class="hud-stat-value" id="hud-stat-atk">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Defense</span><span class="hud-stat-value" id="hud-stat-def">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Magic</span><span class="hud-stat-value" id="hud-stat-mag">0</span></div>
-                <div class="hud-stat-row"><span class="hud-stat-label">Speed</span><span class="hud-stat-value" id="hud-stat-spd">0</span></div>
+                <p class="hud-stat-group-title">Other</p>
+                <div class="hud-stat-row"><span class="hud-stat-label">Luck</span><span class="hud-stat-value" id="hud-stat-luck">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Dig Speed</span><span class="hud-stat-value" id="hud-stat-handDigSpeed">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Run Speed</span><span class="hud-stat-value" id="hud-stat-runningSpeed">0</span></div>
             </div>
             <div class="hud-stat-group">
                 <div class="hud-stat-row"><span class="hud-stat-label">Race</span><span class="hud-stat-value" id="hud-stat-race">-</span></div>
@@ -1263,7 +1256,6 @@ function defineHudStatsPopup() {
 }
 
 function toggleHudStatsPopup() {
-    console.log('toggleHudStatsPopup called', hudStatsPopup);
     if (!hudStatsPopup) return;
     
     if (hudStatsPopup.style.display === 'none') {
@@ -1280,17 +1272,28 @@ function updateHudStatsPopup() {
     const s = curPlayer.statBlock.stats;
     const sb = curPlayer.statBlock;
     
-    // Attributes
-    ['str', 'dex', 'con', 'int', 'wis', 'cha', 'lck'].forEach(stat => {
-        let el = document.getElementById('hud-stat-' + stat);
-        if (el) el.textContent = s[stat] || 0;
-    });
+    // Combat stats
+    let attackEl = document.getElementById('hud-stat-attack');
+    if (attackEl) attackEl.textContent = (s.attack || 0).toFixed(1);
     
-    // Combat
-    ['atk', 'def', 'mag', 'spd'].forEach(stat => {
-        let el = document.getElementById('hud-stat-' + stat);
-        if (el) el.textContent = Math.floor(s[stat] || 0);
-    });
+    let magicEl = document.getElementById('hud-stat-magic');
+    if (magicEl) magicEl.textContent = (s.magic || 0).toFixed(1);
+    
+    let magicResistEl = document.getElementById('hud-stat-magicResistance');
+    if (magicResistEl) magicResistEl.textContent = (s.magicResistance || 0).toFixed(1);
+    
+    let healthRegenEl = document.getElementById('hud-stat-healthRegen');
+    if (healthRegenEl) healthRegenEl.textContent = (s.healthRegen || 0).toFixed(2) + '/s';
+    
+    // Other stats
+    let luckEl = document.getElementById('hud-stat-luck');
+    if (luckEl) luckEl.textContent = s.luck || 0;
+    
+    let digSpeedEl = document.getElementById('hud-stat-handDigSpeed');
+    if (digSpeedEl) digSpeedEl.textContent = (s.handDigSpeed || 0).toFixed(2);
+    
+    let runSpeedEl = document.getElementById('hud-stat-runningSpeed');
+    if (runSpeedEl) runSpeedEl.textContent = (s.runningSpeed || 0).toFixed(2);
     
     // Race
     let raceEl = document.getElementById('hud-stat-race');
