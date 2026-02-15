@@ -4072,6 +4072,330 @@ input.fmt-italic-apply {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* DESKTOP PLAYER HUD - Styled to match game UI theme            */
+/* ═══════════════════════════════════════════════════════════════ */
+
+#desktop-player-hud {
+    position: fixed;
+    top: 12px;
+    right: 24px;
+    width: 380px;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+    border: 3px solid var(--color-dirt-dark);
+    border-radius: 12px;
+    padding: 0;
+    z-index: 100;
+    box-shadow: 
+        0 0 60px rgba(59, 47, 47, 0.5),
+        0 0 120px rgba(255, 215, 0, 0.06),
+        inset 0 1px 0 rgba(255, 215, 0, 0.08);
+    overflow: hidden;
+    font-family: 'Press Start 2P', cursive;
+    transform: scale(1);
+    transform-origin: top right;
+}
+
+/* Gold top border accent */
+#desktop-player-hud::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--text-highlight), transparent);
+    opacity: 0.6;
+    border-radius: 10px 10px 0 0;
+}
+
+/* Header section - portrait, name, level, XP */
+.desktop-hud-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--color-dirt-dark);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.desktop-hud-portrait {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    border: 2px solid var(--color-dirt-clay);
+    border-radius: 8px;
+    background-color: #70443c;
+    overflow: hidden;
+    image-rendering: pixelated;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.desktop-hud-portrait:hover {
+    border-color: var(--text-highlight);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
+.desktop-hud-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.desktop-hud-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.desktop-hud-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.desktop-hud-name {
+    font-size: 11px;
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+    transition: text-shadow 0.2s;
+}
+
+.desktop-hud-name:hover {
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.desktop-hud-level {
+    font-size: 9px;
+    color: var(--success);
+    white-space: nowrap;
+}
+
+.desktop-hud-level span {
+    color: #ffaa00;
+}
+
+/* XP bar inline with name/level */
+.desktop-hud-xp-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.desktop-hud-xp-label {
+    font-size: 8px;
+    color: #ffaa00;
+    white-space: nowrap;
+}
+
+.desktop-hud-xp-track {
+    flex: 1;
+    height: 8px;
+    background: #2a1f1f;
+    border: 1px solid var(--color-dirt-dark);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.desktop-hud-xp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ffd700, #ff8c00);
+    border-radius: 2px;
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+}
+
+.desktop-hud-xp-text {
+    font-size: 8px;
+    color: #ffaa00;
+    white-space: nowrap;
+}
+
+/* Bars section */
+.desktop-hud-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.desktop-hud-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.desktop-hud-bar-label {
+    font-size: 9px;
+    width: 30px;
+    text-align: right;
+    font-weight: bold;
+}
+
+.desktop-hud-bar-label.hp {
+    color: #27f50e;
+    text-shadow: 0 0 6px rgba(39, 245, 14, 0.4);
+}
+
+.desktop-hud-bar-label.mp {
+    color: #00d4ff;
+    text-shadow: 0 0 6px rgba(0, 212, 255, 0.4);
+}
+
+.desktop-hud-bar-track {
+    flex: 1;
+    height: 14px;
+    background: #2a1f1f;
+    border: 2px solid var(--color-dirt-dark);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.desktop-hud-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.25s ease-out;
+    position: relative;
+}
+
+.desktop-hud-bar-fill.hp {
+    background: linear-gradient(90deg, #27f50e, #1a9e0a);
+    box-shadow: 0 0 8px rgba(39, 245, 14, 0.5);
+}
+
+.desktop-hud-bar-fill.hp.low {
+    background: linear-gradient(90deg, #f54e0e, #c91800);
+    box-shadow: 0 0 8px rgba(245, 78, 14, 0.5);
+}
+
+.desktop-hud-bar-fill.hp.critical {
+    background: linear-gradient(90deg, #f52828, #a00000);
+    box-shadow: 0 0 10px rgba(245, 40, 40, 0.6);
+    animation: hpPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes hpPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.desktop-hud-bar-fill.mp {
+    background: linear-gradient(90deg, #00d4ff, #0080cc);
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+
+.desktop-hud-bar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 7px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+}
+
+/* HUD Stats Popup */
+#hud-stats-popup {
+    position: fixed;
+    top: 180px;
+    right: 24px;
+    width: 280px;
+    background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+    border: 3px solid var(--color-dirt-dark);
+    border-radius: 12px;
+    padding: 0;
+    z-index: 99;
+    box-shadow: 
+        0 0 40px rgba(59, 47, 47, 0.5),
+        inset 0 1px 0 rgba(255, 215, 0, 0.08);
+    overflow: hidden;
+    font-family: 'Press Start 2P', cursive;
+    transform: scale(1.5);
+    transform-origin: top right;
+    display: none;
+}
+
+#hud-stats-popup::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--text-highlight), transparent);
+    opacity: 0.6;
+}
+
+.hud-stats-title {
+    font-size: 10px;
+    color: var(--text-highlight);
+    text-align: center;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 2px solid var(--color-dirt-dark);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.hud-stats-content {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hud-stat-group {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.hud-stat-group-title {
+    font-size: 8px;
+    color: var(--text-highlight);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(160, 82, 45, 0.3);
+}
+
+.hud-stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    margin: 3px 0;
+}
+
+.hud-stat-label {
+    color: rgba(245, 222, 179, 0.7);
+}
+
+.hud-stat-value {
+    color: var(--color-beige);
+    font-weight: bold;
+}
+
+/* Hide desktop HUD on mobile */
+@media (pointer: coarse) {
+    #desktop-player-hud {
+        display: none !important;
+    }
+    #hud-stats-popup {
+        display: none !important;
+    }
+}
+    }
+}
+
 /* Extra small phones */
 @media (pointer: coarse) and (max-width: 480px) {
   .inventory-title {

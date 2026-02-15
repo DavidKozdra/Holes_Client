@@ -98,7 +98,7 @@ function defineMovesEditorUI() {
     applyStyle(movesEditorDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
         zIndex: "50",

@@ -392,6 +392,7 @@ var racePortraitDiv;
 var statsPanel;
 var viewingPlayerProfile;
 var nameBtn;
+var desktopPlayerHUD;
 
 // Moves editor globals
 var movesEditorDiv;
@@ -410,7 +411,7 @@ function defineInvUI() {
     applyStyle(invDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
 
@@ -1077,6 +1078,15 @@ function defineRacePortrait() {
 function updateRacePortrait() {
     if (!racePortraitDiv || !curPlayer) return;
     
+    const isMobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ||
+                      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    
+    // On desktop, the HUD handles the portrait - hide racePortraitDiv
+    if (!isMobile) {
+        racePortraitDiv.hide();
+        return;
+    }
+    
     let raceName = races[curPlayer.race];
     if (raceImages[raceName] && raceImages[raceName].portrait) {
         // Create an img element with the portrait
@@ -1091,9 +1101,9 @@ function defineStatsPanel() {
     statsPanel = createDiv();
     statsPanel.id("stats-panel");
     statsPanel.style("position", "fixed");
-    statsPanel.style("top", "110px");
-    statsPanel.style("right", "30px");
-    statsPanel.style("width", "300px");
+    statsPanel.style("top", "420px");
+    statsPanel.style("right", "48px");
+    statsPanel.style("width", "580px");
     statsPanel.style("background", "rgba(34, 34, 34, 0.95)");
     statsPanel.style("border", "2px solid #868686");
     statsPanel.style("border-radius", "10px");
@@ -1107,6 +1117,280 @@ function defineStatsPanel() {
 
     /* ── Mobile HUD strip (always created — CSS hides on desktop) ── */
     _createMobileHUD();
+    
+    /* ── Desktop Player HUD (HTML-based health bar) ── */
+    definePlayerHUD();
+}
+
+var hudStatsPopup;
+
+function definePlayerHUD() {
+    if (desktopPlayerHUD) return;
+    
+    // Main HUD container
+    desktopPlayerHUD = createDiv();
+    desktopPlayerHUD.id('desktop-player-hud');
+    desktopPlayerHUD.style('display', 'none');
+    
+    // Header - portrait, name, level, XP
+    let header = createDiv().parent(desktopPlayerHUD);
+    header.class('desktop-hud-header');
+    
+    // Portrait
+    let portrait = createDiv().parent(header);
+    portrait.class('desktop-hud-portrait');
+    portrait.id('dhud-portrait');
+    portrait.mousePressed(() => toggleHudStatsPopup());
+    
+    // Info section
+    let info = createDiv().parent(header);
+    info.class('desktop-hud-info');
+    
+    // Name row
+    let nameRow = createDiv().parent(info);
+    nameRow.class('desktop-hud-name-row');
+    
+    let playerName = createSpan('').parent(nameRow);
+    playerName.id('dhud-name');
+    playerName.class('desktop-hud-name');
+    playerName.style('cursor', 'pointer');
+    playerName.mousePressed(() => {
+        if (typeof teamPickDiv !== 'undefined' && teamPickDiv) {
+            gameState = "team_select";
+            teamPickDiv.show();
+        }
+    });
+    
+    let levelSpan = createSpan().parent(nameRow);
+    levelSpan.class('desktop-hud-level');
+    levelSpan.html('Lv <span id="dhud-level">1</span>');
+    
+    // XP row inline
+    let xpRow = createDiv().parent(info);
+    xpRow.class('desktop-hud-xp-row');
+    
+    let xpLabel = createSpan('XP').parent(xpRow);
+    xpLabel.class('desktop-hud-xp-label');
+    
+    let xpTrack = createDiv().parent(xpRow);
+    xpTrack.class('desktop-hud-xp-track');
+    
+    let xpFill = createDiv().parent(xpTrack);
+    xpFill.id('dhud-xp-fill');
+    xpFill.class('desktop-hud-xp-fill');
+    
+    let xpText = createSpan().parent(xpRow);
+    xpText.id('dhud-xp-text');
+    xpText.class('desktop-hud-xp-text');
+    
+    // Bars section
+    let bars = createDiv().parent(desktopPlayerHUD);
+    bars.class('desktop-hud-bars');
+    
+    // HP bar
+    let hpRow = createDiv().parent(bars);
+    hpRow.class('desktop-hud-bar-row');
+    
+    let hpLabel = createSpan('HP').parent(hpRow);
+    hpLabel.class('desktop-hud-bar-label hp');
+    
+    let hpTrack = createDiv().parent(hpRow);
+    hpTrack.class('desktop-hud-bar-track');
+    
+    let hpFill = createDiv().parent(hpTrack);
+    hpFill.id('dhud-hp-fill');
+    hpFill.class('desktop-hud-bar-fill hp');
+    
+    let hpText = createSpan().parent(hpTrack);
+    hpText.id('dhud-hp-text');
+    hpText.class('desktop-hud-bar-text');
+    
+    // MP bar
+    let mpRow = createDiv().parent(bars);
+    mpRow.class('desktop-hud-bar-row');
+    
+    let mpLabel = createSpan('MP').parent(mpRow);
+    mpLabel.class('desktop-hud-bar-label mp');
+    
+    let mpTrack = createDiv().parent(mpRow);
+    mpTrack.class('desktop-hud-bar-track');
+    
+    let mpFill = createDiv().parent(mpTrack);
+    mpFill.id('dhud-mp-fill');
+    mpFill.class('desktop-hud-bar-fill mp');
+    
+    let mpText = createSpan().parent(mpTrack);
+    mpText.id('dhud-mp-text');
+    mpText.class('desktop-hud-bar-text');
+    
+    // Create stats popup
+    defineHudStatsPopup();
+}
+
+function defineHudStatsPopup() {
+    hudStatsPopup = createDiv();
+    hudStatsPopup.id('hud-stats-popup');
+    
+    let title = createP('Player Stats').parent(hudStatsPopup);
+    title.class('hud-stats-title');
+    
+    let content = createDiv().parent(hudStatsPopup);
+    content.class('hud-stats-content');
+    
+    // Attributes group
+    let attrGroup = createDiv().parent(content);
+    attrGroup.class('hud-stat-group');
+    
+    let attrTitle = createP('Attributes').parent(attrGroup);
+    attrTitle.class('hud-stat-group-title');
+    
+    let attrStats = ['str', 'dex', 'con', 'int', 'wis', 'cha', 'lck'];
+    let attrLabels = ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma', 'Luck'];
+    
+    attrStats.forEach((stat, i) => {
+        let row = createDiv().parent(attrGroup);
+        row.class('hud-stat-row');
+        let label = createSpan(attrLabels[i]).parent(row);
+        label.class('hud-stat-label');
+        let value = createSpan().parent(row);
+        value.class('hud-stat-value');
+        value.id('hud-stat-' + stat);
+    });
+    
+    // Combat group
+    let combatGroup = createDiv().parent(content);
+    combatGroup.class('hud-stat-group');
+    
+    let combatTitle = createP('Combat').parent(combatGroup);
+    combatTitle.class('hud-stat-group-title');
+    
+    let combatStats = ['atk', 'def', 'mag', 'spd'];
+    let combatLabels = ['Attack', 'Defense', 'Magic', 'Speed'];
+    
+    combatStats.forEach((stat, i) => {
+        let row = createDiv().parent(combatGroup);
+        row.class('hud-stat-row');
+        let label = createSpan(combatLabels[i]).parent(row);
+        label.class('hud-stat-label');
+        let value = createSpan().parent(row);
+        value.class('hud-stat-value');
+        value.id('hud-stat-' + stat);
+    });
+    
+    // Race info
+    let raceRow = createDiv().parent(content);
+    raceRow.class('hud-stat-row');
+    let raceLabel = createSpan('Race').parent(raceRow);
+    raceLabel.class('hud-stat-label');
+    let raceValue = createSpan().parent(raceRow);
+    raceValue.class('hud-stat-value');
+    raceValue.id('hud-stat-race');
+}
+
+function toggleHudStatsPopup() {
+    if (!hudStatsPopup) return;
+    
+    if (hudStatsPopup.style('display') === 'none') {
+        updateHudStatsPopup();
+        hudStatsPopup.style('display', 'block');
+    } else {
+        hudStatsPopup.style('display', 'none');
+    }
+}
+
+function updateHudStatsPopup() {
+    if (!hudStatsPopup || !curPlayer || !curPlayer.statBlock) return;
+    
+    const s = curPlayer.statBlock.stats;
+    const sb = curPlayer.statBlock;
+    
+    // Attributes
+    ['str', 'dex', 'con', 'int', 'wis', 'cha', 'lck'].forEach(stat => {
+        let el = select('#hud-stat-' + stat);
+        if (el) el.html(s[stat] || 0);
+    });
+    
+    // Combat
+    ['atk', 'def', 'mag', 'spd'].forEach(stat => {
+        let el = select('#hud-stat-' + stat);
+        if (el) el.html(Math.floor(s[stat] || 0));
+    });
+    
+    // Race
+    let raceEl = select('#hud-stat-race');
+    if (raceEl && typeof races !== 'undefined') {
+        raceEl.html(races[curPlayer.race] || 'Unknown');
+    }
+}
+
+function updateDesktopPlayerHUD() {
+    if (!desktopPlayerHUD || !curPlayer || !curPlayer.statBlock) {
+        if (desktopPlayerHUD) desktopPlayerHUD.style('display', 'none');
+        return;
+    }
+    desktopPlayerHUD.style('display', 'block');
+    
+    const s = curPlayer.statBlock.stats;
+    const sb = curPlayer.statBlock;
+    
+    // Name with team color
+    let nameEl = select('#dhud-name');
+    if (nameEl) {
+        nameEl.html(curPlayer.name || '');
+        
+        let dc;
+        if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
+            dc = curPlayer.color;
+        } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+            dc = window.allTeams[curPlayer.teamId].color;
+        } else {
+            dc = teamColors[curPlayer.color] || teamColors[0];
+        }
+        if (dc) nameEl.style('color', `rgb(${dc.r}, ${dc.g}, ${dc.b})`);
+    }
+    
+    // Level
+    let lvlEl = select('#dhud-level');
+    if (lvlEl) lvlEl.html(sb.level || 1);
+    
+    // HP
+    let hpFill = select('#dhud-hp-fill');
+    let hpText = select('#dhud-hp-text');
+    const maxHp = Math.max(1, s.mhp || 1);
+    const hpPct = Math.min(1, Math.max(0, s.hp / maxHp)) * 100;
+    if (hpFill) {
+        hpFill.style('width', hpPct + '%');
+        hpFill.elt.classList.remove('low', 'critical');
+        if (hpPct <= 25) hpFill.elt.classList.add('critical');
+        else if (hpPct <= 50) hpFill.elt.classList.add('low');
+    }
+    if (hpText) hpText.html(Math.floor(s.hp) + ' / ' + Math.floor(maxHp));
+    
+    // MP
+    let mpFill = select('#dhud-mp-fill');
+    let mpText = select('#dhud-mp-text');
+    const maxMp = Math.max(1, s.mmp || 1);
+    const mpPct = Math.min(1, Math.max(0, s.mp / maxMp)) * 100;
+    if (mpFill) mpFill.style('width', mpPct + '%');
+    if (mpText) mpText.html(Math.floor(s.mp) + ' / ' + Math.floor(maxMp));
+    
+    // XP
+    let xpFill = select('#dhud-xp-fill');
+    let xpText = select('#dhud-xp-text');
+    const xpPct = sb.xpNeeded > 0 ? Math.min(1, sb.xp / sb.xpNeeded) * 100 : 0;
+    if (xpFill) xpFill.style('width', xpPct + '%');
+    if (xpText) xpText.html(sb.xp + ' / ' + sb.xpNeeded);
+    
+    // Portrait
+    let portraitEl = select('#dhud-portrait');
+    if (portraitEl && !portraitEl.elt.dataset.loaded) {
+        let raceName = typeof races !== 'undefined' ? races[curPlayer.race] : null;
+        if (raceName && raceImages[raceName] && raceImages[raceName].portrait) {
+            let src = raceImages[raceName].portrait.canvas.toDataURL();
+            portraitEl.elt.innerHTML = `<img src="${src}" alt="portrait">`;
+            portraitEl.elt.dataset.loaded = '1';
+        }
+    }
 }
 
 /* ─── Mobile HUD ─── */
@@ -1302,175 +1586,34 @@ function renderPlayerCardUI() {
         return;
     }
 
-    const uiScale = 1;
-    const cardW = 510 * uiScale;
-    const cardH = 125 * uiScale;
-    const cardX = width - cardW - 20 * uiScale;
-    push();
-
-    fill(0);
-    noStroke();
-    rect(width - 530, 0, 510, 125);
-
-    stroke(134);
-    strokeWeight(4);
-    rect(width - 530 + 6, -20, 510 - 12, 120 + 20 - 6, 10);
-
-    strokeWeight(2);
-    line(width - 30 - 115 + 6, 7, width - 30 - 115 + 6, 120 - 6);
-    line(width - 530 + 6 + 5, 42, width - 30 - 115 + 6 - 5, 42);
-
-    noStroke();
-    fill(134);
-    rect(width - 530 + 6 + 79, 52, 295, 21);
-    rect(width - 530 + 6 + 79, 83, 295, 21);
-
-    fill(112, 68, 60);
-    rect(width - 30 - 115 + 6 + 7, 7, 98, 98);
-
-    fill(0);
-    rect(width - 530 + 91, 52, 36, 19);
-    rect(width - 530 + 128, 52, 33, 19);
-    rect(width - 530 + 163, 52, 34, 19);
-    rect(width - 530 + 199, 52, 33, 19);
-    rect(width - 530 + 233, 52, 35, 19);
-    rect(width - 530 + 269, 52, 33, 19);
-    rect(width - 530 + 304, 52, 34, 19);
-    rect(width - 530 + 340, 52, 36, 19);
-
-    rect(width - 530 + 91, 83, 36, 19);
-    rect(width - 530 + 128, 83, 33, 19);
-    rect(width - 530 + 163, 83, 34, 19);
-    rect(width - 530 + 199, 83, 33, 19);
-    rect(width - 530 + 233, 83, 35, 19);
-    rect(width - 530 + 269, 83, 33, 19);
-    rect(width - 530 + 304, 83, 34, 19);
-    rect(width - 530 + 340, 83, 36, 19);
-
-    const maxHp = Math.max(1, curPlayer.statBlock.stats.mhp || 1);
-    const hpRatio = Math.min(1, Math.max(0, curPlayer.statBlock.stats.hp / maxHp));
-    const hpWidth = 281 * hpRatio;
-    image(
-        hpBarImg,
-        width - 530 + 93,
-        52,
-        hpWidth,
-        14,
-        0,
-        0,
-        hpWidth,
-        14
-    );
-
-    let heldItem =
-        curPlayer.invBlock.items[
-            curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]
-        ];
-
-    if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "" || !heldItem) {
-        let manaRatio = Math.min(
-            curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
-            1
-        );
-        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14);
-    } else if (heldItem.manaCost == 0 && heldItem.type == "Ranged") {
-        let ammoBarLength;
-
-        if (heldItem.reloadBool) {
-            ammoBarLength =
-                (heldItem.reloadSpeed - curPlayer.invBlock.useTimer) /
-                heldItem.reloadSpeed;
-            if (curPlayer.invBlock.useTimer <= 0) {
-                heldItem.reloadBool = false;
-            }
-        } else if (!curPlayer.invBlock.items[heldItem.ammoName]) {
-            ammoBarLength = 0.00000001;
-        } else if (
-            curPlayer.invBlock.items[heldItem.ammoName].amount <
-            heldItem.bulletsLeft
-        ) {
-            ammoBarLength =
-                curPlayer.invBlock.items[heldItem.ammoName].amount /
-                heldItem.roundSize;
-        } else {
-            ammoBarLength = heldItem.bulletsLeft / heldItem.roundSize;
-        }
-
-        image(ammoBarImg, width - 530 + 93, 83, 281 * ammoBarLength, 14);
-
-        stroke(0);
-        strokeWeight(1);
-        for (let i = 1; i < heldItem.roundSize; i++) {
-            let lx = width - 530 + 93 + (281 * i) / heldItem.roundSize;
-            line(lx, 83, lx, 97);
-        }
-    } else {
-        let manaRatio = Math.min(
-            curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
-            1
-        );
-        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14);
+    // Desktop: use HTML-based player HUD instead of Canvas
+    const inGameStates = ["playing", "chating", "paused", "team_select", "inventory", "crafting", "swap_inv", "player_status"];
+    const showHUD = inGameStates.includes(gameState);
+    const isMobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ||
+                      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    
+    // Hide race portrait on desktop (HUD handles it), show on mobile
+    if (racePortraitDiv) {
+        racePortraitDiv.style('display', isMobile ? 'block' : 'none');
     }
-
-    textFont(gameUIFont);
-    textSize(20);
-    strokeWeight(1);
-
-    fill(134);
-    text("lvl", width - 530 + 26, 35);
-
-    fill(0, 255, 0);
-    text(
-        curPlayer.statBlock.level +
-            "   " +
-            `${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded} XP`,
-        width - 530 + 45,
-        35
-    );
-
-    fill(134);
-    text("HP:", width - 530 + 36, 70);
-
-    fill(0, 255, 255);
-    text("Mana:", width - 530 + 36, 100);
-
-    // ✅ DOM hotbar replaces ALL canvas hotbar code
+    
+    // Hide old stats panel when using new HUD
+    if (statsPanel) {
+        statsPanel.hide();
+    }
+    if (hudStatsPopup) {
+        hudStatsPopup.style('display', 'none');
+    }
+    
+    if (showHUD && curPlayer && curPlayer.statBlock) {
+        updateDesktopPlayerHUD();
+    } else if (desktopPlayerHUD) {
+        desktopPlayerHUD.style.display = 'none';
+    }
+    
     updateMoveHotbarDOM(curPlayer);
-
-    // Team color name
-    let displayColor;
-    if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
-        // Team color (RGB object)
-        displayColor = curPlayer.color;
-    } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
-        // Fall back to team data
-        displayColor = window.allTeams[curPlayer.teamId].color;
-    } else {
-        // Use index-based color
-        displayColor = teamColors[curPlayer.color] || teamColors[0];
-    }
-
-    fill(displayColor.r, displayColor.g, displayColor.b);
-    textAlign(CENTER, CENTER);
-
-    nameBtn.html(curPlayer.name);
-    nameBtn.style(
-        "color",
-        `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`
-    );
-
-    let nx, ny;
-    nx = width - 530 + 6 + 45 + 350 / 2;
-    ny = 19;
-    nameBtn.style('font-size', '20px');
-    nameBtn.position(nx, ny);
-    nameBtn.show();
-
-    // Draw underline on canvas
-    let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
-    line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
-
-    pop();
+    
+    if (nameBtn) nameBtn.hide();
 }
 
 
@@ -2216,7 +2359,7 @@ function defineCraftingUI() {
     applyStyle(craftDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
     });
@@ -3341,7 +3484,7 @@ function defineSignUI(){
     applyStyle(signDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
         height: "70%",
