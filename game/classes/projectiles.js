@@ -145,6 +145,7 @@ class SimpleProjectile{
                             if(this.ownerName != chunk.objects[j].ownerName){
                                 damageObj(chunk, chunk.objects[j], this.damage);
                                 scareBrain(chunk.objects[j].brainID, this);
+                                grantEntityCombatXP(this);
                             }
                         }
                     }
@@ -162,6 +163,7 @@ class SimpleProjectile{
                         if(this.ownerName != chunk.objects[j].ownerName){
                             damageObj(chunk, chunk.objects[j], this.damage);
                             scareBrain(chunk.objects[j].brainID, this);
+                            grantEntityCombatXP(this);
                         }
                     }
                 }
@@ -404,6 +406,7 @@ class MeleeProjectile extends SimpleProjectile{
                     damageObj(chunk, chunk.objects[j], this.damage);
                     
                     scareBrain(chunk.objects[j].brainID, this);
+                    grantEntityCombatXP(this);
                 }
             }
         }
@@ -736,6 +739,17 @@ function damageObj(chunk, obj, damage){
 
     // floating combat text for object damage
     spawnFloatingText(damage, obj.pos.x, obj.pos.y, "damage", false);
+}
+
+// Grant combat XP to the entity that owns a projectile
+function grantEntityCombatXP(proj){
+    if(!proj || !proj.ownerEntity || !proj.ownerEntity.brainID) return;
+    let entity = proj.ownerEntity;
+    let cPos = testMap.globalToChunk(entity.pos.x, entity.pos.y);
+    socket.emit("entity_combat_xp", {
+        cx: cPos.x, cy: cPos.y,
+        brainID: entity.brainID
+    });
 }
 
 // Floating combat text class and helpers
