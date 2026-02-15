@@ -71,8 +71,8 @@ function setupUI() {
     setupRaceSelectionUI();
     deathDiv.hide();
 }
-
 window.setupUI = setupUI;
+window.updateSpaceBarDiv = updateSpaceBarDiv;
 
 // Show invite player UI - displays list of players not in a team
 function showInvitePlayerUI() {
@@ -680,32 +680,22 @@ function updateItemList() {
 }
 
 function updatecurItemDiv() {
-        // Add durability if present
-        if (typeof curEntry.durability !== 'undefined') {
-            let durabilityDiv = createDiv("Durability: " + curEntry.durability);
-            durabilityDiv.style("width", "100%");
-            durabilityDiv.style("margin-top", "8px");
-            durabilityDiv.style("color", "#fff");
-            durabilityDiv.style("font-size", "1em");
-            durabilityDiv.parent(itemNameDescDiv);
-        }
     if (curPlayer == undefined) return;
 
     //clear the div (timed when perfLog is on)
-    curItemDiv.html("");
-
     if (curPlayer.invBlock.curItem == "") {
         let curItemNone = createP("No Selected Item");
         curItemNone.parent(curItemDiv);
         curItemNone.class("inventory-title");
-
         applyStyle(curItemNone, {
             paddingTop: "7%",
             textDecoration: "none"
         });
         return;
-    };
+    }
 
+    // Only now, after checking curItem, get curEntry
+    const curEntry = curPlayer.invBlock.items[curPlayer.invBlock.curItem];
 
     let itemCardDiv = createDiv();
     itemCardDiv.style("width", "100%");
@@ -721,7 +711,6 @@ function updatecurItemDiv() {
     itemImgDiv.style("border-radius", "10px");
 
     itemImgDiv.src = "";
-    const curEntry = curPlayer.invBlock.items[curPlayer.invBlock.curItem];
     const curURL = resolveItemImgURL(curPlayer.invBlock.curItem, curEntry);
     if (curURL) {
         itemImgDiv.style("background-image", "url('" + curURL + "')");
@@ -765,15 +754,19 @@ function updatecurItemDiv() {
 
     // Optionally add durability, stats, etc. here
 
-    // fastHighlightSwapLists lives in ui/inventoryUI.js; remove duplicate definitions here to avoid overrides.
+    // Add durability if present
+    if (typeof curEntry.durability !== 'undefined') {
+        let durabilityDiv = createDiv("Durability: " + curEntry.durability);
+        durabilityDiv.style("width", "100%");
+        durabilityDiv.style("margin-top", "8px");
+        durabilityDiv.style("color", "#fff");
+        durabilityDiv.style("font-size", "1em");
+        durabilityDiv.parent(itemNameDescDiv);
+    }
+
 }
 
-// Render build UI container
-var buildDiv;
-
-
-//   var buildOptions = [
-//     { type: "Wall", key: 49, params: { color: curPlayer.color } },
+// 1) Set up the container DIV
 //     { type: "Floor", key: 50, params: { color: curPlayer.color } },
 //     { type: "Door", key: 51, params: { color: curPlayer.color } },
 //     { type: "Rug", key: 52, params: { color: curPlayer.color } },
