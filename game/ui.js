@@ -682,86 +682,92 @@ function updateItemList() {
 function updatecurItemDiv() {
     if (curPlayer == undefined) return;
 
-    //clear the div (timed when perfLog is on)
+    curItemDiv.html("");
     if (curPlayer.invBlock.curItem == "") {
         let curItemNone = createP("No Selected Item");
         curItemNone.parent(curItemDiv);
-        curItemNone.class("inventory-title");
-        applyStyle(curItemNone, {
-            paddingTop: "7%",
-            textDecoration: "none"
-        });
+        curItemNone.class("swap-inv-empty");
         return;
     }
+    const itemName = curPlayer.invBlock.curItem;
+    const itemEntry = curPlayer.invBlock.items[itemName];
 
-    // Only now, after checking curItem, get curEntry
-    const curEntry = curPlayer.invBlock.items[curPlayer.invBlock.curItem];
-
-    let itemCardDiv = createDiv();
-    itemCardDiv.style("width", "100%");
-    itemCardDiv.style("height", "30%");
-    itemCardDiv.style("display", "flex");
-    itemCardDiv.style("margin-bottom", "20px");
-    itemCardDiv.parent(curItemDiv);
-
-    let itemImgDiv = createDiv();
-    itemImgDiv.style("width", "50%");
-    itemImgDiv.style("height", "100%");
-    itemImgDiv.style("border", "2px solid black");
-    itemImgDiv.style("border-radius", "10px");
-
-    itemImgDiv.src = "";
-    const curURL = resolveItemImgURL(curPlayer.invBlock.curItem, curEntry);
-    if (curURL) {
-        itemImgDiv.style("background-image", "url('" + curURL + "')");
+    // Image
+    let imgDiv = createDiv();
+    imgDiv.parent(curItemDiv);
+    imgDiv.addClass("swap-inv-detail-image");
+    const imgUrl = resolveItemImgURL(itemName, itemEntry);
+    if (imgUrl) {
+        let img = createImg(imgUrl, itemName);
+        img.addClass("swap-inv-detail-img");
+        img.parent(imgDiv);
     } else {
-        itemImgDiv.style("display", "flex");
-        itemImgDiv.style("align-items", "center");
-        itemImgDiv.style("justify-content", "center");
-        const dot = createDiv("•");
-        dot.style("font-size", "28px");
-        dot.style("color", "#ccc");
-        dot.parent(itemImgDiv);
+        let ph = createDiv("📦");
+        ph.parent(imgDiv);
+        ph.addClass("swap-inv-detail-placeholder");
     }
-    itemImgDiv.style("background-size", "contain");
-    itemImgDiv.style("background-repeat", "no-repeat");
-    itemImgDiv.style("background-position", "center");
-    itemImgDiv.style("image-rendering", "pixelated");
-    itemImgDiv.parent(itemCardDiv);
 
-    let itemNameDescDiv = createDiv();
-    itemNameDescDiv.style("width", "calc(50% - 8px)");
-    itemNameDescDiv.style("height", "100%");
-    itemNameDescDiv.parent(itemCardDiv);
+    // Name
+    let nameP = createP(itemName);
+    nameP.parent(curItemDiv);
+    nameP.addClass("swap-inv-detail-name");
+    try {
+        if (typeof window.getItemRarityCSSByName === 'function') {
+            nameP.style("color", window.getItemRarityCSSByName(itemName));
+        }
+    } catch (e) {}
 
-    let itemNameDiv = createDiv();
-    itemNameDiv.style("width", "100%");
-    itemNameDiv.style("height", "20%");
-    itemNameDiv.style("border", "2px solid black");
-    itemNameDiv.style("border-radius", "10px");
-    itemNameDiv.parent(itemNameDescDiv);
+    // Amount
+    let amtP = createP("Amount: " + (itemEntry.amount || 0));
+    amtP.parent(curItemDiv);
+    amtP.addClass("swap-inv-detail-amount");
 
-    // Set item name
-    itemNameDiv.html("<span style='color: #6cf; font-size: 1.2em;'>" + curPlayer.invBlock.curItem + "</span>");
+    // Description
+    const desc = itemEntry.desc || itemDic?.[itemName]?.desc || "No description";
+    let descP = createP(desc);
+    descP.parent(curItemDiv);
+    descP.addClass("swap-inv-detail-desc");
 
-    // Add description
-    let descDiv = createDiv(curEntry.desc || "No description.");
-    descDiv.style("width", "100%");
-    descDiv.style("margin-top", "8px");
-    descDiv.style("color", "#fff");
-    descDiv.style("font-size", "1em");
-    descDiv.parent(itemNameDescDiv);
+    // Durability bar
+    if (itemEntry.type !== "Simple" && typeof itemEntry.durability === "number" && typeof itemEntry.maxDurability === "number" && itemEntry.maxDurability > 0) {
+        let durWrap = createDiv();
+        durWrap.parent(curItemDiv);
+        durWrap.addClass("swap-detail-durability");
+        let durLabel = createP("Durability");
+        durLabel.parent(durWrap);
+        durLabel.addClass("swap-detail-dur-label");
+        let barBg = createDiv();
+        barBg.parent(durWrap);
+        barBg.addClass("swap-detail-dur-bar");
+        const pct = Math.max(0, Math.min(1, itemEntry.durability / itemEntry.maxDurability)) * 100;
+        let barFill = createDiv();
+        barFill.parent(barBg);
+        barFill.addClass("swap-detail-dur-fill");
+        barFill.style("width", pct + "%");
+    }
 
-    // Optionally add durability, stats, etc. here
-
-    // Add durability if present
-    if (typeof curEntry.durability !== 'undefined') {
-        let durabilityDiv = createDiv("Durability: " + curEntry.durability);
-        durabilityDiv.style("width", "100%");
-        durabilityDiv.style("margin-top", "8px");
-        durabilityDiv.style("color", "#fff");
-        durabilityDiv.style("font-size", "1em");
-        durabilityDiv.parent(itemNameDescDiv);
+    // Stats list
+    let stats;
+    if (typeof curPlayer.invBlock.getItemStats === "function") {
+        stats = curPlayer.invBlock.getItemStats(itemName);
+    }
+    if (Array.isArray(stats) && stats.length > 0) {
+        let statsWrap = createDiv();
+        statsWrap.parent(curItemDiv);
+        statsWrap.addClass("swap-detail-stats");
+        stats.forEach(stat => {
+            if (!Array.isArray(stat) || stat.length < 2) return;
+            if (stat[0] === "Durability") return;
+            let row = createDiv();
+            row.parent(statsWrap);
+            row.addClass("swap-detail-stat-row");
+            let label = createDiv(String(stat[0]) + ":");
+            label.parent(row);
+            label.addClass("swap-detail-stat-label");
+            let val = createDiv(String(stat[1]));
+            val.parent(row);
+            val.addClass("swap-detail-stat-value");
+        });
     }
 
 }
