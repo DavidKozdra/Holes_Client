@@ -1143,7 +1143,11 @@ function definePlayerHUD() {
     let portrait = createDiv().parent(header);
     portrait.class('desktop-hud-portrait');
     portrait.id('dhud-portrait');
-    portrait.mousePressed(() => toggleHudStatsPopup());
+    portrait.elt.style.cursor = 'pointer';
+    portrait.elt.addEventListener('click', function() {
+        console.log('Portrait clicked, calling toggleHudStatsPopup');
+        toggleHudStatsPopup();
+    });
     
     // Info section
     let info = createDiv().parent(header);
@@ -1259,6 +1263,7 @@ function defineHudStatsPopup() {
 }
 
 function toggleHudStatsPopup() {
+    console.log('toggleHudStatsPopup called', hudStatsPopup);
     if (!hudStatsPopup) return;
     
     if (hudStatsPopup.style.display === 'none') {

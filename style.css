@@ -4308,21 +4308,19 @@ input.fmt-italic-apply {
 /* HUD Stats Popup */
 #hud-stats-popup {
     position: fixed;
-    top: 180px;
+    top: 240px;
     right: 24px;
     width: 280px;
     background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
     border: 3px solid var(--color-dirt-dark);
     border-radius: 12px;
     padding: 0;
-    z-index: 99;
+    z-index: 101;
     box-shadow: 
         0 0 40px rgba(59, 47, 47, 0.5),
         inset 0 1px 0 rgba(255, 215, 0, 0.08);
     overflow: hidden;
     font-family: 'Press Start 2P', cursive;
-    transform: scale(1.5);
-    transform-origin: top right;
     display: none;
 }
 

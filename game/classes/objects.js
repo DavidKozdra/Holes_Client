@@ -632,13 +632,17 @@ class Placeable {
         }
         let healthWidth = constrain(map(this.hp, 0, this.mhp, 0, 32), 0, 32);
         fill(barColor);
-        rect(0, 0, healthWidth, 6);
+        noStroke();
+        rect(0, 0, healthWidth, 6, 2);
 
-        // White pulsing highlight for red bar
+        // White pulsing border for red bar (low opacity)
         if (doPulse && healthWidth > 0) {
-            let pulse = 120 + 80 * sin(millis() / 200);
-            fill(255, 255, 255, pulse);
+            let pulse = 1.5 + 1.5 * sin(millis() / 200);
+            noFill();
+            stroke(255, 255, 255, 60); // much lower opacity
+            strokeWeight(pulse);
             rect(0, 0, healthWidth, 6, 2);
+            noStroke();
         }
 
         pop();

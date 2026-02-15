@@ -590,13 +590,15 @@ updateRemote() {
             this.pos.y + 40,
             healthWidth,
             6,
-            3  // same radius so the corners match up
+            2  // match object bar radius
         );
 
-        // White pulsing highlight for red bar
+        // White pulsing border for red bar (low opacity)
         if (doPulse && healthWidth > 0) {
-            let pulse = 120 + 80 * sin(millis() / 200);
-            fill(255, 255, 255, pulse);
+            let pulse = 1.5 + 1.5 * sin(millis() / 200);
+            noFill();
+            stroke(255, 255, 255, 60); // much lower opacity
+            strokeWeight(pulse);
             rect(
                 this.pos.x,
                 this.pos.y + 40,
@@ -604,6 +606,7 @@ updateRemote() {
                 6,
                 2
             );
+            noStroke();
         }
 
         pop();
