@@ -102,6 +102,34 @@ defineSeed("Acorn", [[0,0]], [2,["Log", 1],["Mushroom Fiber",2]], 1, "Tree", 0.5
 defineSeed("Mushroom Seed", [[5,3]], [3,["Mushroom", 1]], 1, "Mushroom", 0.5, "Some mushroom spores", ItemRarity.GOOD, true);
 defineSimpleItem("Mushroom Fiber", [[3,3]], [3,["Mushroom",1]], 1, "A stringy component of many tools", ItemRarity.BASIC, true);
 
+// ── New Recipes ──────────────────────────────────────────────
+
+// Potions
+definePotion("Health Potion", [[4,0]], [1,["Apple",2],["Mushroom",1]], 1, "hp", 0.3, 600, "Restores 30% HP over 10 seconds", ItemRarity.GOOD, true);
+definePotion("Speed Potion", [[5,0]], [1,["Mushroom",3],["Gem",1]], 1, "speed", 0.25, 480, "Move 25% faster for 8 seconds", ItemRarity.GREAT, true);
+definePotion("Strength Potion", [[4,0]], [1,["Bad Apple",1],["Black Gem",1],["Mushroom Fiber",2]], 1, "attack", 0.35, 600, "+35% attack power for 10 seconds", ItemRarity.GREAT, true);
+definePotion("Mana Potion", [[1,2]], [1,["Gem",2],["Mushroom",2]], 1, "mp", 0.4, 300, "Restores 40% MP over 5 seconds", ItemRarity.GOOD, true);
+
+// Equipment - Armor & Shields
+defineEquipment("Wooden Shield", [[6,2]], [1,["Log",4],["Mushroom Fiber",3]], 1, 80, "chest", 5, "defense", 0.1, "A sturdy wooden shield", ItemRarity.GOOD, true);
+defineEquipment("Iron Shield", [[2,3]], [1,["Metal",4],["Log",2]], 1, 150, "chest", 12, "defense", 0.2, "An iron-reinforced shield", ItemRarity.GREAT, true);
+defineEquipment("Gem Crown", [[1,2]], [1,["Gem",3],["Metal",2],["Philosopher's Stone",1]], 1, 200, "head", 8, "magic", 0.25, "A crown that amplifies magic", ItemRarity.LEGENDARY, true);
+defineEquipment("Leather Boots", [[3,3]], [1,["Mushroom Fiber",5],["Log",2]], 1, 100, "feet", 3, "speed", 0.1, "Boots that make you slightly faster", ItemRarity.GOOD, true);
+defineEquipment("Iron Helm", [[2,3]], [1,["Metal",3],["Mushroom Fiber",2]], 1, 120, "head", 8, "defense", 0.15, "A solid iron helmet", ItemRarity.GREAT, true);
+
+// More consumables
+defineFood("Mushroom Stew", [[458,47]], [1,["Mushroom",3],["Apple",1],["Mushroom Fiber",1]], 1, 100, 35, 25, "A hearty stew that restores both HP and MP", ItemRarity.GREAT, true);
+defineFood("Trail Mix", [[0,0]], [1,["Apple",2],["Mushroom",1],["Rock",1]], 1, 100, 20, 0, "Crunchy and filling snack for adventurers", ItemRarity.GOOD, true);
+
+// More weapons
+defineMelee("Gem Dagger", [[1,2]], [1,["Gem",2],["Rock",2],["Mushroom Fiber",1]], 1, 90, 18, 3, 40, 45, 60, 10, false, "A swift dagger with a gem edge", ItemRarity.GREAT, true);
+defineRanged("Gem SlingShot", [[1,2]], [1,["Better SlingShot",1],["Gem",2],["Tech",1]], 1, 100, 5, "Rock", "Rock", 8, 15, 45, false, "A slingshot infused with gem energy", ItemRarity.LEGENDARY, true);
+
+// More tools
+defineShovel("Gem Pickaxe", [[1,2]], [1,["Pickaxe",1],["Gem",2],["Metal",3]], 1, 200, 0.3, 4, 1, "A pickaxe that mines faster and lasts longer", ItemRarity.GREAT, true);
+defineSimpleItem("Rope", [[3,3]], [1,["Mushroom Fiber",4]], 1, "A sturdy rope, useful for crafting", ItemRarity.BASIC, true);
+defineSimpleItem("Torch", [[6,1]], [1,["Log",2],["Mushroom Fiber",1],["Rock",1]], 1, "Lights the way in dark places", ItemRarity.GOOD, true);
+
 // Global compass state for display
 var compassTarget = null;
 var compassDuration = 300; // frames to show compass info (5 seconds at 60 fps)

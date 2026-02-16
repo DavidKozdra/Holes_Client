@@ -807,7 +807,18 @@ function socketSetup(){
                 movesSlots: Array.isArray(curPlayer.movesSlots) ? curPlayer.movesSlots : null
             };
             
-            // Send via sendBeacon (most reliable for unload events)
+            // Send via socket event first (most reliable for inventory state)
+            socket.emit('save_player_state', {
+                pos: completeData.pos,
+                invBlock: completeData.invBlock,
+                statBlock: completeData.statBlock,
+                race: completeData.race,
+                color: completeData.color,
+                teamId: completeData.teamId,
+                movesSlots: completeData.movesSlots
+            });
+            
+            // Send via sendBeacon as backup (triggers server-side snapshot persist)
             const blob = new Blob([JSON.stringify(completeData)], { type: 'application/json' });
             navigator.sendBeacon('/api/save-player-data', blob);
             
@@ -1712,10 +1723,32 @@ function socketSetup(){
         if(chunk != undefined){
             for(let i = chunk.objects.length-1; i >= 0; i--){
                 if(data.pos && chunk.objects[i].pos && data.pos.x == chunk.objects[i].pos.x && data.pos.y == chunk.objects[i].pos.y && data.z == chunk.objects[i].z && data.objName == chunk.objects[i].objName){
-                    chunk.objects[i].invBlock.items = data.items;
+                    // Rehydrate items from itemDic to restore full properties stripped by server sanitization
+                    const rehydrated = {};
+                    if (data.items && typeof data.items === 'object') {
+                        Object.keys(data.items).forEach(function(name) {
+                            try {
+                                if (typeof itemDic !== 'undefined' && itemDic[name]) {
+                                    rehydrated[name] = createItem(name);
+                                    rehydrated[name].amount = data.items[name].amount || 1;
+                                } else {
+                                    rehydrated[name] = data.items[name];
+                                }
+                            } catch (e) {
+                                rehydrated[name] = data.items[name];
+                            }
+                        });
+                    }
+                    chunk.objects[i].invBlock.items = rehydrated;
                     if(curPlayer != undefined){
                         if(curPlayer.otherInv != undefined){
-                            if(curPlayer.otherInv.invBlock.invId == chunk.objects[i].invBlock.invId) updateSwapItemLists(chunk.objects[i].invBlock);
+                            if(curPlayer.otherInv.invBlock.invId == chunk.objects[i].invBlock.invId) {
+                                // Force cache invalidation so UI fully rebuilds with rehydrated data
+                                if (typeof swapListCache !== 'undefined') {
+                                    swapListCache.lastRightHash = "";
+                                }
+                                updateSwapItemLists(chunk.objects[i].invBlock);
+                            }
                         }
                     }
                 }

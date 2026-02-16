@@ -51,10 +51,12 @@ function defineInvUI() {
     });
     craftingTitle.style("cursor", "pointer");
 
-    let movesBtn = createButton("Edit Moves").parent(topBar);
-    movesBtn.class("inventory-title");
-    movesBtn.style("margin-left", "12px");
-    movesBtn.mousePressed(() => {
+    let movesTitle = createP("Moves").parent(topBar);
+    movesTitle.class("inventory-title");
+    movesTitle.style("cursor", "pointer");
+    movesTitle.mousePressed(() => {
+        invDiv.hide();
+        spaceBarDiv.hide();
         showMovesEditor();
     });
 
@@ -149,6 +151,14 @@ function defineCraftingUI() {
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
     craftingTitle.style("color", "yellow");
+
+    let movesTitle = createP("Moves").parent(topBar);
+    movesTitle.class("inventory-title");
+    movesTitle.style("cursor", "pointer");
+    movesTitle.mousePressed(() => {
+        craftDiv.hide();
+        showMovesEditor();
+    });
 
     let tagBar = createDiv().parent(craftDiv);
     tagBar.class("tag-bar");
@@ -395,124 +405,72 @@ function updatecurItemDiv() {
     }
 
     let itemCardDiv = createDiv();
-    itemCardDiv.style("width", "100%");
-    itemCardDiv.style("height", "30%");
-    itemCardDiv.style("display", "flex");
-    itemCardDiv.style("margin-bottom", "20px");
+    itemCardDiv.class("item-card");
     itemCardDiv.parent(curItemDiv);
 
     let itemImgDiv = createDiv();
-    itemImgDiv.style("width", "50%");
-    itemImgDiv.style("height", "100%");
-    itemImgDiv.style("border", "2px solid black");
-    itemImgDiv.style("border-radius", "10px");
+    itemImgDiv.class("item-image");
 
     const curEntry = curPlayer.invBlock.items[curPlayer.invBlock.curItem];
     const curURL = resolveItemImgURL(curPlayer.invBlock.curItem, curEntry);
     if (curURL) {
         itemImgDiv.style("background-image", "url('" + curURL + "')");
     } else {
-        itemImgDiv.style("display", "flex");
-        itemImgDiv.style("align-items", "center");
-        itemImgDiv.style("justify-content", "center");
         const dot = createDiv("•");
         dot.style("font-size", "28px");
         dot.style("color", "#ccc");
         dot.parent(itemImgDiv);
     }
-    itemImgDiv.style("background-size", "contain");
-    itemImgDiv.style("background-repeat", "no-repeat");
-    itemImgDiv.style("background-position", "center");
-    itemImgDiv.style("image-rendering", "pixelated");
     itemImgDiv.parent(itemCardDiv);
 
     let itemNameDescDiv = createDiv();
-    itemNameDescDiv.style("width", "calc(50% - 8px)");
-    itemNameDescDiv.style("height", "100%");
+    itemNameDescDiv.class("item-name-desc");
     itemNameDescDiv.parent(itemCardDiv);
 
     let itemNameDiv = createDiv();
-    itemNameDiv.style("width", "100%");
-    itemNameDiv.style("height", "20%");
-    itemNameDiv.style("border", "2px solid black");
-    itemNameDiv.style("border-radius", "10px");
+    itemNameDiv.class("item-name");
     itemNameDiv.parent(itemNameDescDiv);
 
     let itemNameP = createP(curPlayer.invBlock.curItem);
-    itemNameP.style("font-size", "20px");
     itemNameP.style("color", rarityColorCSS(curPlayer.invBlock.curItem));
-    itemNameP.style("margin", "5px");
-    itemNameP.style("padding", "0");
-    itemNameP.style("word-wrap", "break-word");
-    itemNameP.style("overflow-wrap", "break-word");
-    itemNameP.style("white-space", "normal");
     itemNameP.parent(itemNameDiv);
 
     let itemDescDiv = createDiv();
-    itemDescDiv.style("width", "100%");
-    itemDescDiv.style("height", "calc(80% - 5px)");
-    itemDescDiv.style("border", "2px solid black");
-    itemDescDiv.style("border-radius", "10px");
+    itemDescDiv.class("item-desc");
     itemDescDiv.parent(itemNameDescDiv);
 
-    let itemDescP = createP(curPlayer.invBlock.items[curPlayer.invBlock.curItem].desc);
-    itemDescP.style("font-size", "20px");
-    itemDescP.style("color", "white");
-    itemDescP.style("margin", "5px");
+    let itemDescP = createP(curPlayer.invBlock.items[curPlayer.invBlock.curItem].desc || "No description");
     itemDescP.parent(itemDescDiv);
 
     let itemStatsDiv = createDiv();
-    itemStatsDiv.style("width", "100%");
-    itemStatsDiv.style("height", "calc(70% - 10px)");
+    itemStatsDiv.class("item-stats");
     itemStatsDiv.parent(curItemDiv);
 
     if (curPlayer.invBlock.items[curPlayer.invBlock.curItem].type != "Simple") {
         let durabilityDiv = createDiv();
-        durabilityDiv.style("width", "calc(100% - 14px)");
-        durabilityDiv.style("height", "10%");
-        durabilityDiv.style("padding", "5px");
-        durabilityDiv.style("border", "2px solid black");
-        durabilityDiv.style("border-radius", "10px");
-        durabilityDiv.style("display", "flex");
-        durabilityDiv.style("align-items", "center");
-        durabilityDiv.style("justify-content", "center");
-        durabilityDiv.style("margin-bottom", "5px");
+        durabilityDiv.class("durability-bar");
         durabilityDiv.parent(itemStatsDiv);
 
         let durabilityText = createP("Durability:");
-        durabilityText.style("font-size", "20px");
-        durabilityText.style("color", "white");
         durabilityText.parent(durabilityDiv);
 
         let durabilityBar = createDiv();
-        durabilityBar.style("width", "80%");
-        durabilityBar.style("height", "20px");
-        durabilityBar.style("background-color", "red");
-        durabilityBar.style("border", "2px solid black");
-        durabilityBar.style("border-radius", "10px");
+        durabilityBar.class("durability-fill-container");
         durabilityBar.parent(durabilityDiv);
 
         let durabilityFill = createDiv();
-        durabilityFill.style("width", ((curPlayer.invBlock.items[curPlayer.invBlock.curItem].durability / curPlayer.invBlock.items[curPlayer.invBlock.curItem].maxDurability) * 100) + "%");
-        durabilityFill.style("height", "100%");
-        durabilityFill.style("background-color", "green");
-        durabilityFill.style("border-radius", "10px");
+        const durPercent = (curPlayer.invBlock.items[curPlayer.invBlock.curItem].durability / curPlayer.invBlock.items[curPlayer.invBlock.curItem].maxDurability) * 100;
+        durabilityFill.class("durability-fill");
+        durabilityFill.style("width", durPercent + "%");
         durabilityFill.parent(durabilityBar);
     }
 
     let statsText = createDiv("Stats");
-    statsText.style("font-size", "20px");
-    statsText.style("color", "white");
-    statsText.style("text-align", "center");
-    statsText.style("border", "2px solid black");
-    statsText.style("border-radius", "10px");
-    statsText.style("padding", "10px");
-    statsText.style("margin-bottom", "5px");
+    statsText.class("stats-title");
     statsText.parent(itemStatsDiv);
 
     let statsList = createDiv();
     statsList.style("width", "100%");
-    statsList.style("height", "calc(90% - 10px)");
     statsList.style("overflow-y", "auto");
     statsList.parent(itemStatsDiv);
 
@@ -521,32 +479,30 @@ function updatecurItemDiv() {
         if (stat[0] == "Durability") { }
         else {
             let statDiv = createDiv();
-            statDiv.style("width", "100%");
-            statDiv.style("height", "20px");
             statDiv.style("display", "flex");
-            statDiv.style("margin-bottom", "12px");
+            statDiv.style("gap", "8px");
+            statDiv.style("margin-bottom", "8px");
             statDiv.parent(statsList);
 
             let statNameDiv = createDiv(stat[0] + ":");
-            statNameDiv.style("width", "50%");
-            statNameDiv.style("height", "100%");
-            statNameDiv.style("color", "white");
+            statNameDiv.style("flex", "1");
+            statNameDiv.style("color", "var(--color-beige)");
             statNameDiv.style("text-align", "center");
-            statNameDiv.style("font-size", "20px");
-            statNameDiv.style("border", "2px solid black");
-            statNameDiv.style("border-radius", "10px");
-            statNameDiv.style("padding", "5px");
+            statNameDiv.style("background", "rgba(0,0,0,0.4)");
+            statNameDiv.style("border", "2px solid var(--color-dirt-dark)");
+            statNameDiv.style("border-radius", "8px");
+            statNameDiv.style("padding", "8px");
             statNameDiv.parent(statDiv);
 
             let statNumDiv = createDiv(stat[1]);
-            statNumDiv.style("width", "50%");
-            statNumDiv.style("height", "100%");
-            statNumDiv.style("color", "white");
+            statNumDiv.style("flex", "1");
+            statNumDiv.style("color", "var(--color-gold)");
             statNumDiv.style("text-align", "center");
-            statNumDiv.style("font-size", "20px");
-            statNumDiv.style("border", "2px solid black");
-            statNumDiv.style("border-radius", "10px");
-            statNumDiv.style("padding", "5px");
+            statNumDiv.style("background", "rgba(0,0,0,0.4)");
+            statNumDiv.style("border", "2px solid var(--color-dirt-dark)");
+            statNumDiv.style("border-radius", "8px");
+            statNumDiv.style("padding", "8px");
+            statNumDiv.parent(statDiv);
             statNumDiv.parent(statDiv);
         }
     });
@@ -563,23 +519,23 @@ function updateCraftList() {
         if (tag === "All") return true;
         if (tag === "Tools/Seeds") return recipe.type === "Shovel" || recipe.type === "Seed";
         if (tag === "Weapons") return recipe.type === "Melee" || recipe.type === "Ranged";
-        if (tag === "Equipment") return recipe.type === "Equipment";
+        if (tag === "Equipment") return recipe.type === "Equipment" || recipe.type === "CustomItem";
         if (tag === "Consumables") return recipe.type === "Food" || recipe.type === "Potion";
         return false;
     });
 
-    const ROW_H = 50;
     arr.forEach((recipe) => {
         let recipeDiv = createDiv().parent(craftListDiv);
         recipeDiv.attribute('data-item', recipe.name);
         recipeDiv.style("width", "100%");
-        recipeDiv.style("height", ROW_H + "px");
+        recipeDiv.style("min-height", "70px");
         recipeDiv.style("display", "flex");
         recipeDiv.style("align-items", "center");
         recipeDiv.style("justify-content", "center");
         recipeDiv.style("border-bottom", "2px solid black");
         recipeDiv.style("cursor", "pointer");
         recipeDiv.style("position", "relative");
+        recipeDiv.style("padding", "8px 0");
         recipeDiv.mousePressed(() => {
             curPlayer.invBlock.curItem = recipe.name;
             highlightCraftList();
@@ -590,14 +546,14 @@ function updateCraftList() {
 
         let recipeInfoDiv = createDiv().parent(recipeDiv);
         recipeInfoDiv.style("width", "80%");
-        recipeInfoDiv.style("height", ROW_H + "px");
         recipeInfoDiv.style("display", "flex");
         recipeInfoDiv.style("align-items", "center");
         recipeInfoDiv.style("justify-content", "space-between");
+        recipeInfoDiv.style("gap", "8px");
 
         let imgDiv = createDiv().parent(recipeInfoDiv);
-        imgDiv.style("width", "2.2em");
-        imgDiv.style("height", "2.2em");
+        imgDiv.style("width", "2.8em");
+        imgDiv.style("height", "2.8em");
         imgDiv.style("minWidth", "28px");
         imgDiv.style("minHeight", "28px");
         imgDiv.style("marginRight", "0.5em");
@@ -620,9 +576,46 @@ function updateCraftList() {
             placeholder.style("justifyContent", "center");
         }
 
-        let recipeNameP = createP(recipe.name).parent(recipeInfoDiv);
-        recipeNameP.style("font-size", "20px");
+        // Name + ingredient preview container
+        let nameAndIngsDiv = createDiv().parent(recipeInfoDiv);
+        nameAndIngsDiv.style("flex", "1");
+        nameAndIngsDiv.style("min-width", "0");
+
+        let recipeNameP = createP(recipe.name).parent(nameAndIngsDiv);
+        recipeNameP.style("font-size", "16px");
         recipeNameP.style("color", rarityColorCSS(recipe.name));
+        recipeNameP.style("margin", "0");
+        recipeNameP.style("line-height", "1.3");
+
+        // Mini ingredient icons
+        const rd = itemDic?.[recipe.name];
+        if (rd && rd.cost && rd.cost.length > 1) {
+            let ingsRow = createDiv().parent(nameAndIngsDiv);
+            ingsRow.class("craft-row-ingredients");
+            for (let ci = 1; ci < rd.cost.length; ci++) {
+                const ingName = rd.cost[ci][0];
+                const ingAmt  = rd.cost[ci][1];
+                const ingHave = (ingName === "Dirt") ? dirtInv : (curPlayer.invBlock.items[ingName]?.amount ?? 0);
+                const ingEnough = ingHave >= ingAmt;
+
+                let ingChip = createDiv().parent(ingsRow);
+                ingChip.class("craft-row-ing-chip" + (ingEnough ? "" : " craft-row-ing-missing"));
+
+                const ingUrl = resolveItemImgURL(ingName);
+                if (ingUrl) {
+                    let ingImg = createImg(ingUrl, '').parent(ingChip);
+                    ingImg.class("craft-row-ing-img");
+                }
+                let ingLabel = createSpan("\u00d7" + ingAmt).parent(ingChip);
+                ingLabel.class("craft-row-ing-label");
+            }
+        }
+
+        // Dim unaffordable recipes
+        const canCraftThis = curPlayer?.invBlock?.craftCheck?.(recipe.name);
+        if (!canCraftThis) {
+            recipeDiv.style("opacity", "0.5");
+        }
     });
     highlightCraftList();
 }
@@ -702,7 +695,8 @@ function updatecurCraftItemDiv() {
     itemDescDiv.style("border-radius", "10px");
     itemDescDiv.parent(itemNameDescDiv);
 
-    let itemDescP = createP("Cost: " + JSON.stringify(recipe.cost));
+    const descText = itemDic?.[recipe.name]?.desc || "No description";
+    let itemDescP = createP(descText);
     itemDescP.style("font-size", "16px");
     itemDescP.style("color", "white");
     itemDescP.style("margin", "5px");
@@ -722,19 +716,62 @@ function updatecurCraftItemDiv() {
     costDiv.style("overflow-y", "auto");
     costDiv.parent(itemStatsDiv);
 
-    let costText = createP("Recipe Cost:");
-    costText.style("color", "white");
-    costText.style("font-size", "18px");
-    costText.style("margin", "0 0 10px 0");
+    let costText = createP("Ingredients:");
+    costText.style("color", "var(--color-gold)");
+    costText.style("font-size", "16px");
+    costText.style("margin", "0 0 8px 0");
+    costText.style("text-transform", "uppercase");
+    costText.style("letter-spacing", "1px");
     costText.parent(costDiv);
 
-    recipe.cost.forEach(([mat, amt]) => {
-        let matDiv = createP(mat + " x" + amt);
-        matDiv.style("color", "white");
-        matDiv.style("font-size", "14px");
-        matDiv.style("margin", "5px 0");
-        matDiv.parent(costDiv);
-    });
+    // Output row
+    const itemData = itemDic?.[recipe.name];
+    if (itemData && itemData.cost && itemData.cost.length > 0) {
+        let outRow = createDiv().parent(costDiv);
+        outRow.class("craft-cost-row");
+        let outImgWrap = createDiv().parent(outRow);
+        outImgWrap.class("craft-cost-img-wrap");
+        const outUrl = resolveItemImgURL(recipe.name, { imgNum: recipe.img });
+        if (outUrl) {
+            let outImg = createImg(outUrl, '').parent(outImgWrap);
+            outImg.class("craft-cost-img");
+        }
+        let outLabel = createDiv("Output:").parent(outRow);
+        outLabel.class("craft-cost-label");
+        let outAmt = createDiv("\u00d7" + itemData.cost[0]).parent(outRow);
+        outAmt.class("craft-cost-amount");
+        outAmt.style("color", "white");
+
+        // Ingredient rows with images
+        for (let i = 1; i < itemData.cost.length; i++) {
+            const mat = itemData.cost[i][0];
+            const needed = itemData.cost[i][1];
+            const have = (mat === "Dirt") ? dirtInv : (curPlayer.invBlock.items[mat]?.amount ?? 0);
+            const enough = have >= needed;
+
+            let matRow = createDiv().parent(costDiv);
+            matRow.class("craft-cost-row" + (enough ? "" : " craft-cost-missing"));
+
+            let matImgWrap = createDiv().parent(matRow);
+            matImgWrap.class("craft-cost-img-wrap");
+            const matUrl = resolveItemImgURL(mat);
+            if (matUrl) {
+                let matImg = createImg(matUrl, '').parent(matImgWrap);
+                matImg.class("craft-cost-img");
+            } else {
+                let dot = createDiv("\u2022").parent(matImgWrap);
+                dot.style("color", "#666");
+            }
+
+            let matLabel = createDiv(mat).parent(matRow);
+            matLabel.class("craft-cost-label");
+            matLabel.style("color", rarityColorCSS(mat));
+
+            let matAmt = createDiv(`${have}/${needed}`).parent(matRow);
+            matAmt.class("craft-cost-amount");
+            matAmt.style("color", enough ? "#27f50e" : "#ff4444");
+        }
+    }
 
     const canCraft = curPlayer?.invBlock?.craftCheck?.(recipe.name);
 
@@ -882,12 +919,19 @@ function closeSwapInv() {
     if (curPlayer.invBlock) curPlayer.invBlock.useTimer = 10;
     hideSwapInv();
     if (typeof spaceBarDiv !== 'undefined' && spaceBarDiv) spaceBarDiv.hide();
+    _syncPlayerInv();
     curPlayer.otherInv = undefined;
 }
 
 /* ─── Consolidated Take All ─── */
 function swapTakeAll() {
     if (!curPlayer || !curPlayer.otherInv || !curPlayer.otherInv.invBlock) return;
+    // Show loading spinner
+    let spinner = document.createElement('div');
+    spinner.className = 'swap-loading-spinner';
+    spinner.innerHTML = '<div class="spinner"></div><div>Transferring items...</div>';
+    swapInvDiv.elt.appendChild(spinner);
+
     const otherInv = curPlayer.otherInv.invBlock;
     const otherItems = otherInv.items || {};
     Object.keys(otherItems).forEach((itemName) => {
@@ -899,11 +943,16 @@ function swapTakeAll() {
     });
     curPlayer.invBlock.curItem = "";
     otherInv.curItem = "";
-    // Force full rebuild (cache will detect change)
-    swapListCache.lastLeftHash = "";
-    swapListCache.lastRightHash = "";
+    // Force full rebuild and clear cache/selections
+    swapListCache.lastLeftHash = "force-refresh";
+    swapListCache.lastRightHash = "force-refresh";
+    swapListCache.leftSelected = "";
+    swapListCache.rightSelected = "";
     updateSwapItemLists(otherInv);
     _syncOtherInv();
+    _syncPlayerInv();
+    // Remove spinner
+    if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
 }
 
 /* ─── Sync helper — emits update_inv for the other inventory ─── */
@@ -917,6 +966,25 @@ function _syncOtherInv() {
         z: curPlayer.otherInv.z,
         invId: curPlayer.otherInv.invBlock?.invId,
         items: curPlayer.otherInv.invBlock.items
+    });
+}
+
+/* ─── Sync helper — saves the player's own inventory to the server ─── */
+function _syncPlayerInv() {
+    if (!curPlayer || !curPlayer.invBlock || !socket) return;
+    socket.emit("save_player_state", {
+        pos: curPlayer.pos ? { x: curPlayer.pos.x, y: curPlayer.pos.y } : { x: 0, y: 0 },
+        invBlock: {
+            items: curPlayer.invBlock.items || {},
+            hotbar: Array.isArray(curPlayer.invBlock.hotbar) ? curPlayer.invBlock.hotbar : ["","","","",""],
+            selectedHotBar: typeof curPlayer.invBlock.selectedHotBar === 'number' ? curPlayer.invBlock.selectedHotBar : 0,
+            equiped: curPlayer.invBlock.equiped || { head: "", neck: "", chest: "", legs: "", feet: "" }
+        },
+        statBlock: curPlayer.statBlock ? {
+            level: curPlayer.statBlock.level,
+            xp: curPlayer.statBlock.xp,
+            xpNeeded: curPlayer.statBlock.xpNeeded
+        } : null,
     });
 }
 
@@ -1089,6 +1157,7 @@ function swapMobileTransfer(moveAll) {
     swapListCache.lastRightHash = "";
     updateSwapItemLists(otherInv);
     _syncOtherInv();
+    _syncPlayerInv();
 }
 
 /* ═══ Rebuild both inventory columns ═══ */

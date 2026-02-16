@@ -71,20 +71,6 @@ function renderLinks() {
     titleImage = createImg("./images/ui/title.png");
     titleImage.id("titleImage");
 
-    // Apply styles to the image using .style()
-    titleImage.style("width", "clamp(180px, 28vw, 440px)");
-    titleImage.style("height", "auto");
-    titleImage.style("border", "4px solid #000");
-    titleImage.style("display", "block");
-    titleImage.style("margin", "0 auto");
-    titleImage.style("top", "10px");
-    titleImage.style("left", "50%");
-    titleImage.style("transform", "translateX(-50%)");
-    titleImage.style("position", "absolute");
-    titleImage.style("z-index", "10");
-    titleImage.style("box-shadow", "0 6px 20px rgba(0,0,0,0.6)");
-    titleImage.style("border-radius", "6px");
-    
     let randItem1 = Math.floor(Math.random() * markeeText.length);
     // Suppose we want 5 distinct random items
     let chosenItems = [];
@@ -98,50 +84,22 @@ function renderLinks() {
 
     markee = createElement("marquee", marqueeContent);
     markee.id("mainMenuMarquee");
-    markee.style("position", "fixed");
-    markee.style("bottom", "0px");
-    markee.style("left", "50%");
-    markee.style("transform", "translateX(-50%)");
-    markee.style("width", "70%");
-    markee.style("font-size", "clamp(0.9rem, 1.2vw, 1.4rem)");
-    markee.style("color", "rgba(255,255,255,0.75)");
-    markee.style("scrolldelay", "0");
 
     // Parent container for buttons (Bottom Right)
     linkContainer = createDiv();
     linkContainer.id("socialLinksPanel");
-    linkContainer.class("container");
-
-    applyStyle(linkContainer, {
-        position: "fixed",
-        bottom: "10px",
-        right: "10px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "10px",
-        zIndex: "1000",
-    });
 
     // Create individual buttons
-    createLinkButton(linkContainer, "👾 Play On Itch.io", "https://polypikzel.itch.io/");
+    createLinkButton(linkContainer, "👾 Itch.io", "https://polypikzel.itch.io/");
     createLinkButton(linkContainer, "🖳 GitHub", "https://github.com/PolyPixels");
     createLinkButton(linkContainer, "🗪 Discord", "https://discord.gg/Quhy52U5ae");
 
     // Parent container for settings (Bottom Left)
     settingsToggle = createDiv();
     settingsToggle.id("settingsToggle");
-    settingsToggle.class("container");
-    applyStyle(settingsToggle, {
-        position: "fixed",
-        bottom: "10px",
-        left: "10px",
-        zIndex: "1000",
-    });
 
     // Create settings button
     let settingsButton = createButton("⚙ Settings").parent(settingsToggle);
-    styleButton(settingsButton);
     settingsButton.mousePressed(() => toggleSettings());
 
     titleImage.parent(document.body);
@@ -152,10 +110,25 @@ function renderLinks() {
     linksRendered = true; // Set flag to true
 }
 
+function hideMainMenuUI() {
+    if (linkContainer && linkContainer.elt) {
+        linkContainer.elt.style.setProperty('display', 'none', 'important');
+    }
+    if (settingsToggle && settingsToggle.elt) {
+        settingsToggle.elt.style.setProperty('display', 'none', 'important');
+    }
+    if (markee && markee.elt) {
+        markee.elt.style.setProperty('display', 'none', 'important');
+    }
+    if (titleImage && titleImage.elt) {
+        titleImage.elt.style.setProperty('display', 'none', 'important');
+    }
+}
+
 // 🎯 Helper Function to Create Buttons
 function createLinkButton(parent, text, url) {
     let button = createButton(text).parent(parent);
-    styleButton(button);
+    button.class("menu-link-btn");
     button.mousePressed(() => window.open(url, "_blank"));
 }
 
@@ -212,10 +185,11 @@ function hideLinks() {
     if (!linksRendered) return;
 
     // Hide all link-related UI elements; do not overwrite functions or toggle repeatedly
-    if (linkContainer) linkContainer.style("display", "none");
-    if (settingsToggle) settingsToggle.style("display", "none");
-    if (markee) markee.style("display", "none");
-    if (titleImage) titleImage.style("display", "none");
+    // Use !important to override CSS display rules
+    if (linkContainer && linkContainer.elt) linkContainer.elt.style.setProperty('display', 'none', 'important');
+    if (settingsToggle && settingsToggle.elt) settingsToggle.elt.style.setProperty('display', 'none', 'important');
+    if (markee && markee.elt) markee.elt.style.setProperty('display', 'none', 'important');
+    if (titleImage && titleImage.elt) titleImage.elt.style.setProperty('display', 'none', 'important');
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -228,50 +202,29 @@ function renderServerBrowser() {
 
         serverBrowserContainer = createDiv();
         serverBrowserContainer.id("serverBrowserContainer");
-        serverBrowserContainer.class("container");
-        serverBrowserContainer.style("overflow-y", "auto");
-        // Main container styling — clamp ensures usability on phones AND desktops
-        serverBrowserContainer.style("max-width", "clamp(320px, 90vw, 50dvw)");
-        serverBrowserContainer.style("max-height", "75%");
-        serverBrowserContainer.style("overflow-y", "auto");
-        serverBrowserContainer.style("touch-action", "pan-y");
-        serverBrowserContainer.style("-webkit-overflow-scrolling", "touch");
-        serverBrowserContainer.style("border-radius", "15px");
-        serverBrowserContainer.style("color", "#fff");
-        serverBrowserContainer.style("font-family", "Arial, sans-serif");
-        serverBrowserContainer.style("box-shadow", "0px 8px 16px rgba(0, 0, 0, 0.4)");
 
         // Position the container in the center
         serverBrowserContainer.style("position", "fixed");
         serverBrowserContainer.style("top", "55%");
         serverBrowserContainer.style("left", "50%");
         serverBrowserContainer.style("transform", "translate(-50%, -50%)");
+        serverBrowserContainer.style("max-width", "clamp(320px, 90vw, 50dvw)");
 
         // Title
         let title = createDiv("Select A Server");
-        title.style("font-size", "clamp(1.2rem, 4vw, 2.5rem)");
-        title.style("font-weight", "bold");
-        title.style("margin-bottom", "15px");
-        title.style("text-align", "center");
+        title.class("server-browser-title");
         title.parent(serverBrowserContainer);
 
-        // Search input for filtering servers
-        let searchContainer = createDiv();
-        searchContainer.style("margin-bottom", "15px");
-        searchContainer.parent(serverBrowserContainer);
+        // Inner scrollable area
+        let innerDiv = createDiv();
+        innerDiv.class("server-browser-inner");
+        innerDiv.parent(serverBrowserContainer);
 
+        // Search input for filtering servers
         let searchInput = createInput("");
         searchInput.attribute("placeholder", "🔍 Search Servers...");
-        searchInput.parent(searchContainer);
-        searchInput.style("width", "90%");
-        searchInput.style("padding", "10px");
-        searchInput.style("font-size", "1rem");
-        searchInput.style("border-radius", "5px");
-        searchInput.style("border", "1px solid #444");
-        searchInput.style("background-color", "#333");
-        searchInput.style("color", "#fff");
-        searchInput.style("margin", "0 auto");
-        searchInput.style("display", "block");
+        searchInput.class("server-search-input");
+        searchInput.parent(innerDiv);
 
         searchInput.elt.addEventListener("focus", () => {
             lastGameState = gameState;
@@ -285,8 +238,9 @@ function renderServerBrowser() {
             const filterText = searchInput.value().toLowerCase();
             renderFilteredServerList(filterText);
         });
+
         serverListDiv = createDiv();
-        serverListDiv.parent(serverBrowserContainer);
+        serverListDiv.parent(innerDiv);
 
         // Render the server list
         renderServerList();
@@ -295,46 +249,27 @@ function renderServerBrowser() {
         //  ADD NEW SERVER (COLLAPSIBLE / DROPDOWN)
         // ─────────────────────────────────────────────────────────
 
-        // Parent section that holds the "Add New Server" header and collapsible content
         let addServerSection = createDiv();
-        addServerSection.style("margin-top", "20px");
-        addServerSection.style("padding", "15px");
-        addServerSection.style("background", "#2a2a2a");
-        addServerSection.style("border-radius", "10px");
+        addServerSection.class("add-server-section");
 
-        // ➕ Add Server Title (CLICKABLE)
-        // Use a downward arrow (▼) or "V" to indicate it's a dropdown
         let addServerTitle = createDiv("Add New Server ▼");
-
-        addServerTitle.style("font-weight", "bold");
-        addServerTitle.style("font-size", "clamp(0.8em, 2vw, 1.4em)");
-        addServerTitle.style("margin-bottom", "10px");
-        addServerTitle.style("text-align", "center");
-        addServerTitle.style("cursor", "pointer"); // Indicate it can be clicked
+        addServerTitle.class("add-server-title");
         addServerTitle.parent(addServerSection);
 
         // Collapsible content container (initially hidden)
         let addServerContent = createDiv();
-        addServerContent.style("display", "none"); // Hide by default
+        addServerContent.style("display", "none");
         addServerContent.parent(addServerSection);
 
         // Server IP Input
         inputIP = createInput("").attribute("placeholder", " Server IP");
+        inputIP.class("add-server-input");
         inputIP.parent(addServerContent);
-        inputIP.style("width", "90%");
-        inputIP.style("margin-bottom", "8px");
-        inputIP.style("padding", "10px");
-        inputIP.style("border-radius", "5px");
 
         // Add Server Button
         addServerButton = createButton("ADD");
+        addServerButton.class("add-server-btn");
         addServerButton.parent(addServerContent);
-        addServerButton.style("width", "80%");
-        addServerButton.style("padding", "10px");
-        addServerButton.style("cursor", "pointer");
-        addServerButton.style("color", "#fff");
-        addServerButton.style("border", "none");
-        addServerButton.style("border-radius", "5px");
 
         // Functionality for the Add button
         addServerButton.mousePressed(() => {
@@ -356,27 +291,17 @@ function renderServerBrowser() {
         addServerTitle.mousePressed(() => {
             dropdownOpen = !dropdownOpen;
             addServerContent.style("display", dropdownOpen ? "block" : "none");
-            // Optionally change the arrow: "▼" for open or "►" for closed
             addServerTitle.html(dropdownOpen ? "Add New Server ▼" : "Add New Server ►");
         });
+
+        addServerSection.parent(innerDiv);
 
         // ─────────────────────────────────────────────────────────
         //  CONNECT BUTTON
         // ─────────────────────────────────────────────────────────
         let connectButton = createButton("▶ Connect");
+        connectButton.class("server-connect-btn");
         connectButton.parent(serverBrowserContainer);
-        connectButton.style("width", "80%");
-        connectButton.style("min-height", "clamp(48px, 8vw, 70px)");
-
-        connectButton.style("font-size", "clamp(1rem, 3vw, 2rem)");
-        connectButton.style("margin-top", "20px");
-        connectButton.style("padding", "12px");
-        connectButton.style("background", "#4CAF50");
-        connectButton.style("color", "#fff");
-        connectButton.style("border", "none");
-        connectButton.style("border-radius", "5px");
-
-        addServerSection.parent(serverBrowserContainer);
         connectButton.mousePressed(() => {
             if (!selectedServer) {
                 alert("⚠️ Please select a server first.");
@@ -446,70 +371,40 @@ function renderSingleServerEntry(server, indexInFullList) {
     let serverEntry = createDiv();
     serverEntry.class("serverEntry");
 
-    // Basic layout styling
-    serverEntry.style("font-size", "clamp(0.7rem, 2vw, 2rem)");
-    serverEntry.style("padding", "clamp(8px, 2vw, 12px)");
-    serverEntry.style("margin-bottom", "8px");
-    serverEntry.style("background-color", "var(--color-dirt-dark)");
-    serverEntry.style("cursor", "pointer");
-    serverEntry.style("display", "flex");
-    serverEntry.style("align-items", "center");
-    serverEntry.style("gap", "clamp(8px, 2vw, 12px)");
-    serverEntry.style("transition", "transform 0.15s ease-in-out");
-    serverEntry.style("touch-action", "manipulation");
-
     // === Logo Container ===
     let logoContainer = createDiv();
-    logoContainer.style("width", "clamp(48px, 12vw, 100px)");
-    logoContainer.style("height", "clamp(48px, 12vw, 100px)");
-    logoContainer.style("flex-shrink", "0");
-    logoContainer.style("display", "flex");
-    logoContainer.style("border-radius", "8px");
-    logoContainer.style("overflow", "hidden");
-    logoContainer.style("border", "2px solid var(--color-dirt-clay)");
+    logoContainer.class("server-logo-wrap");
 
     // Use a default image if server.image is undefined or invalid
     const imageUrl = (server.image && server.image !== 'undefined') ? server.image : 'images/ui/title.png';
     let serverLogo = createImg(imageUrl);
-    serverLogo.style("width", "100%");
-    serverLogo.style("height", "100%");
-    serverLogo.style("object-fit", "cover");
     serverLogo.parent(logoContainer);
     logoContainer.parent(serverEntry);
 
     // === Text Details Container ===
     let textContainer = createDiv();
-    textContainer.style("display", "flex");
-    textContainer.style("flex-direction", "column");
-    textContainer.style("justify-content", "center");
-    textContainer.style("flex-grow", "1");
-    textContainer.style("font-size", "1.2rem");
+    textContainer.class("server-text-container");
 
     // Server Name
     let serverName = createDiv(server.name);
-    serverName.style("font-weight", "bold");
-    serverName.style("color", "white");
-    serverName.style("margin-bottom", "6px");
+    serverName.class("server-name");
     serverName.parent(textContainer);
 
     // IP
     let serverIP = createDiv(`IP: ${server.ip}`);
-    serverIP.style("color", "yellow");
-    serverIP.style("margin-bottom", "4px");
+    serverIP.class("server-ip");
     serverIP.parent(textContainer);
 
     // Status
     let serverStatus = createDiv("Status: Loading...");
-    serverStatus.style("color", "var(--color-gold)");
-    serverStatus.style("margin-bottom", "4px");
+    serverStatus.class("server-status");
     serverEntry.style("pointer-events", "none");
     serverEntry.style("opacity", "0.5");
     serverStatus.parent(textContainer);
 
     // Player Count
     let playerCount = createDiv("Players: Loading...");
-    playerCount.style("color", "#00ffff");
-    playerCount.style("margin-bottom", "2px");
+    playerCount.class("server-players");
     playerCount.parent(textContainer);
 
     textContainer.parent(serverEntry);
@@ -521,7 +416,6 @@ function renderSingleServerEntry(server, indexInFullList) {
 
         serverStatus.html(`Status: ${data.status}`);
         serverStatus.style("color", data.status === "Online" ? "#4CAF50" : "#F44336");
-        serverStatus.style("background-color", data.status === "Online" ? "black" : "white");
         serverName.html(`${isHardcore ? "  ☠️  " : ""}${data.name || "Unnamed Server"}`);
         playerCount.html(`Players: ${data.playerCount}` + (!data.max ? `` : `/ ${data.max}`));
         serverLogo.attribute("src", data.image);
@@ -531,20 +425,9 @@ function renderSingleServerEntry(server, indexInFullList) {
     });
 
     // Remove server button
-    let removeButton = createButton(" &#x20E0; &nbsp; Remove ");
+    let removeButton = createButton("✕ Remove");
+    removeButton.class("server-remove-btn");
     removeButton.parent(serverEntry);
-    removeButton.style("margin-left", "auto");
-    removeButton.style("padding", "clamp(8px, 2vw, 15px)");
-    removeButton.style("min-width", "44px");
-    removeButton.style("min-height", "44px");
-    removeButton.style("font-size", "clamp(0.6rem, 1.5vw, 1rem)");
-    removeButton.style("background-color", "#F44336");
-    removeButton.style("color", "#fff");
-    removeButton.style("border", "none");
-    removeButton.style("border-radius", "5px");
-    removeButton.style("cursor", "pointer");
-    removeButton.style("pointer-events", "auto");
-    removeButton.style("flex-shrink", "0");
 
     removeButton.mousePressed(() => {
         serverList.splice(indexInFullList, 1);
@@ -556,9 +439,9 @@ function renderSingleServerEntry(server, indexInFullList) {
     serverEntry.mousePressed(() => {
         let entries = selectAll(".serverEntry");
         for (let e of entries) {
-            e.style("background-color", "#404040");
+            e.removeClass("server-selected");
         }
-        serverEntry.style("background-color", "#4CAF50");
+        serverEntry.addClass("server-selected");
         selectedServer = server;
         window.isHardcoreServer = !!server.hardcore;
     });
@@ -651,23 +534,6 @@ function drawSelection() {
     // ---------------------------------------------------
     raceTitle.id("raceTitle");
     raceTitle.elt.innerHTML = "Select Your Race";
-    raceTitle.style("z-index", "11");
-    raceTitle.style("max-width", "90vw");
-    raceTitle.style("white-space", "normal");
-
-    // Responsive font size (combining viewport and fixed pixels)
-    raceTitle.style("font-size", "calc(1.5vw + 12px)");
-    if (window.innerWidth < 480) {
-        raceTitle.style("font-size", "calc(1vw + 10px)");
-    }
-
-    raceTitle.style("font-weight", "bold");
-    raceTitle.style("color", "#fff");
-    raceTitle.style("text-shadow", "1px 1px 2px #000");
-    raceTitle.style("padding", "10px 20px");
-    raceTitle.style("background-color", "rgba(0, 0, 0, 0.3)");
-    raceTitle.style("border-radius", "10px");
-    raceTitle.style("text-align", "center");
 
     // Show the combined name+go container
     var ngc = document.getElementById('nameGoContainer');
@@ -676,24 +542,7 @@ function drawSelection() {
     goButton.show();
 
     //back to server selection button
-    race_back_button.innerHTML = " <- Back";
-
-    race_back_button.style("font-size", "20px");
-    race_back_button.style("color", "#fff");
-    race_back_button.style("border", "none");
-    race_back_button.style("border-radius", "8px");
-    race_back_button.style("z-index", "101");
-    race_back_button.style("padding", "8px 20px");
-    race_back_button.style("background", "rgba(0,0,0,0.6)");
-    race_back_button.style("cursor", "pointer");
-    race_back_button.style("pointer-events", "auto");
-
-    race_back_button.mousePressed(() => {
-        //console.log("pressed")
-        hideRaceSelect();
-        gameState = "initial";
-    });
-
+    race_back_button.innerHTML = " ← Back";
     race_back_button.show();
     // Don't parent to raceContainer — it would scroll away
     raceButtons.forEach((card) => {
@@ -748,19 +597,18 @@ function setupRaceSelectionUI() {
     //  Create a container for race selection cards
     // ---------------------------------------------------
     raceContainer = createDiv();
-    race_back_button = createButton("<- Back");
+    race_back_button = createButton("← Back");
     race_back_button.id("raceBackButton");
     raceContainer.id("raceContainer");
     raceContainer.parent(window._raceWrapper);
     raceContainer.style("display", "none");
     raceContainer.style("flex-wrap", "wrap");
     raceContainer.style("justify-content", "center");
-    raceContainer.style("align-items", "flex-start");
-    raceContainer.style("gap", "clamp(10px, 2vw, 30px)");
-    raceContainer.style("padding", "10px");
-    raceContainer.style("border-radius", "10px");
+    raceContainer.style("align-items", "stretch");
+    raceContainer.style("gap", "16px");
+    raceContainer.style("padding", "20px");
     raceContainer.style("width", "95vw");
-    raceContainer.style("max-width", "1000px");
+    raceContainer.style("max-width", "900px");
     raceContainer.style("max-height", "clamp(200px, 50dvh, 60dvh)");
     raceContainer.style("overflow-y", "auto");
     raceContainer.style("overflow-x", "hidden");
@@ -782,14 +630,8 @@ function setupRaceSelectionUI() {
         card.style("display", "flex");
         card.style("flex-direction", "column");
         card.style("align-items", "center");
-
-        // Responsive card width: wider on desktop for better readability
-        let cardWidth = constrain(width * 0.18, 160, 280);
-        card.style("width", cardWidth + "px");
-        card.style("border-radius", "10px");
-        card.style("padding", "14px");
         card.style("cursor", "pointer");
-        card.selected = false; // custom property for selection
+        card.selected = false;
 
         // Create a race name label
         let raceLbl = createP(raceName.toUpperCase());
@@ -853,25 +695,23 @@ function setupRaceSelectionUI() {
 
         // Hover out styling
         card.mouseOut(() => {
-            card.style("transform", "scale(1)");
-            card.style("box-shadow", card.selected ? "0 0 16px rgba(76,175,80,0.5)" : "0 4px 12px rgba(0,0,0,0.4)");
-            card.style("background-color", card.selected ? "#4CAF50" : "#222");
+            if (!card.selected) {
+                card.style("transform", "scale(1)");
+                card.style("box-shadow", "");
+            }
         });
 
         // On click: deselect all cards, select only this one
         card.mousePressed(() => {
-            //console.log(selectedItem, i, raceName);
-
             // Deselect all cards
             raceButtons.forEach((c) => {
                 c.selected = false;
-                c.style("background-color", "#222"); // reset background for all
+                c.removeClass("race-selected");
             });
 
             // Select this card
             card.selected = true;
-            card.style("background-color", "#4CAF50");
-            card.style("box-shadow", "0 0 16px rgba(76,175,80,0.5)");
+            card.addClass("race-selected");
 
             raceSelected = true;
             curRace = selectedItem;
@@ -888,9 +728,8 @@ function setupRaceSelectionUI() {
     race_back_button.hide();
 
     // ---------------------------------------------------
-    //   Name Input Field (centered, larger & responsive)
+    //   Name + Go container (flex row)
     // ---------------------------------------------------
-    // ── Name + Go container (flex row, positioned at bottom) ──
     var nameGoContainer = createDiv();
     nameGoContainer.id('nameGoContainer');
     nameGoContainer.parent(window._raceWrapper);
@@ -906,36 +745,17 @@ function setupRaceSelectionUI() {
     nameInput = createInput("");
     nameInput.parent(nameGoContainer);
     nameInput.style("width", "clamp(150px, 40vw, 300px)");
-
-    // Responsive base styling
-    nameInput.style("font-size", width < 500 ? "14px" : "18px");
-    nameInput.style("border-radius", "8px");
-    nameInput.style("padding", "10px");
-    nameInput.style("outline", "none");
-    nameInput.style("transition", "border 0.2s, box-shadow 0.2s");
-    nameInput.attribute("placeholder", "Name (A-Z, 0-9 only)");
+    nameInput.attribute("placeholder", "Name (A-Z, 0-9)");
     nameInput.attribute("maxlength", "20");
-    nameInput.style("border", "2px solid #ccc");
-    nameInput.style("background-color", "rgba(255, 255, 255, 0.9)");
-    nameInput.style("box-shadow", "2px 2px 4px rgba(0, 0, 0, 0.3)");
 
     // Focus style
     nameInput.elt.addEventListener("focus", () => {
-        nameInput.style("border", "2px solid var(--color-gold)");
-        nameInput.style("box-shadow", "0 0 6px rgba(255, 215, 0, 0.6)");
         nameInput.attribute("placeholder", "");
-    });
-
-    // Revert on blur
-    nameInput.elt.addEventListener("blur", () => {
-        nameInput.style("border", "2px solid #ccc");
-        nameInput.style("box-shadow", "none");
     });
 
     // Real-time validation: only allow letters and numbers, no spaces
     nameInput.input(() => {
         let currentValue = nameInput.value();
-        // Remove any characters that aren't A-Z, a-z, or 0-9
         let filtered = currentValue.replace(/[^A-Za-z0-9]/g, "");
         if (filtered !== currentValue) {
             nameInput.value(filtered);
@@ -943,12 +763,6 @@ function setupRaceSelectionUI() {
         checkName();
     });
 
-    nameInput.mouseOver(() => {
-        nameInput.style("border", "3px solid #4CAF50");
-    });
-    nameInput.mouseOut(() => {
-        nameInput.style("border", "3px solid #ccc");
-    });
     nameInput.elt.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             startGame();
@@ -956,28 +770,10 @@ function setupRaceSelectionUI() {
     });
 
     // ---------------------------------------------------
-    //   "Go" Button (centered, larger & responsive)
+    //   "Go" Button
     // ---------------------------------------------------
     goButton = createButton("Go");
     goButton.parent(nameGoContainer);
-
-    goButton.style("font-size", "clamp(16px, 3vw, 20px)");
-    goButton.style("color", "#fff");
-    goButton.style("border", "none");
-    goButton.style("border-radius", "8px");
-    goButton.style("padding", "10px 20px");
-    goButton.style("min-height", "44px");
-    goButton.style("min-width", "60px");
-
-    goButton.style("cursor", "pointer");
-    goButton.style("transition", "background-color 0.2s, transform 0.2s");
-
-    goButton.mouseOver(() => {
-        goButton.style("transform", "scale(1.05)");
-    });
-    goButton.mouseOut(() => {
-        goButton.style("transform", "scale(1)");
-    });
 
     goButton.mousePressed(() => {
         startGame();
@@ -985,6 +781,10 @@ function setupRaceSelectionUI() {
 
     // Parent back button after nameGoContainer so it appears below
     race_back_button.parent(window._raceWrapper);
+    race_back_button.mousePressed(() => {
+        hideRaceSelect();
+        gameState = "initial";
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1105,6 +905,7 @@ function startGame() {
             socket.emit("get_teams");
 
             gameState = "playing";
+            hideMainMenuUI();
             hideRaceSelect();
 
             if (localStorage.getItem("tut_seen") == "true") {
