@@ -17,38 +17,34 @@ function renderChatUI() {
     if (chatRendered) return;
     chatRendered = true;
 
-    const mobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice);
+    // Always create floating chat icon button (desktop & mobile)
+    chatFloatingBtn = createDiv('💬');
+    chatFloatingBtn.id('chat-floating-btn');
+    chatFloatingBtn.style('position', 'fixed');
+    chatFloatingBtn.style('left', '32px');
+    chatFloatingBtn.style('bottom', '220px');
+    chatFloatingBtn.style('z-index', '9995');
+    chatFloatingBtn.style('width', '44px');
+    chatFloatingBtn.style('height', '44px');
+    chatFloatingBtn.style('border-radius', '50%');
+    chatFloatingBtn.style('background', 'rgba(0,0,0,0.65)');
+    chatFloatingBtn.style('border', '2px solid rgba(255,255,255,0.25)');
+    chatFloatingBtn.style('color', '#fff');
+    chatFloatingBtn.style('font-size', '18px');
+    chatFloatingBtn.style('display', 'flex');
+    chatFloatingBtn.style('align-items', 'center');
+    chatFloatingBtn.style('justify-content', 'center');
+    chatFloatingBtn.style('cursor', 'pointer');
+    chatFloatingBtn.style('touch-action', 'manipulation');
+    chatFloatingBtn.mousePressed(function() {
+        toggleChatDropdown();
+    });
 
-    // ── Mobile: create floating chat icon button ──
-    if (mobile) {
-        chatFloatingBtn = createDiv('💬');
-        chatFloatingBtn.id('chat-floating-btn');
-        chatFloatingBtn.style('position', 'fixed');
-        chatFloatingBtn.style('left', '12px');
-        chatFloatingBtn.style('top', '60px');
-        chatFloatingBtn.style('z-index', '9995');
-        chatFloatingBtn.style('width', '44px');
-        chatFloatingBtn.style('height', '44px');
-        chatFloatingBtn.style('border-radius', '50%');
-        chatFloatingBtn.style('background', 'rgba(0,0,0,0.65)');
-        chatFloatingBtn.style('border', '2px solid rgba(255,255,255,0.25)');
-        chatFloatingBtn.style('color', '#fff');
-        chatFloatingBtn.style('font-size', '18px');
-        chatFloatingBtn.style('display', 'flex');
-        chatFloatingBtn.style('align-items', 'center');
-        chatFloatingBtn.style('justify-content', 'center');
-        chatFloatingBtn.style('cursor', 'pointer');
-        chatFloatingBtn.style('touch-action', 'manipulation');
-        chatFloatingBtn.mousePressed(function() {
-            toggleChatDropdown();
-        });
-
-        // Badge on the floating button
-        chatFloatingBadge = createSpan('');
-        chatFloatingBadge.class('chat-badge');
-        chatFloatingBadge.style('display', 'none');
-        chatFloatingBadge.parent(chatFloatingBtn);
-    }
+    // Badge on the floating button
+    chatFloatingBadge = createSpan('');
+    chatFloatingBadge.class('chat-badge');
+    chatFloatingBadge.style('display', 'none');
+    chatFloatingBadge.parent(chatFloatingBtn);
 
     // Create main chat container
     chatContainer = createDiv();
@@ -64,7 +60,7 @@ function renderChatUI() {
     chatContainer.style('z-index', '1000');
     chatContainer.style('font-family', 'sans-serif');
     chatContainer.style('overflow', 'hidden');
-    chatContainer.style('display', 'flex');
+    chatContainer.style('display', 'none'); // Hide by default
     chatContainer.style('flex-direction', 'column');
 
     // Toggle/collapse button
@@ -143,39 +139,23 @@ function renderChatUI() {
     chatSendButton.style('cursor', 'pointer');
     chatSendButton.mousePressed(sendChatMessage);
 
-    // On mobile, start hidden (CSS hides it, floating btn opens it); on desktop, start open
-    if (typeof isMobileDevice !== 'undefined' && isMobileDevice) {
-        isChatOpen = false;
-        // CSS `display: none !important` on #chat-container keeps it hidden
-        // Adding .chat-open class shows it
-    } else {
-        isChatOpen = true;
-    }
+    // Always start hidden; floating button opens it
+    isChatOpen = false;
     updateToggleChatButtonText();
     updateChatNotificationBadge();
 }
 
 function toggleChatDropdown() {
-    const mobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice);
     if (isChatOpen) {
-        if (mobile) {
-            // Close the bottom-sheet
-            chatContainer.removeClass('chat-open');
-        } else {
-            chatMessagesBox.hide();
-            inputContainer.hide();
-        }
+        chatContainer.removeClass('chat-open');
+        chatContainer.style('display', 'none');
     } else {
-        if (mobile) {
-            chatContainer.addClass('chat-open');
-            chatMessagesBox.show();
-            inputContainer.show();
-            chatMessagesBox.elt.scrollTop = chatMessagesBox.elt.scrollHeight;
-            setTimeout(function() { chatInput.elt.focus(); }, 100);
-        } else {
-            chatMessagesBox.show();
-            inputContainer.show();
-        }
+        chatContainer.addClass('chat-open');
+        chatContainer.style('display', 'flex');
+        chatMessagesBox.show();
+        inputContainer.show();
+        chatMessagesBox.elt.scrollTop = chatMessagesBox.elt.scrollHeight;
+        setTimeout(function() { chatInput.elt.focus(); }, 100);
         markChatAsRead();
     }
     isChatOpen = !isChatOpen;

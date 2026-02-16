@@ -143,6 +143,15 @@ function definePauseUI() {
         updateSpellLockDisplay();
     });
 
+    let tutorialButton = createButton('<span class="btn-icon">❓</span> Tutorial');
+    tutorialButton.parent(sliderContainer);
+    tutorialButton.class("settings-button");
+    tutorialButton.mousePressed(() => {
+        gameSettingsContainer.hide();
+        tutorialReturnState = "settings";
+        tutorialDiv.show();
+    });
+
     // Password Management Button
     let passwordButton = createButton('<span class="btn-icon">🔐</span> Manage Password');
     passwordButton.parent(sliderContainer);
@@ -247,6 +256,8 @@ function definePauseUI() {
     removeData_button.parent(sliderContainer);
     removeData_button.class("settings-button");
     removeData_button.mousePressed(() => {
+        if (!confirm("Are you sure you want to remove all local data? This cannot be undone.")) return;
+
         localStorage.clear();
         localStorage.setItem("keyBindings", JSON.stringify(default_keys));
 
@@ -592,7 +603,7 @@ function defineKeyBindingUI() {
                 control_set = setId;
                 key = keyRef;
                 lastKey = key;
-                btn.style("background-color", "var(--color-gold)");
+                btn.style("background-color", "var(--text-highlight)");
             }
         });
         btn.parent(keysDiv);

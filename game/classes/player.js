@@ -35,6 +35,10 @@ class Player {
         this.animationFrame = 0;
         this.animationType = ""; // Name of current animation
 
+        // Level up effect
+        this.levelUpEffectTimer = 0;
+        this.levelUpTextTimer = 0;
+
 
         this.regenTimer = 0;         
         this.regenInterval = 3 
@@ -307,6 +311,17 @@ collidesAt(pos) {
     return false;
 }
 update() {
+                    // Level up effect timer decrement
+                    if (this.levelUpEffectTimer > 0) {
+                        this.levelUpEffectTimer--;
+                    }
+                    if (this.levelUpTextTimer > 0) {
+                        this.levelUpTextTimer--;
+                    }
+            // Level up effect timer decrement
+            if (this.levelUpEffectTimer > 0) {
+                this.levelUpEffectTimer--;
+            }
     const isLocal = (this === curPlayer);
 
     /* =========================
@@ -509,7 +524,32 @@ updateRemote() {
         fill(0, 150);
         noStroke();
         rect(this.pos.x, this.pos.y - yOffset, textW, textH, 4);
-        
+
+        // Level up animation effect (soft glow and elegant text)
+        if (this.levelUpEffectTimer > 0) {
+            // Soft gold glow
+            push();
+            let glowAlpha = map(this.levelUpEffectTimer, 0, 60, 0, 120);
+            let glowSize = 110 + 20 * sin((60 - this.levelUpEffectTimer) * 0.15);
+            noStroke();
+            fill(255, 220, 100, glowAlpha); // soft gold
+            ellipse(this.pos.x, this.pos.y, glowSize, glowSize * 0.7);
+            pop();
+        }
+
+        // Floating 'Level Up!' text (smaller, elegant)
+        if (this.levelUpTextTimer > 0) {
+            push();
+            textAlign(CENTER, CENTER);
+            textSize(24);
+            let tAlpha = map(this.levelUpTextTimer, 0, 40, 0, 200);
+            fill(255, 230, 120, tAlpha);
+            noStroke();
+            let floatY = this.pos.y - 80 - (40 - this.levelUpTextTimer) * 0.8;
+            text('Level Up!', this.pos.x, floatY);
+            pop();
+        }
+
         // Determine display color: use team color if available, otherwise use index-based color
         let displayColor;
         if (typeof this.color === 'object' && this.color !== null && this.color.r !== undefined) {
@@ -522,7 +562,7 @@ updateRemote() {
             // Use index-based color
             displayColor = teamColors[this.color] || teamColors[0];
         }
-        
+
         fill(displayColor.r, displayColor.g, displayColor.b);
         textStyle(BOLD);
         text(nameText, this.pos.x, this.pos.y - yOffset);
@@ -551,7 +591,7 @@ updateRemote() {
         strokeWeight(2);  // Slightly thicker outline
 
         // Draw the health bar background with rounded corners
-        fill(255, 0, 0);
+        fill(60, 60, 60); // dark background
         rect(
             this.pos.x,
             this.pos.y + 40,
@@ -561,23 +601,53 @@ updateRemote() {
         );
 
         // Calculate current health width
+        let hp = this.statBlock.stats.hp;
+        let mhp = this.statBlock.stats.mhp;
+        let pct = hp / mhp;
         let healthWidth = constrain(
-            map(this.statBlock.stats.hp, 0, this.statBlock.stats.mhp, 0, 32),
+            map(hp, 0, mhp, 0, 32),
             0,
             32
         );
 
+        // Determine bar color and pulse
+        let barColor;
+        let doPulse = false;
+        if (pct > 0.6) {
+            barColor = color(0, 200, 40); // green
+        } else if (pct > 0.3) {
+            barColor = color(255, 200, 0); // yellow
+        } else {
+            barColor = color(220, 40, 0); // red
+            doPulse = true;
+        }
+
         // Draw the health bar foreground
-        // Switch to noStroke if you want the green bar to have no outline
         noStroke();
-        fill(0, 255, 0);
+        fill(barColor);
         rect(
             this.pos.x,
             this.pos.y + 40,
             healthWidth,
             6,
-            3  // same radius so the corners match up
+            2  // match object bar radius
         );
+
+        // White pulsing border for red bar (low opacity)
+        if (doPulse && healthWidth > 0) {
+            let pulse = 1.5 + 1.5 * sin(millis() / 200);
+            noFill();
+            stroke(255, 255, 255, 60); // much lower opacity
+            strokeWeight(pulse);
+            rect(
+                this.pos.x,
+                this.pos.y + 40,
+                healthWidth,
+                6,
+                2
+            );
+            noStroke();
+        }
 
         pop();
     }

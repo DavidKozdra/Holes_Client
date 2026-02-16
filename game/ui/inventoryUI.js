@@ -22,7 +22,7 @@ function defineInvUI() {
     applyStyle(invDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
     });
@@ -36,7 +36,7 @@ function defineInvUI() {
 
     let invTitle = createP("Inventory").parent(topBar);
     invTitle.class("inventory-title");
-    invTitle.style("color", "yellow");
+    invTitle.style("color", "var(--text-highlight)");
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
@@ -123,7 +123,7 @@ function defineCraftingUI() {
     applyStyle(craftDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
         zIndex: "50",
@@ -150,7 +150,7 @@ function defineCraftingUI() {
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
-    craftingTitle.style("color", "yellow");
+    craftingTitle.style("color", "var(--text-highlight)");
 
     let movesTitle = createP("Moves").parent(topBar);
     movesTitle.class("inventory-title");
@@ -496,7 +496,7 @@ function updatecurItemDiv() {
 
             let statNumDiv = createDiv(stat[1]);
             statNumDiv.style("flex", "1");
-            statNumDiv.style("color", "var(--color-gold)");
+            statNumDiv.style("color", "var(--text-highlight)");
             statNumDiv.style("text-align", "center");
             statNumDiv.style("background", "rgba(0,0,0,0.4)");
             statNumDiv.style("border", "2px solid var(--color-dirt-dark)");
@@ -717,7 +717,7 @@ function updatecurCraftItemDiv() {
     costDiv.parent(itemStatsDiv);
 
     let costText = createP("Ingredients:");
-    costText.style("color", "var(--color-gold)");
+    costText.style("color", "var(--text-highlight)");
     costText.style("font-size", "16px");
     costText.style("margin", "0 0 8px 0");
     costText.style("text-transform", "uppercase");

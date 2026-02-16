@@ -16,6 +16,14 @@ if (typeof socket !== 'undefined') {
 // Main menu globals moved to mainMenu.js
 // This file focuses on in-game UI only
 
+// Ensure magicUI.js is loaded for updateMoveHotbarDOM
+if (typeof window.updateMoveHotbarDOM === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'game/magicUI.js';
+    script.async = false;
+    document.head.appendChild(script);
+}
+
 // Lightweight perf toggle; enable with `window.__perfLog = true`
 
 
@@ -384,6 +392,7 @@ var racePortraitDiv;
 var statsPanel;
 var viewingPlayerProfile;
 var nameBtn;
+var desktopPlayerHUD;
 
 // Moves editor globals
 var movesEditorDiv;
@@ -402,7 +411,7 @@ function defineInvUI() {
     applyStyle(invDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
 
@@ -418,7 +427,7 @@ function defineInvUI() {
 
     let invTitle = createP("Inventory").parent(topBar);
     invTitle.class("inventory-title");
-    invTitle.style("color", "yellow");
+    invTitle.style("color", "var(--text-highlight)");
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
@@ -1069,6 +1078,15 @@ function defineRacePortrait() {
 function updateRacePortrait() {
     if (!racePortraitDiv || !curPlayer) return;
     
+    const isMobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ||
+                      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    
+    // On desktop, the HUD handles the portrait - hide racePortraitDiv
+    if (!isMobile) {
+        racePortraitDiv.hide();
+        return;
+    }
+    
     let raceName = races[curPlayer.race];
     if (raceImages[raceName] && raceImages[raceName].portrait) {
         // Create an img element with the portrait
@@ -1083,9 +1101,9 @@ function defineStatsPanel() {
     statsPanel = createDiv();
     statsPanel.id("stats-panel");
     statsPanel.style("position", "fixed");
-    statsPanel.style("top", "110px");
-    statsPanel.style("right", "30px");
-    statsPanel.style("width", "300px");
+    statsPanel.style("top", "420px");
+    statsPanel.style("right", "48px");
+    statsPanel.style("width", "580px");
     statsPanel.style("background", "rgba(34, 34, 34, 0.95)");
     statsPanel.style("border", "2px solid #868686");
     statsPanel.style("border-radius", "10px");
@@ -1099,6 +1117,259 @@ function defineStatsPanel() {
 
     /* ── Mobile HUD strip (always created — CSS hides on desktop) ── */
     _createMobileHUD();
+    
+    /* ── Desktop Player HUD (HTML-based health bar) ── */
+    definePlayerHUD();
+    
+    /* ── Create stats popup ── */
+    defineHudStatsPopup();
+}
+
+var hudStatsPopup;
+
+function definePlayerHUD() {
+    if (desktopPlayerHUD) return;
+    
+    // Main HUD container
+    desktopPlayerHUD = createDiv();
+    desktopPlayerHUD.id('desktop-player-hud');
+    desktopPlayerHUD.style('display', 'none');
+    
+    // Header - portrait, name, level, XP
+    let header = createDiv().parent(desktopPlayerHUD);
+    header.class('desktop-hud-header');
+    
+    // Portrait
+    let portrait = createDiv().parent(header);
+    portrait.class('desktop-hud-portrait');
+    portrait.id('dhud-portrait');
+    portrait.elt.style.cursor = 'pointer';
+    portrait.elt.addEventListener('click', toggleHudStatsPopup);
+    
+    // Info section
+    let info = createDiv().parent(header);
+    info.class('desktop-hud-info');
+    
+    // Name row
+    let nameRow = createDiv().parent(info);
+    nameRow.class('desktop-hud-name-row');
+    
+    let playerName = createSpan('').parent(nameRow);
+    playerName.id('dhud-name');
+    playerName.class('desktop-hud-name');
+    playerName.style('cursor', 'pointer');
+    playerName.mousePressed(() => {
+        if (typeof teamPickDiv !== 'undefined' && teamPickDiv) {
+            gameState = "team_select";
+            teamPickDiv.show();
+        }
+    });
+    
+    let levelSpan = createSpan().parent(nameRow);
+    levelSpan.class('desktop-hud-level');
+    levelSpan.html('Lv <span id="dhud-level">1</span>');
+    
+    // XP row inline
+    let xpRow = createDiv().parent(info);
+    xpRow.class('desktop-hud-xp-row');
+    
+    let xpLabel = createSpan('XP').parent(xpRow);
+    xpLabel.class('desktop-hud-xp-label');
+    
+    let xpTrack = createDiv().parent(xpRow);
+    xpTrack.class('desktop-hud-xp-track');
+    
+    let xpFill = createDiv().parent(xpTrack);
+    xpFill.id('dhud-xp-fill');
+    xpFill.class('desktop-hud-xp-fill');
+    
+    let xpText = createSpan().parent(xpRow);
+    xpText.id('dhud-xp-text');
+    xpText.class('desktop-hud-xp-text');
+    
+    // Bars section
+    let bars = createDiv().parent(desktopPlayerHUD);
+    bars.class('desktop-hud-bars');
+    
+    // HP bar
+    let hpRow = createDiv().parent(bars);
+    hpRow.class('desktop-hud-bar-row');
+    
+    let hpLabel = createSpan('HP').parent(hpRow);
+    hpLabel.class('desktop-hud-bar-label hp');
+    
+    let hpTrack = createDiv().parent(hpRow);
+    hpTrack.class('desktop-hud-bar-track');
+    
+    let hpFill = createDiv().parent(hpTrack);
+    hpFill.id('dhud-hp-fill');
+    hpFill.class('desktop-hud-bar-fill hp');
+    
+    let hpText = createSpan().parent(hpTrack);
+    hpText.id('dhud-hp-text');
+    hpText.class('desktop-hud-bar-text');
+    
+    // MP bar
+    let mpRow = createDiv().parent(bars);
+    mpRow.class('desktop-hud-bar-row');
+    
+    let mpLabel = createSpan('MP').parent(mpRow);
+    mpLabel.class('desktop-hud-bar-label mp');
+    
+    let mpTrack = createDiv().parent(mpRow);
+    mpTrack.class('desktop-hud-bar-track');
+    
+    let mpFill = createDiv().parent(mpTrack);
+    mpFill.id('dhud-mp-fill');
+    mpFill.class('desktop-hud-bar-fill mp');
+    
+    let mpText = createSpan().parent(mpTrack);
+    mpText.id('dhud-mp-text');
+    mpText.class('desktop-hud-bar-text');
+}
+
+function defineHudStatsPopup() {
+    hudStatsPopup = document.createElement('div');
+    hudStatsPopup.id = 'hud-stats-popup';
+    hudStatsPopup.innerHTML = `
+        <p class="hud-stats-title">Player Stats</p>
+        <div class="hud-stats-content">
+            <div class="hud-stat-group">
+                <p class="hud-stat-group-title">Combat</p>
+                <div class="hud-stat-row"><span class="hud-stat-label">Attack</span><span class="hud-stat-value" id="hud-stat-attack">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Magic</span><span class="hud-stat-value" id="hud-stat-magic">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Magic Resist</span><span class="hud-stat-value" id="hud-stat-magicResistance">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Health Regen</span><span class="hud-stat-value" id="hud-stat-healthRegen">0</span></div>
+            </div>
+            <div class="hud-stat-group">
+                <p class="hud-stat-group-title">Other</p>
+                <div class="hud-stat-row"><span class="hud-stat-label">Luck</span><span class="hud-stat-value" id="hud-stat-luck">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Dig Speed</span><span class="hud-stat-value" id="hud-stat-handDigSpeed">0</span></div>
+                <div class="hud-stat-row"><span class="hud-stat-label">Run Speed</span><span class="hud-stat-value" id="hud-stat-runningSpeed">0</span></div>
+            </div>
+            <div class="hud-stat-group">
+                <div class="hud-stat-row"><span class="hud-stat-label">Race</span><span class="hud-stat-value" id="hud-stat-race">-</span></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(hudStatsPopup);
+}
+
+function toggleHudStatsPopup() {
+    if (!hudStatsPopup) return;
+    
+    if (hudStatsPopup.style.display === 'none') {
+        updateHudStatsPopup();
+        hudStatsPopup.style.display = 'block';
+    } else {
+        hudStatsPopup.style.display = 'none';
+    }
+}
+
+function updateHudStatsPopup() {
+    if (!hudStatsPopup || !curPlayer || !curPlayer.statBlock) return;
+    
+    const s = curPlayer.statBlock.stats;
+    const sb = curPlayer.statBlock;
+    
+    // Combat stats
+    let attackEl = document.getElementById('hud-stat-attack');
+    if (attackEl) attackEl.textContent = (s.attack || 0).toFixed(1);
+    
+    let magicEl = document.getElementById('hud-stat-magic');
+    if (magicEl) magicEl.textContent = (s.magic || 0).toFixed(1);
+    
+    let magicResistEl = document.getElementById('hud-stat-magicResistance');
+    if (magicResistEl) magicResistEl.textContent = (s.magicResistance || 0).toFixed(1);
+    
+    let healthRegenEl = document.getElementById('hud-stat-healthRegen');
+    if (healthRegenEl) healthRegenEl.textContent = (s.healthRegen || 0).toFixed(2) + '/s';
+    
+    // Other stats
+    let luckEl = document.getElementById('hud-stat-luck');
+    if (luckEl) luckEl.textContent = s.luck || 0;
+    
+    let digSpeedEl = document.getElementById('hud-stat-handDigSpeed');
+    if (digSpeedEl) digSpeedEl.textContent = (s.handDigSpeed || 0).toFixed(2);
+    
+    let runSpeedEl = document.getElementById('hud-stat-runningSpeed');
+    if (runSpeedEl) runSpeedEl.textContent = (s.runningSpeed || 0).toFixed(2);
+    
+    // Race
+    let raceEl = document.getElementById('hud-stat-race');
+    if (raceEl && typeof races !== 'undefined') {
+        raceEl.textContent = races[curPlayer.race] || 'Unknown';
+    }
+}
+
+function updateDesktopPlayerHUD() {
+    if (!desktopPlayerHUD || !curPlayer || !curPlayer.statBlock) {
+        if (desktopPlayerHUD) desktopPlayerHUD.style('display', 'none');
+        return;
+    }
+    desktopPlayerHUD.style('display', 'block');
+    
+    const s = curPlayer.statBlock.stats;
+    const sb = curPlayer.statBlock;
+    
+    // Name with team color
+    let nameEl = select('#dhud-name');
+    if (nameEl) {
+        nameEl.html(curPlayer.name || '');
+        
+        let dc;
+        if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
+            dc = curPlayer.color;
+        } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
+            dc = window.allTeams[curPlayer.teamId].color;
+        } else {
+            dc = teamColors[curPlayer.color] || teamColors[0];
+        }
+        if (dc) nameEl.style('color', `rgb(${dc.r}, ${dc.g}, ${dc.b})`);
+    }
+    
+    // Level
+    let lvlEl = select('#dhud-level');
+    if (lvlEl) lvlEl.html(sb.level || 1);
+    
+    // HP
+    let hpFill = select('#dhud-hp-fill');
+    let hpText = select('#dhud-hp-text');
+    const maxHp = Math.max(1, s.mhp || 1);
+    const hpPct = Math.min(1, Math.max(0, s.hp / maxHp)) * 100;
+    if (hpFill) {
+        hpFill.style('width', hpPct + '%');
+        hpFill.elt.classList.remove('low', 'critical');
+        if (hpPct <= 25) hpFill.elt.classList.add('critical');
+        else if (hpPct <= 50) hpFill.elt.classList.add('low');
+    }
+    if (hpText) hpText.html(Math.floor(s.hp) + ' / ' + Math.floor(maxHp));
+    
+    // MP
+    let mpFill = select('#dhud-mp-fill');
+    let mpText = select('#dhud-mp-text');
+    const maxMp = Math.max(1, s.mmp || 1);
+    const mpPct = Math.min(1, Math.max(0, s.mp / maxMp)) * 100;
+    if (mpFill) mpFill.style('width', mpPct + '%');
+    if (mpText) mpText.html(Math.floor(s.mp) + ' / ' + Math.floor(maxMp));
+    
+    // XP
+    let xpFill = select('#dhud-xp-fill');
+    let xpText = select('#dhud-xp-text');
+    const xpPct = sb.xpNeeded > 0 ? Math.min(1, sb.xp / sb.xpNeeded) * 100 : 0;
+    if (xpFill) xpFill.style('width', xpPct + '%');
+    if (xpText) xpText.html(sb.xp + ' / ' + sb.xpNeeded);
+    
+    // Portrait
+    let portraitEl = select('#dhud-portrait');
+    if (portraitEl && !portraitEl.elt.dataset.loaded) {
+        let raceName = typeof races !== 'undefined' ? races[curPlayer.race] : null;
+        if (raceName && raceImages[raceName] && raceImages[raceName].portrait) {
+            let src = raceImages[raceName].portrait.canvas.toDataURL();
+            portraitEl.elt.innerHTML = `<img src="${src}" alt="portrait">`;
+            portraitEl.elt.dataset.loaded = '1';
+        }
+    }
 }
 
 /* ─── Mobile HUD ─── */
@@ -1168,7 +1439,7 @@ function updateMobileHUD() {
     if (hpFill) hpFill.style.width = hpPct + '%';
     if (hpText) hpText.textContent = Math.floor(s.hp) + ' / ' + Math.floor(maxHp);
 
-    // HP color shift: green → yellow → red
+    // HP color shift: green → white → red
     if (hpFill) {
         if (hpPct > 50) hpFill.style.background = 'linear-gradient(90deg, #27f50e, #1a9e0a)';
         else if (hpPct > 25) hpFill.style.background = 'linear-gradient(90deg, #f5e60e, #c9a800)';
@@ -1294,175 +1565,34 @@ function renderPlayerCardUI() {
         return;
     }
 
-    const uiScale = 1;
-    const cardW = 510 * uiScale;
-    const cardH = 125 * uiScale;
-    const cardX = width - cardW - 20 * uiScale;
-    push();
-
-    fill(0);
-    noStroke();
-    rect(width - 530, 0, 510, 125);
-
-    stroke(134);
-    strokeWeight(4);
-    rect(width - 530 + 6, -20, 510 - 12, 120 + 20 - 6, 10);
-
-    strokeWeight(2);
-    line(width - 30 - 115 + 6, 7, width - 30 - 115 + 6, 120 - 6);
-    line(width - 530 + 6 + 5, 42, width - 30 - 115 + 6 - 5, 42);
-
-    noStroke();
-    fill(134);
-    rect(width - 530 + 6 + 79, 52, 295, 21);
-    rect(width - 530 + 6 + 79, 83, 295, 21);
-
-    fill(112, 68, 60);
-    rect(width - 30 - 115 + 6 + 7, 7, 98, 98);
-
-    fill(0);
-    rect(width - 530 + 91, 52, 36, 19);
-    rect(width - 530 + 128, 52, 33, 19);
-    rect(width - 530 + 163, 52, 34, 19);
-    rect(width - 530 + 199, 52, 33, 19);
-    rect(width - 530 + 233, 52, 35, 19);
-    rect(width - 530 + 269, 52, 33, 19);
-    rect(width - 530 + 304, 52, 34, 19);
-    rect(width - 530 + 340, 52, 36, 19);
-
-    rect(width - 530 + 91, 83, 36, 19);
-    rect(width - 530 + 128, 83, 33, 19);
-    rect(width - 530 + 163, 83, 34, 19);
-    rect(width - 530 + 199, 83, 33, 19);
-    rect(width - 530 + 233, 83, 35, 19);
-    rect(width - 530 + 269, 83, 33, 19);
-    rect(width - 530 + 304, 83, 34, 19);
-    rect(width - 530 + 340, 83, 36, 19);
-
-    const maxHp = Math.max(1, curPlayer.statBlock.stats.mhp || 1);
-    const hpRatio = Math.min(1, Math.max(0, curPlayer.statBlock.stats.hp / maxHp));
-    const hpWidth = 281 * hpRatio;
-    image(
-        hpBarImg,
-        width - 530 + 93,
-        52,
-        hpWidth,
-        14,
-        0,
-        0,
-        hpWidth,
-        14
-    );
-
-    let heldItem =
-        curPlayer.invBlock.items[
-            curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar]
-        ];
-
-    if (buildMode || curPlayer.invBlock.hotbar[curPlayer.invBlock.selectedHotBar] == "" || !heldItem) {
-        let manaRatio = Math.min(
-            curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
-            1
-        );
-        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14);
-    } else if (heldItem.manaCost == 0 && heldItem.type == "Ranged") {
-        let ammoBarLength;
-
-        if (heldItem.reloadBool) {
-            ammoBarLength =
-                (heldItem.reloadSpeed - curPlayer.invBlock.useTimer) /
-                heldItem.reloadSpeed;
-            if (curPlayer.invBlock.useTimer <= 0) {
-                heldItem.reloadBool = false;
-            }
-        } else if (!curPlayer.invBlock.items[heldItem.ammoName]) {
-            ammoBarLength = 0.00000001;
-        } else if (
-            curPlayer.invBlock.items[heldItem.ammoName].amount <
-            heldItem.bulletsLeft
-        ) {
-            ammoBarLength =
-                curPlayer.invBlock.items[heldItem.ammoName].amount /
-                heldItem.roundSize;
-        } else {
-            ammoBarLength = heldItem.bulletsLeft / heldItem.roundSize;
-        }
-
-        image(ammoBarImg, width - 530 + 93, 83, 281 * ammoBarLength, 14);
-
-        stroke(0);
-        strokeWeight(1);
-        for (let i = 1; i < heldItem.roundSize; i++) {
-            let lx = width - 530 + 93 + (281 * i) / heldItem.roundSize;
-            line(lx, 83, lx, 97);
-        }
-    } else {
-        let manaRatio = Math.min(
-            curPlayer.statBlock.stats.mp / curPlayer.statBlock.stats.mmp,
-            1
-        );
-        image(manaBarImg, width - 530 + 93, 83, 281 * manaRatio, 14);
+    // Desktop: use HTML-based player HUD instead of Canvas
+    const inGameStates = ["playing", "chating", "paused", "team_select", "inventory", "crafting", "swap_inv", "player_status"];
+    const showHUD = inGameStates.includes(gameState);
+    const isMobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ||
+                      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    
+    // Hide race portrait on desktop (HUD handles it), show on mobile
+    if (racePortraitDiv) {
+        racePortraitDiv.style('display', isMobile ? 'block' : 'none');
     }
-
-    textFont(gameUIFont);
-    textSize(20);
-    strokeWeight(1);
-
-    fill(134);
-    text("lvl", width - 530 + 26, 35);
-
-    fill(0, 255, 0);
-    text(
-        curPlayer.statBlock.level +
-            "   " +
-            `${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded} XP`,
-        width - 530 + 45,
-        35
-    );
-
-    fill(134);
-    text("HP:", width - 530 + 36, 70);
-
-    fill(0, 255, 255);
-    text("Mana:", width - 530 + 36, 100);
-
-    // ✅ DOM hotbar replaces ALL canvas hotbar code
+    
+    // Hide old stats panel when using new HUD
+    if (statsPanel) {
+        statsPanel.hide();
+    }
+    if (hudStatsPopup) {
+        hudStatsPopup.style.display = 'none';
+    }
+    
+    if (showHUD && curPlayer && curPlayer.statBlock) {
+        updateDesktopPlayerHUD();
+    } else if (desktopPlayerHUD) {
+        desktopPlayerHUD.elt.style.display = 'none';
+    }
+    
     updateMoveHotbarDOM(curPlayer);
-
-    // Team color name
-    let displayColor;
-    if (typeof curPlayer.color === 'object' && curPlayer.color !== null && curPlayer.color.r !== undefined) {
-        // Team color (RGB object)
-        displayColor = curPlayer.color;
-    } else if (curPlayer.teamId && window.allTeams?.[curPlayer.teamId]) {
-        // Fall back to team data
-        displayColor = window.allTeams[curPlayer.teamId].color;
-    } else {
-        // Use index-based color
-        displayColor = teamColors[curPlayer.color] || teamColors[0];
-    }
-
-    fill(displayColor.r, displayColor.g, displayColor.b);
-    textAlign(CENTER, CENTER);
-
-    nameBtn.html(curPlayer.name);
-    nameBtn.style(
-        "color",
-        `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`
-    );
-
-    let nx, ny;
-    nx = width - 530 + 6 + 45 + 350 / 2;
-    ny = 19;
-    nameBtn.style('font-size', '20px');
-    nameBtn.position(nx, ny);
-    nameBtn.show();
-
-    // Draw underline on canvas
-    let box = gameUIFont.textBounds(curPlayer.name, nx, ny);
-    line(box.x, box.y + box.h + 4, box.x + box.w, box.y + box.h + 4);
-
-    pop();
+    
+    if (nameBtn) nameBtn.hide();
 }
 
 
@@ -1557,16 +1687,6 @@ function showCurrentTeam() {
     teamName.style("margin", "0 0 10px 0");
     teamName.style("font-weight", "bold");
     teamName.parent(teamContainer);
-
-    // Color preview
-    let colorBox = createDiv();
-    colorBox.style("width", "60px");
-    colorBox.style("height", "60px");
-    colorBox.style("background", `rgb(${team.color.r}, ${team.color.g}, ${team.color.b})`);
-    colorBox.style("margin", "10px auto");
-    colorBox.style("border", "2px solid white");
-    colorBox.style("border-radius", "5px");
-    colorBox.parent(teamContainer);
 
     // Members list
     let membersTitle = createP("Members:");
@@ -2218,7 +2338,7 @@ function defineCraftingUI() {
     applyStyle(craftDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
     });
@@ -2243,7 +2363,7 @@ function defineCraftingUI() {
 
     let craftingTitle = createP("Crafting").parent(topBar);
     craftingTitle.class("inventory-title");
-    craftingTitle.style("color", "yellow");
+    craftingTitle.style("color", "var(--text-highlight)");
 
     // Moves tab
     let movesTitle = createP("Moves").parent(topBar);
@@ -2696,7 +2816,7 @@ craftAllButton.mousePressed(() => {
     let costText = createDiv("Ingredients").parent(itemCostDiv);
     applyStyle(costText, {
         fontSize: "18px",
-        color: "var(--color-gold)",
+        color: "var(--text-highlight)",
         textAlign: "center",
         border: "2px solid black",
         borderRadius: "10px",
@@ -2867,20 +2987,10 @@ function defineDeathUI() {
     });
 
     //disconnect button
-    let disconnectButton = createButton("Disconnect").parent(deathDiv);
-    disconnectButton.class("system-button");
+    let disconnectButton = createButton('<span class="btn-icon">⏻</span><span class="btn-label">Disconnect</span>').parent(deathDiv);
+    disconnectButton.class("system-button btn-disconnect");
     disconnectButton.style("width", "80%");
-    disconnectButton.style("padding", "12px");
-    disconnectButton.style("margin", "10px");
-    disconnectButton.style("font-size", "16px");
-    disconnectButton.style("border-radius", "8px");
-    disconnectButton.style("cursor", "pointer");
-    disconnectButton.style("color", "white");
-    disconnectButton.style("background-color", "#333");
-    disconnectButton.style("border", "none");
-    disconnectButton.style("transition", "background-color 0.3s");
-    disconnectButton.mouseOver(() => disconnectButton.style("background-color", "#555"));
-    disconnectButton.mouseOut(() => disconnectButton.style("background-color", "#333"));
+    disconnectButton.style("margin", "10px auto");
     disconnectButton.mousePressed(() => {
         // Save player data before disconnecting
         try {
@@ -2952,12 +3062,10 @@ function showDeathUI() {
 }
 
 var tutorialDiv;
-var pages;
-var currentTutorialPage = 0;
-var seen = localStorage.getItem("tut_seen");
+var tutorialReturnState;
 var pages = [];
 var currentTutorialPage = 0;
-var tutorialDiv;
+var seen = localStorage.getItem("tut_seen");
 var pageNumberText;
 
 function defineTutorialUI() {
@@ -2973,9 +3081,11 @@ function defineTutorialUI() {
         margin: "auto",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
         alignItems: "center",
         padding: "10px",
+        paddingBottom: "60px",
+        boxSizing: "border-box",
+        zIndex: "9999",
     });
     tutorialDiv.hide();
 
@@ -2984,6 +3094,8 @@ function defineTutorialUI() {
     applyStyle(topBar, {
         display: "flex",
         width: "100%",
+        height: "40px",
+        flexShrink: "0",
         justifyContent: "flex-end",
     });
     let closeButton = createImg("images/ui/x.png", "").parent(topBar);
@@ -2998,8 +3110,16 @@ function defineTutorialUI() {
         touchAction: "manipulation",
     });
     closeButton.mousePressed(() => {
-        gameState = "playing";
-        curPlayer.invBlock.useTimer = 10;
+        if (tutorialReturnState) {
+            gameState = tutorialReturnState;
+            if (tutorialReturnState === "settings") {
+                gameSettingsContainer.show();
+            }
+            tutorialReturnState = null;
+        } else {
+            gameState = "playing";
+            if (curPlayer && curPlayer.invBlock) curPlayer.invBlock.useTimer = 10;
+        }
         tutorialDiv.hide();
     });
 
@@ -3007,20 +3127,25 @@ function defineTutorialUI() {
     let pageHolder = createDiv().parent(tutorialDiv);
     pageHolder.class("tutorial-content");
     applyStyle(pageHolder, {
-        flexGrow: "1",
+        flex: "1",
         width: "100%",
         overflow: "auto",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
+        paddingBottom: "60px",
     });
 
-    // BOTTOM BAR
+    // BOTTOM BAR (fixed footer)
     let bottomBar = createDiv().parent(tutorialDiv);
     applyStyle(bottomBar, {
+        position: "absolute",
+        bottom: "10px",
+        left: "10px",
+        right: "10px",
+        height: "50px",
         display: "flex",
-        width: "100%",
         flexDirection: "row",
         alignItems: "center",
     });
@@ -3071,48 +3196,154 @@ function defineTutorialUI() {
 
     // SETUP PAGES
     setupTutorialPages(pageHolder);
+    currentTutorialPage = 0;
     updatePageNumber();
 }
 
 
 function setupTutorialPages(pageHolder) {
-    // --- Page 1 ---
+    // --- Page 0: Welcome ---
+    let page0 = createDiv().parent(pageHolder);
+    
+    let logoImg = createImg("images/ui/title.png", "Holes").parent(page0);
+    logoImg.style("width", "200px");
+    logoImg.style("image-rendering", "pixelated");
+    logoImg.style("margin-bottom", "20px");
+    
+    let welcomeDesc = createP("Dig, build, and survive!").parent(page0);
+    welcomeDesc.class("tutorial-label");
+    welcomeDesc.style("margin-bottom", "20px");
+    
+    let tipText = createP("Tip: Press ← → to navigate").parent(page0);
+    tipText.class("tutorial-label");
+    tipText.style("color", "#aaa");
+    
+    pages.push(page0);
+
+    // --- Page 1: Basics ---
     let page1 = createDiv().parent(pageHolder);
-
-    let skipText = createP("Press X above to skip").parent(page1);
-    skipText.class("tutorial-title");
-
-    addTutorialStep(page1, "images/items/shovel1.png", "You can dig with an empty hand or shovel.");
-    addTutorialStep(page1, "images/items/apple.png", "Any type of food will heal you.");
-    addTutorialStep(page1, "images/ui/dirtbag.png", "Don't fill your dirt bag unless you know where to empty it.");
-    addTutorialStep(page1, "images/items/sword1.png", "Use your sword to break things.");
-    addTutorialStep(page1, "images/ui/f_tutorial_icon.png", "Move your mouse close to objects to interact with them (F key).");
+    
+    addTutorialStep(page1, "images/items/shovel1.png", "Dig with empty hand or shovel.");
+    addTutorialStep(page1, "images/items/apple.png", "Food restores health.");
+    addTutorialStep(page1, "images/ui/dirtbag.png", "Collect dirt for building.");
+    addTutorialStep(page1, "images/items/sword1.png", "Weapons break things faster.");
+    addTutorialStep(page1, "images/ui/f_tutorial_icon.png", "Press F near objects to interact.");
+    page1.hide();
     pages.push(page1);
 
-    // --- Page 2 ---
+    // --- Page 2: Movement ---
     let page2 = createDiv().parent(pageHolder);
-    let controlsTitle = createP("Controls:").parent(page2);
-    controlsTitle.class("tutorial-section-title");
+    let movementTitle = createP("Movement:").parent(page2);
+    movementTitle.class("tutorial-section-title");
 
-    keyToVisualKey(Controls_Up_key);
-    keyToVisualKey(Controls_Left_key);
-    keyToVisualKey(Controls_Down_key);
-    keyToVisualKey(Controls_Right_key);
-    //console.log(Controls_Up_key, Controls_Left_key)
-    addControlStep(page2, "" + Controls_Up_key + Controls_Left_key + Controls_Down_key + Controls_Right_key, "Move around");
-    addControlStep(page2, "Left/Right Click", "Use item");
-    addControlStep(page2, Controls_Dash_key, "Dash");
-    addControlStep(page2, Controls_Interact_key, "Interact");
-    addControlStep(page2, Controls_MoveHotBarLeft_key + "&" + Controls_MoveHotBarRight_key + " / Mouse Wheel", "Switch Hotbar slot");
-    addControlStep(page2, Controls_Build_key, "Build menu");
-    addControlStep(page2, "ESC", "Pause");
-    addControlStep(page2, "TAB", "Leaderboard");
-    addControlStep(page2, Controls_Inventory_key, "Inventory");
-    addControlStep(page2, Controls_Crafting_key, "Crafting");
-    addControlStep(page2, Controls_Space_key, "Do stuff in Inventory");
+    addControlStep(page2, "WASD", "Move");
+    addControlStep(page2, "Shift", "Dash");
+    addControlStep(page2, "Q / E", "Switch hotbar");
 
     page2.hide();
     pages.push(page2);
+
+    // --- Page 3: Actions ---
+    let page3 = createDiv().parent(pageHolder);
+    let actionsTitle = createP("Actions:").parent(page3);
+    actionsTitle.class("tutorial-section-title");
+
+    addControlStep(page3, "Left Click", "Use item / Break");
+    addControlStep(page3, "Right Click", "Place / Attack");
+    addTutorialStep(page3, "images/ui/f_tutorial_icon.png", "F - Interact with objects");
+    addControlStep(page3, "I", "Inventory");
+    addControlStep(page3, "C", "Crafting");
+    addControlStep(page3, "Space", "Place item in slot");
+
+    page3.hide();
+    pages.push(page3);
+
+    // --- Page 4: Building ---
+    let page4 = createDiv().parent(pageHolder);
+    let buildingTitle = createP("Building:").parent(page4);
+    buildingTitle.class("tutorial-section-title");
+
+    addTutorialStep(page4, "images/ui/hammer.png", "R - Open build menu");
+    addControlStep(page4, "1-9", "Select build slot");
+    addControlStep(page4, "Right Click", "Place selected");
+    addControlStep(page4, "Mouse", "Aim to rotate");
+
+    let buildingNote = createP("Requires dirt or items").parent(page4);
+    buildingNote.class("tutorial-label");
+    buildingNote.style("margin-top", "10px");
+
+    page4.hide();
+    pages.push(page4);
+
+    // --- Page 5: Enemies ---
+    let page5 = createDiv().parent(pageHolder);
+    let enemiesTitle = createP("Enemies:").parent(page5);
+    enemiesTitle.class("tutorial-section-title");
+
+    addTutorialStep(page5, "images/characters/gnome/gnome_portrait.png", "Watch out for hostile gnomes!");
+    addTutorialStep(page5, "images/items/sword1.png", "Attack with weapons. Enemies drop items.");
+
+    let enemiesNote = createP("Some enemies are aggressive, others cautious").parent(page5);
+    enemiesNote.class("tutorial-label");
+    enemiesNote.style("margin-top", "10px");
+
+    page5.hide();
+    pages.push(page5);
+
+    // --- Page 6: Chests & Bags ---
+    let page6 = createDiv().parent(pageHolder);
+    let chestsTitle = createP("Chests & Bags:").parent(page6);
+    chestsTitle.class("tutorial-section-title");
+
+    addTutorialStep(page6, "images/structures/chest.png", "Press F to open chests.");
+    addTutorialStep(page6, "images/structures/item_bag1.png", "Item bags appear from dropped items.");
+
+    page6.hide();
+    pages.push(page6);
+
+    // --- Page 7: Portals ---
+    let page7 = createDiv().parent(pageHolder);
+    let portalsTitle = createP("Portals:").parent(page7);
+    portalsTitle.class("tutorial-section-title");
+
+    addTutorialStep(page7, "images/structures/portal1.png", "Build to teleport between players.");
+    addTutorialStep(page7, "images/items/philosopher_stone.png", "Requires Philosopher's Stone + Tech + Metal.");
+
+    let portalNote = createP("Click portal to teleport").parent(page7);
+    portalNote.class("tutorial-label");
+    portalNote.style("margin-top", "10px");
+
+    page7.hide();
+    pages.push(page7);
+
+    // --- Page 8: Other ---
+    let page8 = createDiv().parent(pageHolder);
+    let systemsTitle = createP("Other:").parent(page8);
+    systemsTitle.class("tutorial-section-title");
+
+    addControlStep(page8, "ESC", "Pause / Settings");
+    addControlStep(page8, "TAB", "Leaderboard");
+    addControlStep(page8, "💬", "Click chat button to chat");
+
+    page8.hide();
+    pages.push(page8);
+
+    // --- Page 9: Quick Reference ---
+    let page9 = createDiv().parent(pageHolder);
+    let refTitle = createP("Quick Reference:").parent(page9);
+    refTitle.class("tutorial-section-title");
+
+    addControlStep(page9, "WASD", "Move");
+    addControlStep(page9, "Q / E", "Hotbar");
+    addControlStep(page9, "F", "Interact");
+    addControlStep(page9, "I", "Inventory");
+    addControlStep(page9, "C", "Crafting");
+    addControlStep(page9, "R", "Build");
+    addControlStep(page9, "ESC", "Pause");
+    addControlStep(page9, "X", "Close");
+
+    page9.hide();
+    pages.push(page9);
 }
 
 function addTutorialStep(parent, imgPath, text) {
@@ -3232,7 +3463,7 @@ function defineSignUI(){
     applyStyle(signDiv, {
         position: "absolute",
         top: "45%",
-        left: "55%",
+        left: "50%",
         transform: "translate(-50%, -50%)",
         display: "none",
         height: "70%",

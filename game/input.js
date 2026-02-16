@@ -553,6 +553,38 @@ function keyPressed() { //prevents normal key related actions
             updateSpaceBarDiv();
         }
     }
+
+    // Tutorial keyboard navigation
+    if (tutorialDiv && tutorialDiv.elt && tutorialDiv.elt.style.display !== "none") {
+        if (keyCode === 37) { // Left arrow
+            pages[currentTutorialPage].hide();
+            currentTutorialPage = (currentTutorialPage - 1 + pages.length) % pages.length;
+            pages[currentTutorialPage].show();
+            updatePageNumber();
+            return false;
+        }
+        if (keyCode === 39) { // Right arrow
+            pages[currentTutorialPage].hide();
+            currentTutorialPage = (currentTutorialPage + 1) % pages.length;
+            pages[currentTutorialPage].show();
+            updatePageNumber();
+            return false;
+        }
+        if (keyCode === 88) { // X - close tutorial
+            if (tutorialReturnState) {
+                gameState = tutorialReturnState;
+                if (tutorialReturnState === "settings") {
+                    gameSettingsContainer.show();
+                }
+                tutorialReturnState = null;
+            } else {
+                gameState = "playing";
+                if (curPlayer && curPlayer.invBlock) curPlayer.invBlock.useTimer = 10;
+            }
+            tutorialDiv.hide();
+            return false;
+        }
+    }
 }
 function blurActiveElement() {
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
