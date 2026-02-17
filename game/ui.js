@@ -1566,7 +1566,7 @@ function renderPlayerCardUI() {
     }
 
     // Desktop: use HTML-based player HUD instead of Canvas
-    const inGameStates = ["playing", "chating", "paused", "team_select", "inventory", "crafting", "swap_inv", "player_status"];
+    const inGameStates = ["playing", "chating", "paused", "pause", "team_select", "inventory", "crafting", "swap_inv", "player_status"];
     const showHUD = inGameStates.includes(gameState);
     const isMobile = (typeof isMobileDevice !== 'undefined' && isMobileDevice) ||
                       (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
