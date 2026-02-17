@@ -795,23 +795,22 @@ class Placeable {
 
     useDoor() {
         if (this.objName == "Door") {
-            if (this.ownerName == curPlayer.name || this.color == curPlayer.color) { //only team members and you can open your doors
-                if (this.alpha == 255) {
-                    this.alpha = 100;
-                }
-                else {
-                    this.alpha = 255;
-                }
-                let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
-                socket.emit("update_obj", {
-                    cx: chunkPos.x, cy: chunkPos.y,
-                    objName: this.objName,
-                    pos: { x: this.pos.x, y: this.pos.y },
-                    z: this.z,
-                    update_name: "alpha",
-                    update_value: this.alpha
-                });
+            // Allow any player to open any door
+            if (this.alpha == 255) {
+                this.alpha = 100;
             }
+            else {
+                this.alpha = 255;
+            }
+            let chunkPos = testMap.globalToChunk(this.pos.x, this.pos.y);
+            socket.emit("update_obj", {
+                cx: chunkPos.x, cy: chunkPos.y,
+                objName: this.objName,
+                pos: { x: this.pos.x, y: this.pos.y },
+                z: this.z,
+                update_name: "alpha",
+                update_value: this.alpha
+            });
         }
     }
 }

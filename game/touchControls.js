@@ -638,9 +638,7 @@ function _handleAimTap(screenX, screenY) {
       const obj = chunk.objects[i];
       const isInteractable = obj.type === 'InvObj' || obj.objName === 'Door' ||
         (obj.type === 'Plant' &&
-          obj.stage === (objImgs[obj.imgNum].length - 1) &&
-          ((obj.color !== 0 && obj.color === curPlayer.color) ||
-            (obj.ownerName === curPlayer.name && obj.color === 0)));
+          obj.stage === (objImgs[obj.imgNum].length - 1));
 
       if (isInteractable) {
         const dist = createVector(worldX, worldY).dist(obj.pos);
@@ -897,9 +895,7 @@ function _simulateInteract() {
     const obj = chunk.objects[i];
     const isInteractable = obj.type === 'InvObj' || obj.objName === 'Door' ||
       (obj.type === 'Plant' &&
-        obj.stage === (objImgs[obj.imgNum].length - 1) &&
-        ((obj.color !== 0 && obj.color === curPlayer.color) ||
-          (obj.ownerName === curPlayer.name && obj.color === 0)));
+        obj.stage === (objImgs[obj.imgNum].length - 1));
 
     if (isInteractable) {
       const maxDist = obj.objName === 'ItemBag' ? 3 * TILESIZE : 4 * TILESIZE;
