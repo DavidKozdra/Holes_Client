@@ -159,7 +159,6 @@ input[type=submit] {
   cursor: pointer;
   box-sizing: border-box;
   transition: transform 0.15s ease;
-  border-bottom: var(--color-ui-dark2) 4px solid !important;
 }
 
 div{
@@ -303,7 +302,7 @@ select:focus {
 .item-list li:hover,
 .item-list div:hover,
 .item-list .selected {
-  background-color: var(--text-highlight);
+  background-color: var(--color-hover); /* ?? */
   color: var(--color-dirt-dark);
 }
 
