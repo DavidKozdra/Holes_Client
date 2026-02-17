@@ -3264,7 +3264,7 @@ function setupTutorialPages(pageHolder) {
     buildingTitle.class("tutorial-section-title");
 
     addTutorialStep(page4, "images/ui/hammer.png", "R - Open build menu");
-    addControlStep(page4, "1-9", "Select build slot");
+    addControlStep(page4, "Q-E", "Select build slot");
     addControlStep(page4, "Right Click", "Place selected");
     addControlStep(page4, "Mouse", "Aim to rotate");
 
