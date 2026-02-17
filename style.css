@@ -998,10 +998,12 @@ button:hover::before {
 }
 
 #raceContainer {
-    background: linear-gradient(180deg, rgba(26, 18, 8, 0.85) 0%, rgba(13, 10, 6, 0.85) 100%);
-    border: 2px solid rgba(160, 82, 45, 0.3);
-    border-radius: 12px;
-    box-shadow: 0 0 40px rgba(59, 47, 47, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    pointer-events: auto;
 }
 
 /* Race cards — themed */
