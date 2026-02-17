@@ -1205,27 +1205,13 @@ class InvObj extends Placeable {
             return;
         }
 
-        // For other containers (chests), check ownership
-        if (this.locked) { //when locked only owner can open
-            if (curPlayer.name == this.ownerName) {
-                gameState = "swap_inv";
-                curPlayer.otherInv = this;
-                curPlayer.invBlock.curItem = "";
-                curPlayer.otherInv.invBlock.curItem = "";
-                updateSwapItemLists(this.invBlock);
-                showSwapInv();
-            }
-        }
-        else { //when unlocked all team members can open
-            if (curPlayer.color == this.color || (this.ownerName == "" && this.id == "")) {
-                gameState = "swap_inv";
-                curPlayer.otherInv = this;
-                curPlayer.invBlock.curItem = "";
-                curPlayer.otherInv.invBlock.curItem = "";
-                updateSwapItemLists(this.invBlock);
-                showSwapInv();
-            }
-        }
+        // For all containers (chests), allow any player to open
+        gameState = "swap_inv";
+        curPlayer.otherInv = this;
+        curPlayer.invBlock.curItem = "";
+        curPlayer.otherInv.invBlock.curItem = "";
+        updateSwapItemLists(this.invBlock);
+        showSwapInv();
     }
 }
 
