@@ -1499,12 +1499,28 @@ function updateStatsPanel() {
     
     let stats = curPlayer.statBlock.stats;
     let raceName = races[curPlayer.race];
-    let html = `<div style='text-align:center;margin-bottom:10px;'>
-        <span style='font-size:1.2em;font-weight:bold;color:#fff;'>${curPlayer.name || "Player"}</span><br>
-        <span style='color:#aaa;font-size:13px;'>${raceName.charAt(0).toUpperCase() + raceName.slice(1)} - Level ${curPlayer.statBlock.level}</span>
-    </div>
-    <div style='margin-bottom:12px;'><span style='color:#ffaa00;font-weight:bold;'>XP</span> ${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded}</div>
-    <div style='font-size:14px;'>
+    let content = document.getElementById('stats-content');
+    if (!content) {
+        statsPanel.html('<div id="stats-header" style="text-align:center;margin-bottom:10px;"><span style="font-size:1.5em;font-weight:bold;color:#3af2a7;">Player Stats</span></div><div id="stats-content"></div>');
+        content = document.getElementById('stats-content');
+    }
+    // Clear previous content
+    content.innerHTML = '';
+    // Header
+    let header = document.createElement('div');
+    header.style.textAlign = 'center';
+    header.style.marginBottom = '10px';
+    header.innerHTML = `<span style='font-size:1.2em;font-weight:bold;color:#fff;'>${curPlayer.name || "Player"}</span><br><span style='color:#aaa;font-size:13px;'>${raceName.charAt(0).toUpperCase() + raceName.slice(1)} - Level ${curPlayer.statBlock.level}</span>`;
+    content.appendChild(header);
+    // XP
+    let xpBlock = document.createElement('div');
+    xpBlock.style.marginBottom = '12px';
+    xpBlock.innerHTML = `<span style='color:#ffaa00;font-weight:bold;'>XP</span> ${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded}`;
+    content.appendChild(xpBlock);
+    // Stats
+    let statsBlock = document.createElement('div');
+    statsBlock.style.fontSize = '14px';
+    statsBlock.innerHTML = `
         <div><span style='color:#ff6666;'>Attack:</span> ${stats.attack.toFixed(1)}</div>
         <div><span style='color:#9966ff;'>Magic:</span> ${stats.magic.toFixed(1)}</div>
         <div><span style='color:#66ccff;'>Magic Resist:</span> ${stats.magicResistance.toFixed(1)}</div>
@@ -1512,10 +1528,8 @@ function updateStatsPanel() {
         <div><span style='color:#ffff66;'>Luck:</span> ${stats.luck}</div>
         <div><span style='color:#ff9966;'>Dig Speed:</span> ${stats.handDigSpeed.toFixed(2)}</div>
         <div><span style='color:#66ffcc;'>Run Speed:</span> ${stats.runningSpeed.toFixed(2)}</div>
-    </div>`;
-    let content = statsPanel.child() && statsPanel.child().elt ? statsPanel.child().elt.querySelector('#stats-content') : null;
-    if (content) content.innerHTML = html;
-    else statsPanel.html(html);
+    `;
+    content.appendChild(statsBlock);
 }
 
 // Event-driven health update for stats panel
