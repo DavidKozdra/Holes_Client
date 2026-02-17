@@ -1101,19 +1101,21 @@ function defineStatsPanel() {
     statsPanel = createDiv();
     statsPanel.id("stats-panel");
     statsPanel.style("position", "fixed");
-    statsPanel.style("top", "420px");
-    statsPanel.style("right", "48px");
-    statsPanel.style("width", "580px");
-    statsPanel.style("background", "rgba(34, 34, 34, 0.95)");
-    statsPanel.style("border", "2px solid #868686");
-    statsPanel.style("border-radius", "10px");
-    statsPanel.style("padding", "15px");
-    statsPanel.style("z-index", "99");
-    statsPanel.style("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.6)");
-    statsPanel.style("backdrop-filter", "blur(5px)");
+    statsPanel.style("top", "200px");
+    statsPanel.style("right", "40px");
+    statsPanel.style("width", "340px");
+    statsPanel.style("background", "rgba(24, 24, 32, 0.98)");
+    statsPanel.style("border", "2px solid #3af2a7");
+    statsPanel.style("border-radius", "14px");
+    statsPanel.style("padding", "22px 18px 18px 18px");
+    statsPanel.style("z-index", "120");
+    statsPanel.style("box-shadow", "0 8px 32px rgba(0,0,0,0.45)");
+    statsPanel.style("backdrop-filter", "blur(7px)");
     statsPanel.style("color", "#fff");
-    statsPanel.style("font-family", "Arial, sans-serif");
+    statsPanel.style("font-family", "Segoe UI, Arial, sans-serif");
     statsPanel.style("display", "none");
+    statsPanel.style("pointer-events", "auto");
+    statsPanel.html('<div id="stats-header" style="text-align:center;margin-bottom:10px;"><span style="font-size:1.5em;font-weight:bold;color:#3af2a7;">Player Stats</span></div><div id="stats-content"></div>');
 
     /* ── Mobile HUD strip (always created — CSS hides on desktop) ── */
     _createMobileHUD();
@@ -1144,7 +1146,14 @@ function definePlayerHUD() {
     portrait.class('desktop-hud-portrait');
     portrait.id('dhud-portrait');
     portrait.elt.style.cursor = 'pointer';
-    portrait.elt.addEventListener('click', toggleHudStatsPopup);
+    portrait.elt.addEventListener('click', function() {
+        if (statsPanel.style('display') === 'none') {
+            updateStatsPanel();
+            statsPanel.show();
+        } else {
+            statsPanel.hide();
+        }
+    });
     
     // Info section
     let info = createDiv().parent(header);
@@ -1490,41 +1499,23 @@ function updateStatsPanel() {
     
     let stats = curPlayer.statBlock.stats;
     let raceName = races[curPlayer.race];
-    
-    let html = `
-        <div style="text-align: center; margin-bottom: 15px;">
-            <h2 style="margin: 0; color: #ffff00; text-shadow: 2px 2px 4px #000;">${curPlayer.name || "Player"}</h2>
-            <p style="margin: 5px 0; color: #aaa; font-size: 14px;">${raceName.charAt(0).toUpperCase() + raceName.slice(1)} - Level ${curPlayer.statBlock.level}</p>
-        </div>
-        <div style="margin-bottom: 10px; padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 5px;">
-            <div style="margin: 5px 0;">
-                <strong style="color: #27f50e;">HP:</strong> <span id="hp-text">${Math.floor(stats.hp)} / ${Math.floor(stats.mhp)}</span>
-                <div style="width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 3px; overflow: hidden;">
-                    <div id="hp-bar" style="width: ${(stats.hp / stats.mhp) * 100}%; height: 100%; background: linear-gradient(90deg, #27f50e, #1a9e0a); transition: width 0.3s;"></div>
-                </div>
-            </div>
-            <div style="margin: 5px 0;">
-                <strong style="color: #00d4ff;">MP:</strong> <span id="mp-text">${Math.floor(stats.mp)} / ${Math.floor(stats.mmp)}</span>
-                <div style="width: 100%; height: 10px; background: #333; border-radius: 5px; margin-top: 3px; overflow: hidden;">
-                    <div id="mp-bar" style="width: ${(stats.mp / stats.mmp) * 100}%; height: 100%; background: linear-gradient(90deg, #00d4ff, #0080cc); transition: width 0.3s;"></div>
-                </div>
-            </div>
-        </div>
-        <div style="margin-bottom: 10px; padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 5px;">
-            <div style="margin: 3px 0;"><strong style="color: #ffaa00;">XP:</strong> ${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded}</div>
-        </div>
-        <div style="padding: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 5px; font-size: 14px;">
-            <div style="margin: 3px 0;"><strong style="color: #ff6666;">Attack:</strong> ${stats.attack.toFixed(1)}</div>
-            <div style="margin: 3px 0;"><strong style="color: #9966ff;">Magic:</strong> ${stats.magic.toFixed(1)}</div>
-            <div style="margin: 3px 0;"><strong style="color: #66ccff;">Magic Resist:</strong> ${stats.magicResistance.toFixed(1)}</div>
-            <div style="margin: 3px 0;"><strong style="color: #99ff99;">Health Regen:</strong> ${stats.healthRegen.toFixed(2)}/s</div>
-            <div style="margin: 3px 0;"><strong style="color: #ffff66;">Luck:</strong> ${stats.luck}</div>
-            <div style="margin: 3px 0;"><strong style="color: #ff9966;">Dig Speed:</strong> ${stats.handDigSpeed.toFixed(2)}</div>
-            <div style="margin: 3px 0;"><strong style="color: #66ffcc;">Run Speed:</strong> ${stats.runningSpeed.toFixed(2)}</div>
-        </div>
-    `;
-    
-    statsPanel.html(html);
+    let html = `<div style='text-align:center;margin-bottom:10px;'>
+        <span style='font-size:1.2em;font-weight:bold;color:#fff;'>${curPlayer.name || "Player"}</span><br>
+        <span style='color:#aaa;font-size:13px;'>${raceName.charAt(0).toUpperCase() + raceName.slice(1)} - Level ${curPlayer.statBlock.level}</span>
+    </div>
+    <div style='margin-bottom:12px;'><span style='color:#ffaa00;font-weight:bold;'>XP</span> ${curPlayer.statBlock.xp} / ${curPlayer.statBlock.xpNeeded}</div>
+    <div style='font-size:14px;'>
+        <div><span style='color:#ff6666;'>Attack:</span> ${stats.attack.toFixed(1)}</div>
+        <div><span style='color:#9966ff;'>Magic:</span> ${stats.magic.toFixed(1)}</div>
+        <div><span style='color:#66ccff;'>Magic Resist:</span> ${stats.magicResistance.toFixed(1)}</div>
+        <div><span style='color:#99ff99;'>Health Regen:</span> ${stats.healthRegen.toFixed(2)}/s</div>
+        <div><span style='color:#ffff66;'>Luck:</span> ${stats.luck}</div>
+        <div><span style='color:#ff9966;'>Dig Speed:</span> ${stats.handDigSpeed.toFixed(2)}</div>
+        <div><span style='color:#66ffcc;'>Run Speed:</span> ${stats.runningSpeed.toFixed(2)}</div>
+    </div>`;
+    let content = statsPanel.child() && statsPanel.child().elt ? statsPanel.child().elt.querySelector('#stats-content') : null;
+    if (content) content.innerHTML = html;
+    else statsPanel.html(html);
 }
 
 // Event-driven health update for stats panel
@@ -1576,10 +1567,27 @@ function renderPlayerCardUI() {
         racePortraitDiv.style('display', isMobile ? 'block' : 'none');
     }
     
-    // Hide old stats panel when using new HUD
+    // Only hide statsPanel if a modal UI is open (inventory, crafting, etc), not during normal play
     if (statsPanel) {
-        statsPanel.hide();
+        const modalStates = ["inventory", "crafting", "swap_inv", "team_select", "player_status"];
+        if (modalStates.includes(gameState)) {
+            statsPanel.hide();
+        }
+        // Otherwise, let user toggle it manually
     }
+    // Allow toggling stats panel with 'V' key (since C is crafting)
+    window.addEventListener('keydown', function(e) {
+        if ((e.key === 'v' || e.key === 'V') && !document.activeElement.matches('input, textarea')) {
+            if (statsPanel) {
+                if (statsPanel.style('display') === 'none') {
+                    updateStatsPanel();
+                    statsPanel.show();
+                } else {
+                    statsPanel.hide();
+                }
+            }
+        }
+    });
     if (hudStatsPopup) {
         hudStatsPopup.style.display = 'none';
     }

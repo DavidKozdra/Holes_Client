@@ -1731,6 +1731,13 @@ function socketSetup(){
                                 if (typeof itemDic !== 'undefined' && itemDic[name]) {
                                     rehydrated[name] = createItem(name);
                                     rehydrated[name].amount = data.items[name].amount || 1;
+                                    // Preserve durability if sent from server
+                                    if (typeof data.items[name].durability === 'number') {
+                                        rehydrated[name].durability = data.items[name].durability;
+                                    }
+                                    if (typeof data.items[name].maxDurability === 'number') {
+                                        rehydrated[name].maxDurability = data.items[name].maxDurability;
+                                    }
                                 } else {
                                     rehydrated[name] = data.items[name];
                                 }
