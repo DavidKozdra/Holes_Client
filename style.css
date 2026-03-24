@@ -640,6 +640,8 @@ button:hover::before {
     left: 50%;
     transform: translateX(-50%);
     width: 70%;
+    overflow: hidden;
+    white-space: nowrap;
     font-family: 'Press Start 2P', cursive;
     font-size: clamp(8px, 1vw, 12px);
     color: var(--color-beige);
@@ -647,6 +649,16 @@ button:hover::before {
     padding: 8px 0;
     opacity: 0.7;
     z-index: 5;
+}
+
+#mainMenuMarquee .marquee-inner {
+    display: inline-block;
+    animation: marqueeScroll 240s linear infinite;
+}
+
+@keyframes marqueeScroll {
+    0%   { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
 }
 
 /* ─── Social Links Panel ─── */

@@ -65,25 +65,33 @@ function saveServers() {
 
 // Function to render buttons instead of links
 function renderLinks() {
-    if (linksRendered) return; // Prevent duplicate rendering
+    if (linksRendered) {
+        // Re-show elements that may have been hidden by hideMainMenuUI/hideLinks
+        if (titleImage && titleImage.elt) titleImage.elt.style.removeProperty('display');
+        if (markee && markee.elt) markee.elt.style.removeProperty('display');
+        if (linkContainer && linkContainer.elt) linkContainer.elt.style.removeProperty('display');
+        if (settingsToggle && settingsToggle.elt) settingsToggle.elt.style.removeProperty('display');
+        return;
+    }
 
     // draw title image
     titleImage = createImg("./images/ui/title.png");
     titleImage.id("titleImage");
 
-    let randItem1 = Math.floor(Math.random() * markeeText.length);
-    // Suppose we want 5 distinct random items
+    // Shuffle marquee text items
     let chosenItems = [];
     while (chosenItems.length < markeeText.length) {
         let r = Math.floor(Math.random() * markeeText.length);
         if (!chosenItems.includes(r)) chosenItems.push(r);
     }
-    // Now join them with a spacer or delimiter
-    let marqueeContent = chosenItems
-        .map(i => markeeText[i]).join("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
+    let spacer = "\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0";
+    let marqueeContent = chosenItems.map(i => markeeText[i]).join(spacer);
 
-    markee = createElement("marquee", marqueeContent);
+    markee = createDiv();
     markee.id("mainMenuMarquee");
+    let inner = createSpan(marqueeContent);
+    inner.class("marquee-inner");
+    inner.parent(markee);
 
     // Parent container for buttons (Bottom Right)
     linkContainer = createDiv();
@@ -103,6 +111,7 @@ function renderLinks() {
     settingsButton.mousePressed(() => toggleSettings());
 
     titleImage.parent(document.body);
+    markee.parent(document.body);
     // Append elements to body
     linkContainer.parent(document.body);
     settingsToggle.parent(document.body);
