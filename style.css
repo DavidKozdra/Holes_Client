@@ -733,6 +733,97 @@ button:hover::before {
     box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
 }
 
+/* ─── Main Menu Credits Modal ─── */
+#mainMenuCreditsBackdrop {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.62);
+  z-index: 1200;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+#mainMenuCreditsModal {
+  width: min(720px, 95vw);
+  max-height: 78dvh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%);
+  border: 3px solid var(--color-dirt-dark);
+  border-radius: 10px;
+  box-shadow:
+    0 0 60px rgba(59, 47, 47, 0.45),
+    0 0 80px rgba(255, 215, 0, 0.08),
+    inset 0 1px 0 rgba(255, 215, 0, 0.08);
+  padding: 18px;
+}
+
+.credits-title {
+  font-size: clamp(14px, 2.2vw, 22px);
+  color: var(--text-highlight);
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
+  margin-bottom: 16px;
+}
+
+.credits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.credits-row {
+  background: rgba(26, 18, 8, 0.75);
+  border: 2px solid rgba(160, 82, 45, 0.45);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.credits-person {
+  color: var(--color-beige);
+  font-size: clamp(10px, 1.5vw, 12px);
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+
+.credits-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.credits-link-chip {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--text-highlight);
+  background: linear-gradient(180deg, #2a1f1f 0%, #1a1208 100%);
+  border: 2px solid rgba(160, 82, 45, 0.5);
+  border-radius: 6px;
+  padding: 6px 8px;
+  text-decoration: none;
+}
+
+.credits-link-chip:hover {
+  border-color: var(--text-highlight);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+}
+
+.credits-link-muted {
+  opacity: 0.85;
+}
+
+.credits-link-sep {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.credits-close-btn {
+  margin-top: 16px;
+  width: 100%;
+}
+
 /* ─── Server Browser Container ─── */
 #serverBrowserContainer {
     background: linear-gradient(180deg, #1a1208 0%, #0d0a06 100%) !important;
@@ -4002,6 +4093,21 @@ input.fmt-italic-apply {
     font-size: 12px !important;
     min-height: 44px !important;
     margin: 12px auto 16px !important;
+  }
+
+  #mainMenuCreditsModal {
+    max-height: 86dvh !important;
+    padding: 12px !important;
+  }
+
+  .credits-person {
+    font-size: 9px !important;
+    line-height: 1.6 !important;
+  }
+
+  .credits-link-chip,
+  .credits-link-sep {
+    font-size: 9px !important;
   }
 
   /* ─── Name + Go container ─── */

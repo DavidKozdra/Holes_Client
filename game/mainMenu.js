@@ -36,6 +36,35 @@ let renderedserverBrowserContainer = false;
 // Links and Title
 let linksRendered = false; // Flag to prevent duplicate rendering
 let linkContainer, settingsContainer, settingsToggle, toggleButton, titleImage, markee;
+let creditsBackdrop, creditsModal;
+
+const mainMenuCredits = [
+      {
+        name: "David Kozdra (Magenta Autumn)",
+        roles: "Code, Game Design",
+        links: [{ label: "🌐 Website", url: "davidkozdra.com" }]
+    },
+    {
+        name: "Christian Rodriguez (Zoda390)",
+        roles: "Code, Sound Design, Art",
+        links: [{ label: "🎮 itch.io", url: "https://zoda39089.itch.io/" }]
+    },
+    {
+        name: "Delwaskas",
+        roles: "Art, Game Design, Lore Ideas, Sound Design",
+        links: [{ label: "🎮 itch.io", url: "https://deklaswas.itch.io/" }]
+    },
+    {
+        name: "Rjizel07",
+        roles: "Music",
+        links: [{ label: "🔗 Linktree", url: "https://linktr.ee/Rjizel07" }]
+    },
+    {
+        name: "Androsis",
+        roles: "Music",
+        links: [{ label: "🌐 Website", url: "https://androsis.carrd.co/" }]
+    }
+];
 
 let markeeText = [
     " This game is made with Hate not ♥ !!!",
@@ -49,6 +78,11 @@ let markeeText = [
     "Remember V the Media Lies",
     "If the government could be trusted Jesus would have died of natural causes",
     "The Simpson's did it !",
+    "Real artists only",
+    "Lazy programmers only",
+    "Play Neo-Nyke", 
+    "Don't you dear play Bargin Quest",
+    
 ];
 
 // ─────────────────────────────────────────────────────────────────────
@@ -99,8 +133,9 @@ function renderLinks() {
 
     // Create individual buttons
     createLinkButton(linkContainer, "👾 Itch.io", "https://polypikzel.itch.io/");
-    createLinkButton(linkContainer, "🖳 GitHub", "https://github.com/PolyPixels");
+    createLinkButton(linkContainer, "🖳 GitHub", "https://github.com/DavidKozdra/Holes_Client");
     createLinkButton(linkContainer, "🗪 Discord", "https://discord.gg/Quhy52U5ae");
+    createActionButton(linkContainer, "🎮 Credits", toggleCreditsModal);
 
     // Parent container for settings (Bottom Left)
     settingsToggle = createDiv();
@@ -120,6 +155,8 @@ function renderLinks() {
 }
 
 function hideMainMenuUI() {
+    closeCreditsModal();
+
     if (linkContainer && linkContainer.elt) {
         linkContainer.elt.style.setProperty('display', 'none', 'important');
     }
@@ -139,6 +176,86 @@ function createLinkButton(parent, text, url) {
     let button = createButton(text).parent(parent);
     button.class("menu-link-btn");
     button.mousePressed(() => window.open(url, "_blank"));
+}
+
+function createActionButton(parent, text, handler) {
+    let button = createButton(text).parent(parent);
+    button.class("menu-link-btn");
+    button.mousePressed(handler);
+}
+
+function formatCreditsLinks(links) {
+    return links
+        .map((link) => {
+            if (link.url) {
+                return `<a class="credits-link-chip" href="${link.url}" target="_blank" rel="noopener noreferrer">${link.label}</a>`;
+            }
+            return `<span class="credits-link-chip credits-link-muted">${link.label}</span>`;
+        })
+        .join('<span class="credits-link-sep">|</span>');
+}
+
+function createCreditsModal() {
+    if (creditsBackdrop && creditsModal) return;
+
+    creditsBackdrop = createDiv();
+    creditsBackdrop.id("mainMenuCreditsBackdrop");
+
+    creditsModal = createDiv();
+    creditsModal.id("mainMenuCreditsModal");
+    creditsModal.parent(creditsBackdrop);
+
+    let creditsTitle = createDiv("🎮 Credits");
+    creditsTitle.class("credits-title");
+    creditsTitle.parent(creditsModal);
+
+    let creditsList = createDiv();
+    creditsList.class("credits-list");
+    creditsList.parent(creditsModal);
+
+    mainMenuCredits.forEach((entry) => {
+        let row = createDiv();
+        row.class("credits-row");
+        row.parent(creditsList);
+
+        row.html(`
+            <div class="credits-person">${entry.name} - ${entry.roles}</div>
+            <div class="credits-links">${formatCreditsLinks(entry.links)}</div>
+        `);
+    });
+
+    let closeButton = createButton("Close");
+    closeButton.class("credits-close-btn");
+    closeButton.parent(creditsModal);
+    closeButton.mousePressed(closeCreditsModal);
+
+    creditsBackdrop.parent(document.body);
+    creditsBackdrop.elt.addEventListener("click", (event) => {
+        if (event.target === creditsBackdrop.elt) {
+            closeCreditsModal();
+        }
+    });
+
+    creditsModal.elt.addEventListener("click", (event) => {
+        event.stopPropagation();
+    });
+
+    closeCreditsModal();
+}
+
+function toggleCreditsModal() {
+    if (!creditsBackdrop || !creditsModal) {
+        createCreditsModal();
+    }
+
+    const isOpen = creditsBackdrop.elt.style.display === "flex";
+    creditsBackdrop.elt.style.display = isOpen ? "none" : "flex";
+}
+
+function closeCreditsModal() {
+    if (creditsBackdrop && creditsBackdrop.elt) {
+        creditsBackdrop.elt.style.display = "none";
+    }
 }
 
 // 🎮 Styling for Buttons
@@ -192,6 +309,8 @@ function createLinkItem(parent, text, url, emoji) {
 function hideLinks() {
     // Ensure we only operate after links are rendered and avoid toggling per frame
     if (!linksRendered) return;
+
+    closeCreditsModal();
 
     // Hide all link-related UI elements; do not overwrite functions or toggle repeatedly
     // Use !important to override CSS display rules
